@@ -1,4 +1,4 @@
-﻿export const instant = false;
+export const instant = false;
 
 import Image from "next/image";
 import Link from "next/link";
@@ -84,15 +84,17 @@ export default async function MobileHome() {
     );
 
   return (
-    <main className="min-h-dvh bg-[#eaf2ec] text-[#142018]">
+    <main className="app-premium min-h-dvh text-[#142018]">
 
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-[480px] flex-col overflow-hidden bg-[#f7faf7] shadow-[0_0_60px_rgba(17,63,33,0.10)]">
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-[480px] flex-col overflow-hidden bg-[#f7faf7]/90 shadow-[0_0_60px_rgba(17,63,33,0.12)]">
 
-        <header className="relative overflow-hidden bg-[linear-gradient(155deg,#176b3a_0%,#105f33_48%,#0b4d29_100%)] px-5 pb-24 pt-5 text-white">
+        <header className="hero-premium grain relative overflow-hidden px-5 pb-24 pt-5 text-white">
 
           <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full border-[32px] border-white/[0.035]" />
 
           <div className="pointer-events-none absolute -bottom-16 -left-12 h-40 w-40 rounded-full bg-white/[0.035]" />
+
+          <div className="animate-orb pointer-events-none absolute right-10 top-24 h-36 w-36 rounded-full bg-[#f4b13f]/[0.12] blur-3xl" />
 
           <div className="relative z-10 flex items-start justify-between gap-4">
 
@@ -115,7 +117,7 @@ export default async function MobileHome() {
               <button
                 type="button"
                 aria-label="Notificações"
-                className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.08] text-white"
+                className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/[0.10] text-white backdrop-blur transition active:scale-95"
               >
                 <Bell size={19} />
               </button>
@@ -123,7 +125,7 @@ export default async function MobileHome() {
               <button
                 type="button"
                 aria-label="Meu perfil"
-                className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.08] text-white"
+                className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/[0.10] text-white backdrop-blur transition active:scale-95"
               >
                 <CircleUserRound
                   size={21}
@@ -144,7 +146,7 @@ export default async function MobileHome() {
 
             <h1 className="mt-2 text-[30px] font-black tracking-[-0.045em]">
               Olá, {primeiroNome}
-              <span className="text-[#f4b13f]">
+              <span className="text-gold">
                 .
               </span>
             </h1>
@@ -162,12 +164,12 @@ export default async function MobileHome() {
 
             <Link
               href="/mobile/carga"
-              className="block rounded-[28px] border border-black/[0.04] bg-white p-5 shadow-[0_22px_55px_rgba(17,63,33,0.12)]"
+              className="card-premium animate-pop block rounded-[28px] p-5 shadow-[0_28px_60px_rgba(17,63,33,0.16)]"
             >
 
               <div className="flex items-center gap-2">
 
-                <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-[#e9f5ec] text-[#176b3a]">
+                <div className="icon-emerald flex h-9 w-9 items-center justify-center rounded-[12px]">
                   <Truck size={19} />
                 </div>
 
@@ -177,7 +179,7 @@ export default async function MobileHome() {
 
               </div>
 
-              <h2 className="mt-4 text-xl font-black">
+              <h2 className="mt-4 text-xl font-black tracking-[-0.03em]">
                 Estoque móvel
               </h2>
 
@@ -196,19 +198,22 @@ export default async function MobileHome() {
 
             <div>
 
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#859186]">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b07a12]">
                 Operação
               </p>
 
-              <h2 className="mt-1 text-xl font-black">
+              <h2 className="mt-1 text-xl font-black tracking-[-0.03em]">
                 Acessos rápidos
               </h2>
 
             </div>
 
-            <div className="flex items-center gap-2 rounded-full border border-[#dceade] bg-[#eaf5ed] px-3 py-2">
+            <div className="flex items-center gap-2 rounded-full border border-[#dceade] bg-white/80 px-3 py-2 shadow-[0_6px_16px_rgba(17,63,33,0.06)]">
 
-              <span className="h-1.5 w-1.5 rounded-full bg-[#1f9b52]" />
+              <span className="relative flex h-2 w-2">
+                <span className="animate-pulse-ring absolute inline-flex h-full w-full rounded-full bg-[#1f9b52]" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#1f9b52]" />
+              </span>
 
               <span className="text-[9px] font-black uppercase text-[#176b3a]">
                 Online
@@ -228,6 +233,7 @@ export default async function MobileHome() {
                 }
                 titulo="Minha carga"
                 descricao="Consultar estoque móvel"
+                delay={100}
               />
             )}
 
@@ -239,6 +245,7 @@ export default async function MobileHome() {
                 }
                 titulo="Minha rota"
                 descricao="Clientes e sequência"
+                delay={170}
               />
             )}
 
@@ -249,6 +256,7 @@ export default async function MobileHome() {
                 }
                 titulo="Bipar cesta"
                 descricao="Ler código da entrega"
+                delay={240}
               />
             )}
 
@@ -259,6 +267,8 @@ export default async function MobileHome() {
                 }
                 titulo="Recebimentos"
                 descricao="Parcelas e pagamentos"
+                href="/mobile/recebimentos"
+                delay={310}
               />
             )}
 
@@ -271,20 +281,21 @@ export default async function MobileHome() {
 
             <Link
               href="/mobile/rota"
-              className="block w-full rounded-[24px] border border-[#dfe8e1] bg-[linear-gradient(145deg,#f2f8f3,#edf5ef)] p-5"
+              className="card-premium animate-fade-up block w-full rounded-[24px] p-5"
+              style={{ animationDelay: "380ms" }}
             >
 
               <div className="flex items-center justify-between">
 
                 <div className="flex items-center gap-3">
 
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-white text-[#176b3a]">
+                  <div className="icon-emerald flex h-11 w-11 items-center justify-center rounded-[14px]">
                     <MapPinned size={21} />
                   </div>
 
                   <div>
 
-                    <p className="text-[10px] font-black uppercase text-[#7f8c80]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#b07a12]">
                       Minha rota
                     </p>
 
@@ -318,7 +329,7 @@ export default async function MobileHome() {
           </section>
         )}
 
-        <nav className="fixed bottom-0 left-1/2 z-50 flex w-full max-w-[480px] -translate-x-1/2 items-center justify-around border-t border-black/[0.05] bg-white/95 px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">
+        <nav className="nav-glass fixed bottom-0 left-1/2 z-50 flex w-full max-w-[480px] -translate-x-1/2 items-center justify-around rounded-t-[26px] px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">
 
           <NavItem
             href="/mobile"
@@ -344,7 +355,8 @@ export default async function MobileHome() {
 
               <button
                 type="button"
-                className="flex h-[58px] w-[58px] items-center justify-center rounded-[20px] bg-[#176f3c] text-white"
+                aria-label="Bipar cesta"
+                className="fab-premium flex h-[60px] w-[60px] items-center justify-center rounded-[22px] transition active:scale-95"
               >
                 <ScanBarcode
                   size={25}
@@ -360,6 +372,7 @@ export default async function MobileHome() {
                 <WalletCards size={20} />
               }
               label="Receber"
+              href="/mobile/recebimentos"
             />
           )}
 
@@ -383,15 +396,17 @@ function ActionCard({
   titulo,
   descricao,
   href,
+  delay = 0,
 }: {
   icon: React.ReactNode;
   titulo: string;
   descricao: string;
   href?: string;
+  delay?: number;
 }) {
   const conteudo = (
     <>
-      <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#eaf5ed] text-[#176b3a]">
+      <div className="icon-emerald flex h-11 w-11 items-center justify-center rounded-[14px]">
         {icon}
       </div>
 
@@ -399,7 +414,7 @@ function ActionCard({
 
         <div>
 
-          <h3 className="text-sm font-black">
+          <h3 className="text-sm font-black tracking-[-0.02em]">
             {titulo}
           </h3>
 
@@ -419,13 +434,18 @@ function ActionCard({
   );
 
   const classes =
-    "rounded-[22px] border border-black/[0.04] bg-white p-4 text-left shadow-[0_12px_30px_rgba(17,63,33,0.055)]";
+    "card-premium animate-fade-up rounded-[22px] p-4 text-left";
+
+  const style = {
+    animationDelay: `${delay}ms`,
+  };
 
   if (href) {
     return (
       <Link
         href={href}
         className={classes}
+        style={style}
       >
         {conteudo}
       </Link>
@@ -436,6 +456,7 @@ function ActionCard({
     <button
       type="button"
       className={classes}
+      style={style}
     >
       {conteudo}
     </button>
@@ -455,6 +476,10 @@ function NavItem({
 }) {
   const conteudo = (
     <>
+      {active && (
+        <span className="absolute -top-3 h-1 w-7 rounded-full bg-[#f4b13f]" />
+      )}
+
       {icon}
 
       <span className="text-[9px] font-extrabold">
@@ -464,7 +489,7 @@ function NavItem({
   );
 
   const classes =
-    `flex min-w-[55px] flex-col items-center gap-1.5 ${
+    `relative flex min-w-[55px] flex-col items-center gap-1.5 transition-colors ${
       active
         ? "text-[#176b3a]"
         : "text-[#9aa59b]"

@@ -106,3 +106,97 @@ img {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* =========================================================
+   PREMIUM (somente pós-login)
+========================================================= */
+@keyframes shimmer {
+  to { background-position: 200% center; }
+}
+@keyframes glow-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244,177,63,.35), 0 14px 30px rgba(23,111,60,.35); }
+  50%      { box-shadow: 0 0 0 10px rgba(244,177,63,0), 0 14px 30px rgba(23,111,60,.35); }
+}
+
+.app-premium {
+  background:
+    radial-gradient(46rem 28rem at 6% -8%, rgba(23,111,60,.20), transparent 60%),
+    radial-gradient(36rem 26rem at 100% 0%, rgba(244,177,63,.16), transparent 55%),
+    radial-gradient(40rem 30rem at 50% 115%, rgba(23,111,60,.12), transparent 60%),
+    #f3f8f4;
+}
+
+/* vidro */
+.glass {
+  background: rgba(255,255,255,.70);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+  border: 1px solid rgba(255,255,255,.75);
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 18px 50px rgba(17,63,33,.09);
+}
+
+/* card com borda dourada que acende no hover */
+.card-premium {
+  position: relative;
+  background: linear-gradient(160deg, #ffffff 0%, #f5faf6 100%);
+  border: 1px solid rgba(23,111,60,.08);
+  box-shadow: 0 1px 0 #fff inset, 0 14px 36px rgba(17,63,33,.07);
+  transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s;
+}
+.card-premium::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, transparent 10%, rgba(244,177,63,.75) 50%, transparent 90%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity .35s;
+  pointer-events: none;
+}
+.card-premium:hover { transform: translateY(-5px); box-shadow: 0 1px 0 #fff inset, 0 26px 55px rgba(17,63,33,.14); }
+.card-premium:hover::before { opacity: 1; }
+.card-premium:active { transform: scale(.985); }
+
+/* ícone esmeralda */
+.icon-emerald {
+  background: linear-gradient(145deg, #1f8a4c, #0d5d31);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(23,111,60,.32), 0 1px 0 rgba(255,255,255,.35) inset;
+}
+
+/* hero esmeralda com brilho */
+.hero-premium {
+  background:
+    radial-gradient(30rem 16rem at 90% 0%, rgba(244,177,63,.28), transparent 60%),
+    linear-gradient(135deg, #0a4526 0%, #176f3c 55%, #1f8a4c 100%);
+}
+
+/* texto dourado animado */
+.text-gold {
+  background: linear-gradient(90deg, #f4b13f, #ffe3a1, #f4b13f);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 5s linear infinite;
+}
+
+/* botão central (bipar) pulsando */
+.fab-premium {
+  background: linear-gradient(145deg, #f4b13f, #e09a1f);
+  color: #3b2600;
+  animation: glow-breathe 3s ease-in-out infinite;
+}
+
+/* barra inferior mobile */
+.nav-glass {
+  background: rgba(255,255,255,.80);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  border-top: 1px solid rgba(255,255,255,.8);
+  box-shadow: 0 -12px 40px rgba(17,63,33,.10);
+}

@@ -1,0 +1,23 @@
+-- CESTAS APP
+-- ESTOQUE CENTRAL PROFISSIONAL
+--
+-- IMPORTANTE:
+-- Este bloco já foi aplicado no projeto Supabase:
+-- pwnaldrxjnyovlhudxan
+--
+-- Objetos criados/alterados:
+-- public.estoque_central_saldos
+-- public.registrar_movimento_estoque_central(...)
+-- public.criar_carga_com_estoque(...)
+-- public.finalizar_carga_estoque(...)
+-- app_private.finalizar_carga_estoque_impl(...)
+--
+-- Regras:
+-- 1. Saldo central nunca fica negativo.
+-- 2. Criação de carga é atômica.
+-- 3. Retorno aumenta saldo central.
+-- 4. Avaria não volta ao saldo central.
+-- 5. Carga não fecha enquanto houver rota PLANEJADA/EM_ROTA.
+-- 6. RLS mantém isolamento por empresa.
+--
+-- NÃO É NECESSÁRIO EXECUTAR ESTE ARQUIVO.

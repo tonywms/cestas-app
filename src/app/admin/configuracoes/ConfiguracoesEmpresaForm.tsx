@@ -5,16 +5,20 @@ import {
   Barcode,
   Boxes,
   Check,
+  CheckCircle2,
   CreditCard,
   PackageCheck,
   Save,
   ScanLine,
   ShieldCheck,
   Smartphone,
+  X,
+  XCircle,
 } from "lucide-react";
 import {
   useActionState,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -56,6 +60,22 @@ export default function ConfiguracoesEmpresaForm({
     atualizarConfiguracoesEmpresa,
     initialConfiguracaoEmpresaState,
   );
+
+  const formRef =
+    useRef<HTMLFormElement>(null);
+
+  const envioConfirmadoRef =
+    useRef(false);
+
+  const [
+    modalConfirmacao,
+    setModalConfirmacao,
+  ] = useState(false);
+
+  const [
+    modalResultado,
+    setModalResultado,
+  ] = useState(false);
 
   const [
     modoControleCarga,
@@ -101,14 +121,41 @@ export default function ConfiguracoesEmpresaForm({
     }
   }, [modoControleCarga]);
 
+  useEffect(() => {
+    if (state.message) {
+      setModalResultado(true);
+    }
+  }, [state]);
+
+  function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    if (envioConfirmadoRef.current) {
+      envioConfirmadoRef.current = false;
+      return;
+    }
+
+    event.preventDefault();
+    setModalConfirmacao(true);
+  }
+
+  function confirmarAlteracoes() {
+    envioConfirmadoRef.current = true;
+    setModalConfirmacao(false);
+    formRef.current?.requestSubmit();
+  }
+
   const usaVolume =
     modoControleCarga === "VOLUME";
 
   return (
-    <form
-      action={formAction}
-      className="space-y-5"
-    >
+    <>
+      <form
+        ref={formRef}
+        action={formAction}
+        onSubmit={handleSubmit}
+        className="space-y-5"
+      >
       <input
         type="hidden"
         name="modo_controle_carga"
@@ -391,19 +438,6 @@ export default function ConfiguracoesEmpresaForm({
         </div>
       </div>
 
-      {state.message && (
-        <div
-          aria-live="polite"
-          className={`rounded-[18px] border px-5 py-4 text-xs font-bold ${
-            state.success
-              ? "border-emerald-100 bg-emerald-50 text-emerald-700"
-              : "border-red-100 bg-red-50 text-red-700"
-          }`}
-        >
-          {state.message}
-        </div>
-      )}
-
       <div className="sticky bottom-4 z-20">
         <div className="flex items-center justify-between gap-4 rounded-[24px] border border-white/90 bg-white/90 p-4 shadow-[0_18px_50px_rgba(17,63,33,0.13)] backdrop-blur-xl">
           <div className="hidden md:block">
@@ -429,7 +463,225 @@ export default function ConfiguracoesEmpresaForm({
           </button>
         </div>
       </div>
-    </form>
+      </form>
+
+      {modalConfirmacao && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[#07150d]/55 p-4 backdrop-blur-[6px]">
+          <div className="w-full max-w-[430px] overflow-hidden rounded-[30px] bg-white shadow-[0_35px_100px_rgba(8,35,20,0.30)]">
+
+            <div className="bg-[linear-gradient(135deg,#176f3c,#0f5c32)] px-6 py-6 text-white">
+              <div className="flex items-start justify-between gap-4">
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-white/10">
+                  <ShieldCheck size={21} />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setModalConfirmacao(false)
+                  }
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition hover:bg-white/15"
+                  aria-label="Fechar confirmação"
+                >
+                  <X size={17} />
+                </button>
+              </div>
+
+              <p className="mt-5 text-[8px] font-black uppercase tracking-[0.22em] text-emerald-200">
+                Confirmação de segurança
+              </p>
+
+              <h3 className="mt-2 text-[21px] font-black tracking-[-0.04em]">
+                Confirmar configurações?
+              </h3>
+
+              <p className="mt-2 text-[10px] leading-5 text-white/65">
+                As alterações serão aplicadas somente em{" "}
+                <strong className="text-white">
+                  {empresaNome}
+                </strong>.
+              </p>
+            </div>
+
+            <div className="p-6">
+
+              <div className="grid grid-cols-2 gap-3">
+
+                <ResumoConfirmacao
+                  titulo="Controle"
+                  valor={modoControleCarga}
+                />
+
+                <ResumoConfirmacao
+                  titulo="Bipar carga"
+                  valor={
+                    usaVolume &&
+                    exigirBipagemCarga
+                      ? "SIM"
+                      : "NÃO"
+                  }
+                />
+
+                <ResumoConfirmacao
+                  titulo="Bipar entrega"
+                  valor={
+                    usaVolume &&
+                    exigirBipagemEntrega
+                      ? "SIM"
+                      : "NÃO"
+                  }
+                />
+
+                <ResumoConfirmacao
+                  titulo="Recebimentos"
+                  valor={
+                    permitirPagamentoMobile
+                      ? "SIM"
+                      : "NÃO"
+                  }
+                />
+
+                <ResumoConfirmacao
+                  titulo="Ocorrências"
+                  valor={
+                    permitirOcorrenciaMobile
+                      ? "SIM"
+                      : "NÃO"
+                  }
+                  full
+                />
+
+              </div>
+
+              {usaVolume && (
+                <div className="mt-4 flex items-start gap-3 rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3.5">
+                  <AlertTriangle
+                    size={17}
+                    className="mt-0.5 shrink-0 text-amber-600"
+                  />
+
+                  <p className="text-[9px] leading-5 text-amber-800">
+                    O modo <strong>VOLUME</strong> altera o fluxo operacional do entregador e pode exigir bipagem física na carga e na entrega.
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-6 grid grid-cols-[0.8fr_1.2fr] gap-3">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setModalConfirmacao(false)
+                  }
+                  className="h-[50px] min-w-0 rounded-[16px] border border-slate-200 bg-white px-4 text-[11px] font-black text-slate-600 transition hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={confirmarAlteracoes}
+                  disabled={pending}
+                  className="flex h-[50px] min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-[16px] bg-[linear-gradient(135deg,#19864b,#0f6336)] px-4 text-[10px] font-black text-white shadow-[0_12px_26px_rgba(25,134,75,0.20)] transition hover:brightness-105 disabled:opacity-50"
+                >
+                  <ShieldCheck
+                    size={15}
+                    className="shrink-0"
+                  />
+
+                  <span className="whitespace-nowrap">
+                    Confirmar alterações
+                  </span>
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {modalResultado &&
+        state.message && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#07150d]/55 p-4 backdrop-blur-[6px]">
+
+            <div className="w-full max-w-[390px] rounded-[30px] bg-white p-7 text-center shadow-[0_35px_100px_rgba(8,35,20,0.30)]">
+
+              <div
+                className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${
+                  state.success
+                    ? "bg-emerald-100 text-emerald-600"
+                    : "bg-red-100 text-red-600"
+                }`}
+              >
+                {state.success ? (
+                  <CheckCircle2 size={31} />
+                ) : (
+                  <XCircle size={31} />
+                )}
+              </div>
+
+              <p className="mt-5 text-[8px] font-black uppercase tracking-[0.22em] text-slate-400">
+                {state.success
+                  ? "Alteração concluída"
+                  : "Falha na alteração"}
+              </p>
+
+              <h3 className="mt-2 text-[21px] font-black tracking-[-0.04em] text-[#152019]">
+                {state.success
+                  ? "Configurações atualizadas"
+                  : "Não foi possível atualizar"}
+              </h3>
+
+              <p className="mt-3 text-[10px] leading-5 text-slate-500">
+                {state.message}
+              </p>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setModalResultado(false)
+                }
+                className="mt-6 h-[50px] w-full rounded-[16px] bg-[linear-gradient(135deg,#19864b,#0f6336)] text-[11px] font-black text-white"
+              >
+                Entendi
+              </button>
+
+            </div>
+
+          </div>
+        )}
+    </>
+  );
+}
+
+function ResumoConfirmacao({
+  titulo,
+  valor,
+  full = false,
+}: {
+  titulo: string;
+  valor: string;
+  full?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-[17px] border border-slate-100 bg-[#f7faf8] px-4 py-3.5 ${
+        full
+          ? "col-span-2"
+          : ""
+      }`}
+    >
+      <p className="text-[7px] font-black uppercase tracking-[0.15em] text-slate-400">
+        {titulo}
+      </p>
+
+      <p className="mt-1.5 text-[12px] font-black text-[#152019]">
+        {valor}
+      </p>
+    </div>
   );
 }
 

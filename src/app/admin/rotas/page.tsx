@@ -155,7 +155,9 @@ export default async function RotasPage() {
     number,
     {
       total: number;
+      processados: number;
       entregues: number;
+      ocorrencias: number;
     }
   >();
 
@@ -165,13 +167,21 @@ export default async function RotasPage() {
     const atual =
       resumoRotas.get(item.rota_id) ?? {
         total: 0,
+        processados: 0,
         entregues: 0,
+        ocorrencias: 0,
       };
 
     atual.total += 1;
 
+    if (item.status !== "PENDENTE") {
+      atual.processados += 1;
+    }
+
     if (item.status === "ENTREGUE") {
       atual.entregues += 1;
+    } else if (item.status !== "PENDENTE") {
+      atual.ocorrencias += 1;
     }
 
     resumoRotas.set(
@@ -261,22 +271,25 @@ export default async function RotasPage() {
                 const resumo =
                   resumoRotas.get(rota.id) ?? {
                     total: 0,
+                    processados: 0,
                     entregues: 0,
+                    ocorrencias: 0,
                   };
 
                 const percentual =
                   resumo.total > 0
                     ? Math.round(
-                        (resumo.entregues /
+                        (resumo.processados /
                           resumo.total) *
                           100,
                       )
                     : 0;
 
                 return (
-                  <div
+                  <Link
                     key={rota.id}
-                    className="rounded-[24px] border border-black/[0.04] bg-white p-5 shadow-[0_12px_35px_rgba(17,63,33,0.05)]"
+                    href={`/admin/rotas/${rota.id}`}
+                    className="group block rounded-[24px] border border-black/[0.04] bg-white p-5 shadow-[0_12px_35px_rgba(17,63,33,0.05)] transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_18px_45px_rgba(17,63,33,0.10)]"
                   >
                     <div className="flex items-start gap-4">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-emerald-50 text-emerald-700">
@@ -320,15 +333,15 @@ export default async function RotasPage() {
 
                       <ChevronRight
                         size={18}
-                        className="mt-2 text-slate-300"
+                        className="mt-2 text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-600"
                       />
                     </div>
 
                     <div className="mt-5">
                       <div className="flex items-center justify-between text-[9px] font-bold text-slate-400">
                         <span>
-                          {resumo.entregues} de{" "}
-                          {resumo.total} cliente(s)
+                          {resumo.processados} de{" "}
+                          {resumo.total} processado(s)
                         </span>
 
                         <span>
@@ -345,7 +358,19 @@ export default async function RotasPage() {
                         />
                       </div>
                     </div>
-                  </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2 text-[8px] font-black uppercase tracking-[0.08em]">
+                      <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">
+                        {resumo.entregues} entrega(s)
+                      </span>
+
+                      {resumo.ocorrencias > 0 && (
+                        <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-700">
+                          {resumo.ocorrencias} ocorrência(s)
+                        </span>
+                      )}
+                    </div>
+                  </Link>
                 );
               },
             )

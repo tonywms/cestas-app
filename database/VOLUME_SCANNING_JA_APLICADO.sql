@@ -1,0 +1,13 @@
+-- CESTAS APP
+-- MIGRAÇÃO JÁ APLICADA NO SUPABASE pwnaldrxjnyovlhudxan
+--
+-- Adicionado:
+-- cargas.recebida_at / recebida_por
+-- cesta_volumes.entrega_id / entregue_at
+-- carga_volume_bipagens
+-- RPC bipar_volume_carga
+-- RPC registrar_entrega_volume
+-- criar_carga_com_estoque agora reserva volumes em modo VOLUME
+-- registrar_entrega_quantidade bloqueia tenant configurado em VOLUME
+--
+-- NÃO EXECUTAR NOVAMENTE MANUALMENTE.

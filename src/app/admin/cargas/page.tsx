@@ -2,14 +2,41 @@ export const instant = false;
 
 import {
   ArrowLeft,
+  Boxes,
+  CheckCircle2,
   Plus,
+  RotateCcw,
   Truck,
 } from "lucide-react";
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
-import { createClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserProfile,
+} from "@/lib/auth/get-current-user";
+
+import {
+  createClient,
+} from "@/lib/supabase/server";
+
+function formatarData(
+  valor: string,
+) {
+  const [
+    ano,
+    mes,
+    dia,
+  ] = valor.split("-");
+
+  return (
+    ano &&
+    mes &&
+    dia
+  )
+    ? `${dia}/${mes}/${ano}`
+    : valor;
+}
 
 export default async function CargasPage() {
   const usuario =
@@ -32,7 +59,8 @@ export default async function CargasPage() {
       entregador_id,
       data_carga,
       status,
-      observacao
+      observacao,
+      finalizada_at
     `)
     .eq(
       "empresa_id",
@@ -41,103 +69,300 @@ export default async function CargasPage() {
     .order(
       "created_at",
       {
-        ascending: false,
+        ascending:
+          false,
       },
+    );
+
+  const cargaIds =
+    (
+      cargas ??
+      []
+    ).map(
+      (
+        carga,
+      ) =>
+        carga.id,
     );
 
   const entregadorIds =
     Array.from(
       new Set(
-        (cargas ?? []).map(
-          (carga) =>
+        (
+          cargas ??
+          []
+        ).map(
+          (
+            carga,
+          ) =>
             carga.entregador_id,
         ),
       ),
     );
 
-  const {
-    data: usuarios,
-  } =
-    entregadorIds.length > 0
-      ? await supabase
-          .from("usuarios")
-          .select(`
-            id,
-            nome
-          `)
-          .in(
-            "id",
-            entregadorIds,
-          )
-      : {
-          data: [],
-        };
+  const [
+    usuariosResult,
+    itensResult,
+  ] =
+    await Promise.all([
+      entregadorIds.length >
+      0
+        ? supabase
+            .from(
+              "usuarios",
+            )
+            .select(`
+              id,
+              nome
+            `)
+            .in(
+              "id",
+              entregadorIds,
+            )
+        : Promise.resolve({
+            data: [],
+            error: null,
+          }),
+
+      cargaIds.length >
+      0
+        ? supabase
+            .from(
+              "carga_itens",
+            )
+            .select(`
+              carga_id,
+              quantidade_carregada,
+              quantidade_entregue,
+              quantidade_retornada,
+              quantidade_avariada
+            `)
+            .eq(
+              "empresa_id",
+              usuario.empresa.id,
+            )
+            .in(
+              "carga_id",
+              cargaIds,
+            )
+        : Promise.resolve({
+            data: [],
+            error: null,
+          }),
+    ]);
 
   const usuariosMap =
     new Map(
-      (usuarios ?? []).map(
-        (item) => [
+      (
+        usuariosResult.data ??
+        []
+      ).map(
+        (
+          item,
+        ) => [
           item.id,
           item.nome,
         ],
       ),
     );
 
-  return (
-    <main className="min-h-screen bg-[#f3f7f4] px-4 py-6">
-      <div className="mx-auto max-w-[1000px]">
+  const resumoCarga =
+    new Map<
+      number,
+      {
+        carregado: number;
+        entregue: number;
+        retornado: number;
+        avariado: number;
+      }
+    >();
 
-        <header className="flex items-center justify-between rounded-[26px] bg-white px-5 py-4 shadow-sm">
+  for (
+    const item of
+      itensResult.data ??
+      []
+  ) {
+    const atual =
+      resumoCarga.get(
+        item.carga_id,
+      ) ?? {
+        carregado:
+          0,
+        entregue:
+          0,
+        retornado:
+          0,
+        avariado:
+          0,
+      };
+
+    atual.carregado +=
+      item.quantidade_carregada;
+
+    atual.entregue +=
+      item.quantidade_entregue;
+
+    atual.retornado +=
+      item.quantidade_retornada;
+
+    atual.avariado +=
+      item.quantidade_avariada;
+
+    resumoCarga.set(
+      item.carga_id,
+      atual,
+    );
+  }
+
+  const abertas =
+    (
+      cargas ??
+      []
+    ).filter(
+      (
+        item,
+      ) =>
+        item.status ===
+          "ABERTA" ||
+        item.status ===
+          "EM_ROTA",
+    ).length;
+
+  const finalizadas =
+    (
+      cargas ??
+      []
+    ).filter(
+      (
+        item,
+      ) =>
+        item.status ===
+        "FINALIZADA",
+    ).length;
+
+  const totalEmPosse =
+    Array.from(
+      resumoCarga.values(),
+    ).reduce(
+      (
+        total,
+        item,
+      ) =>
+        total +
+        Math.max(
+          0,
+          item.carregado -
+            item.entregue -
+            item.retornado -
+            item.avariado,
+        ),
+      0,
+    );
+
+  return (
+    <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
+
+      <div className="mx-auto max-w-[1080px]">
+
+        <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
 
           <div className="flex items-center gap-4">
+
             <Link
-              href="/admin"
-              className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-emerald-50 text-emerald-700"
+              href="/admin/estoque"
+              className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-emerald-50 text-[#176f3c]"
             >
-              <ArrowLeft size={19} />
+              <ArrowLeft
+                size={19}
+              />
             </Link>
 
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700">
-                Estoque
+              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#b07a12]">
+                Estoque móvel
               </p>
 
-              <h1 className="text-base font-black">
+              <h1 className="mt-0.5 text-[19px] font-black tracking-[-0.04em]">
                 Cargas
               </h1>
             </div>
+
           </div>
 
           <Link
             href="/admin/cargas/nova"
-            className="flex h-[44px] items-center gap-2 rounded-[14px] bg-[#176f3c] px-4 text-xs font-black text-white"
+            className="flex h-11 items-center gap-2 rounded-[14px] bg-[#176f3c] px-4 text-[9px] font-black text-white"
           >
-            <Plus size={17} />
+            <Plus
+              size={16}
+            />
 
             Nova carga
           </Link>
 
         </header>
 
-        <section className="mt-5 rounded-[30px] bg-[linear-gradient(135deg,#176f3c,#0d5a30)] p-7 text-white">
+        <section className="hero-premium grain relative mt-5 overflow-hidden rounded-[34px] p-7 text-white md:p-8">
 
-          <Truck size={25} />
+          <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full border-[30px] border-white/[0.035]" />
 
-          <h2 className="mt-4 text-[30px] font-black tracking-[-0.05em]">
-            Estoque em movimento.
-          </h2>
+          <div className="relative z-10">
 
-          <p className="mt-2 text-xs text-white/60">
-            {cargas?.length ?? 0} carga(s) cadastrada(s).
-          </p>
+            <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">
+              <Truck
+                size={15}
+              />
+
+              Estoque em movimento
+            </div>
+
+            <h2 className="mt-4 text-[32px] font-black tracking-[-0.055em]">
+              Cargas da empresa
+              <span className="text-[#f4b13f]">
+                .
+              </span>
+            </h2>
+
+            <p className="mt-3 text-[11px] text-white/65">
+              Acompanhe o que saiu do central e permanece em posse dos entregadores.
+            </p>
+
+            <div className="mt-7 grid grid-cols-3 gap-3">
+
+              <HeroKpi
+                label="Abertas"
+                valor={
+                  abertas
+                }
+              />
+
+              <HeroKpi
+                label="Finalizadas"
+                valor={
+                  finalizadas
+                }
+              />
+
+              <HeroKpi
+                label="Em posse"
+                valor={
+                  totalEmPosse
+                }
+              />
+
+            </div>
+
+          </div>
 
         </section>
 
         <section className="mt-5 space-y-3">
 
-          {(cargas ?? []).length ===
+          {(cargas ?? [])
+            .length ===
           0 ? (
-            <div className="rounded-[28px] bg-white p-10 text-center shadow-sm">
+            <div className="card-premium rounded-[28px] p-10 text-center">
+
               <Truck
                 size={35}
                 className="mx-auto text-emerald-700"
@@ -148,62 +373,208 @@ export default async function CargasPage() {
               </h3>
 
               <p className="mt-2 text-xs text-slate-400">
-                Crie a primeira carga para um entregador.
+                Registre saldo no estoque central e crie a primeira carga.
               </p>
+
             </div>
           ) : (
-            (cargas ?? []).map(
-              (carga) => (
-                <div
-                  key={
-                    carga.id
-                  }
-                  className="flex items-center gap-4 rounded-[22px] bg-white p-5 shadow-sm"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-emerald-50 text-emerald-700">
-                    <Truck
-                      size={21}
-                    />
-                  </div>
+            (
+              cargas ??
+              []
+            ).map(
+              (
+                carga,
+              ) => {
+                const resumo =
+                  resumoCarga.get(
+                    carga.id,
+                  ) ?? {
+                    carregado:
+                      0,
+                    entregue:
+                      0,
+                    retornado:
+                      0,
+                    avariado:
+                      0,
+                  };
 
-                  <div className="min-w-0 flex-1">
-                    <p className="font-black">
-                      {
-                        carga.codigo
-                      }
-                    </p>
+                const saldo =
+                  Math.max(
+                    0,
+                    resumo.carregado -
+                      resumo.entregue -
+                      resumo.retornado -
+                      resumo.avariado,
+                  );
 
-                    <p className="mt-1 text-[10px] text-slate-400">
-                      {
-                        usuariosMap.get(
-                          carga.entregador_id,
-                        ) ??
-                        "Entregador"
-                      }
-                    </p>
-                  </div>
+                const finalizada =
+                  carga.status ===
+                  "FINALIZADA";
 
-                  <div className="text-right">
-                    <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[9px] font-black text-emerald-700">
-                      {
-                        carga.status
-                      }
-                    </span>
+                return (
+                  <article
+                    key={
+                      carga.id
+                    }
+                    className="card-premium rounded-[25px] p-5"
+                  >
 
-                    <p className="mt-2 text-[9px] text-slate-400">
-                      {
-                        carga.data_carga
-                      }
-                    </p>
-                  </div>
-                </div>
-              ),
+                    <div className="flex items-start gap-4">
+
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] ${
+                        finalizada
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-50 text-amber-700"
+                      }`}>
+                        {finalizada ? (
+                          <CheckCircle2
+                            size={21}
+                          />
+                        ) : (
+                          <Truck
+                            size={21}
+                          />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+
+                          <div>
+
+                            <p className="font-black">
+                              {
+                                carga.codigo
+                              }
+                            </p>
+
+                            <p className="mt-1 text-[9px] text-slate-400">
+                              {usuariosMap.get(
+                                carga.entregador_id,
+                              ) ??
+                                "Entregador"}{" "}
+                              •{" "}
+                              {formatarData(
+                                carga.data_carga,
+                              )}
+                            </p>
+
+                          </div>
+
+                          <span className={`rounded-full px-3 py-1.5 text-[8px] font-black uppercase ${
+                            finalizada
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}>
+                            {
+                              carga.status
+                            }
+                          </span>
+
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-4 gap-2">
+
+                          <Mini
+                            label="Carga"
+                            valor={
+                              resumo.carregado
+                            }
+                          />
+
+                          <Mini
+                            label="Entregue"
+                            valor={
+                              resumo.entregue
+                            }
+                          />
+
+                          <Mini
+                            label="Retorno"
+                            valor={
+                              resumo.retornado
+                            }
+                          />
+
+                          <Mini
+                            label="Saldo"
+                            valor={
+                              saldo
+                            }
+                          />
+
+                        </div>
+
+                        {resumo.avariado >
+                          0 && (
+                          <div className="mt-3 flex items-center gap-2 rounded-[14px] bg-amber-50 px-3 py-2 text-[8px] font-black text-amber-700">
+                            <RotateCcw
+                              size={13}
+                            />
+                            {resumo.avariado} cesta(s) com avaria
+                          </div>
+                        )}
+
+                      </div>
+
+                    </div>
+
+                  </article>
+                );
+              },
             )
           )}
 
         </section>
 
       </div>
+
     </main>
+  );
+}
+
+function HeroKpi({
+  label,
+  valor,
+}: {
+  label: string;
+  valor: number;
+}) {
+  return (
+    <div className="rounded-[19px] border border-white/10 bg-white/[0.07] px-4 py-3.5 backdrop-blur">
+
+      <p className="text-[7px] font-black uppercase tracking-[0.14em] text-white/45">
+        {label}
+      </p>
+
+      <p className="mt-1.5 text-[22px] font-black text-white">
+        {valor}
+      </p>
+
+    </div>
+  );
+}
+
+function Mini({
+  label,
+  valor,
+}: {
+  label: string;
+  valor: number;
+}) {
+  return (
+    <div className="rounded-[14px] bg-[#f6f9f6] p-3 text-center">
+
+      <p className="text-[12px] font-black">
+        {valor}
+      </p>
+
+      <p className="mt-1 text-[7px] font-black uppercase tracking-[0.1em] text-slate-400">
+        {label}
+      </p>
+
+    </div>
   );
 }

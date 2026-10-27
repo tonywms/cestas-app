@@ -65,6 +65,21 @@ export default async function NovaEntregaPage({
   const params =
     await searchParams;
 
+  if (
+    usuario.configuracao
+      .modoControleCarga ===
+    "VOLUME"
+  ) {
+    const query =
+      params.rotaClienteId
+        ? `?rotaClienteId=${encodeURIComponent(params.rotaClienteId)}`
+        : "";
+
+    redirect(
+      `/mobile/entregas/volume${query}`,
+    );
+  }
+
   /*
    * =======================================================
    * ROTA CLIENTE

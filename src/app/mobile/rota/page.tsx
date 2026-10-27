@@ -36,21 +36,12 @@ function dataFortaleza() {
   return new Intl.DateTimeFormat(
     "en-CA",
     {
-      timeZone:
-        "America/Fortaleza",
-
-      year:
-        "numeric",
-
-      month:
-        "2-digit",
-
-      day:
-        "2-digit",
+      timeZone: "America/Fortaleza",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
     },
-  ).format(
-    new Date(),
-  );
+  ).format(new Date());
 }
 
 /* =========================================================
@@ -60,17 +51,10 @@ function dataFortaleza() {
 function formatarData(
   data: string,
 ) {
-  const [
-    ano,
-    mes,
-    dia,
-  ] = data.split("-");
+  const [ano, mes, dia] =
+    data.split("-");
 
-  if (
-    !ano ||
-    !mes ||
-    !dia
-  ) {
+  if (!ano || !mes || !dia) {
     return data;
   }
 
@@ -78,15 +62,40 @@ function formatarData(
 }
 
 /* =========================================================
+   RÓTULOS BONITOS PARA OS STATUS
+========================================================= */
+
+function rotuloStatus(
+  status: string,
+) {
+  const mapa: Record<
+    string,
+    string
+  > = {
+    PLANEJADA: "Planejada",
+    EM_ROTA: "Em rota",
+    FINALIZADA: "Finalizada",
+    PENDENTE: "Pendente",
+    ENTREGUE: "Entregue",
+  };
+
+  return (
+    mapa[status] ??
+    status
+      .replaceAll("_", " ")
+      .toLowerCase()
+      .replace(/^\w/, (c) =>
+        c.toUpperCase(),
+      )
+  );
+}
+
+/* =========================================================
    PÁGINA
 ========================================================= */
 
 export default async function MinhaRotaPage() {
-  /*
-   * =======================================================
-   * PERMISSÃO
-   * =======================================================
-   */
+  /* PERMISSÃO */
 
   const usuario =
     await requirePermission(
@@ -96,11 +105,7 @@ export default async function MinhaRotaPage() {
   const supabase =
     await createClient();
 
-  /*
-   * =======================================================
-   * PROCURA ROTA ATIVA
-   * =======================================================
-   */
+  /* PROCURA ROTA ATIVA */
 
   const {
     data: rotaAtiva,
@@ -122,48 +127,31 @@ export default async function MinhaRotaPage() {
       "entregador_id",
       usuario.id,
     )
-    .in(
-      "status",
-      [
-        "PLANEJADA",
-        "EM_ROTA",
-      ],
-    )
-    .order(
-      "data_rota",
-      {
-        ascending:
-          true,
-      },
-    )
+    .in("status", [
+      "PLANEJADA",
+      "EM_ROTA",
+    ])
+    .order("data_rota", {
+      ascending: true,
+    })
     .limit(1)
     .maybeSingle();
 
-  if (
-    rotaAtivaError
-  ) {
+  if (rotaAtivaError) {
     console.error(
       "Erro ao consultar rota ativa:",
       rotaAtivaError,
     );
   }
 
-  /*
-   * =======================================================
-   * SE ACABOU DE FINALIZAR, MOSTRA A ROTA FINALIZADA DO DIA
-   * =======================================================
-   */
+  /* SE ACABOU DE FINALIZAR, MOSTRA A ROTA FINALIZADA DO DIA */
 
-  let rota =
-    rotaAtiva;
+  let rota = rotaAtiva;
 
   if (!rota) {
     const {
-      data:
-        rotaFinalizada,
-
-      error:
-        rotaFinalizadaError,
+      data: rotaFinalizada,
+      error: rotaFinalizadaError,
     } = await supabase
       .from("rotas")
       .select(`
@@ -181,79 +169,61 @@ export default async function MinhaRotaPage() {
         "entregador_id",
         usuario.id,
       )
-      .eq(
-        "status",
-        "FINALIZADA",
-      )
+      .eq("status", "FINALIZADA")
       .eq(
         "data_rota",
         dataFortaleza(),
       )
-      .order(
-        "finalizada_at",
-        {
-          ascending:
-            false,
-        },
-      )
+      .order("finalizada_at", {
+        ascending: false,
+      })
       .limit(1)
       .maybeSingle();
 
-    if (
-      rotaFinalizadaError
-    ) {
+    if (rotaFinalizadaError) {
       console.error(
         "Erro ao consultar rota finalizada:",
         rotaFinalizadaError,
       );
     }
 
-    rota =
-      rotaFinalizada;
+    rota = rotaFinalizada;
   }
 
-  /*
-   * =======================================================
-   * SEM ROTA
-   * =======================================================
-   */
+  /* SEM ROTA */
 
   if (!rota) {
     return (
-      <main className="min-h-dvh bg-[#eaf2ec] text-[#142018]">
-        <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-[#f7faf7] shadow-[0_0_70px_rgba(17,63,33,0.12)]">
+      <main className="app-premium min-h-dvh text-[#142018]">
+        <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-[#f7faf7]/90 shadow-[0_0_70px_rgba(17,63,33,0.14)]">
 
-          <header className="relative overflow-hidden bg-[linear-gradient(155deg,#176b3a,#105f33_48%,#0b4d29)] px-5 pb-9 pt-5 text-white">
+          <header className="hero-premium grain relative overflow-hidden px-5 pb-10 pt-5 text-white">
 
-            <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full border-[30px] border-white/[0.035]" />
+            <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full border-[30px] border-white/[0.04]" />
+
+            <div className="animate-orb pointer-events-none absolute right-10 top-16 h-32 w-32 rounded-full bg-[#f4b13f]/[0.14] blur-3xl" />
 
             <div className="relative z-10 flex items-center justify-between">
 
               <Link
                 href="/mobile"
-                className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/10 backdrop-blur-xl"
+                aria-label="Voltar"
+                className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/10 backdrop-blur-xl transition active:scale-95"
               >
-                <ArrowLeft
-                  size={19}
-                />
+                <ArrowLeft size={19} />
               </Link>
 
               <div className="text-center">
-
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#a8d8b7]">
                   Operação
                 </p>
-
-                <h1 className="mt-1 text-lg font-black">
+                <h1 className="mt-1 text-lg font-black tracking-[-0.03em]">
                   Minha Rota
                 </h1>
-
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/10">
-                <Route
-                  size={19}
-                />
+              <div className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/10">
+                <Route size={19} />
               </div>
 
             </div>
@@ -262,15 +232,13 @@ export default async function MinhaRotaPage() {
 
           <section className="flex flex-1 items-start px-5 py-7">
 
-            <div className="w-full overflow-hidden rounded-[30px] border border-black/[0.04] bg-white p-7 text-center shadow-[0_24px_60px_-30px_rgba(17,63,33,0.22)]">
+            <div className="card-premium animate-pop w-full overflow-hidden rounded-[30px] p-7 text-center">
 
-              <div className="mx-auto flex h-[68px] w-[68px] items-center justify-center rounded-[22px] bg-[#eaf5ed] text-[#176b3a]">
-                <MapPinned
-                  size={30}
-                />
+              <div className="icon-emerald mx-auto flex h-[68px] w-[68px] items-center justify-center rounded-[22px]">
+                <MapPinned size={30} />
               </div>
 
-              <p className="mt-6 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-700">
+              <p className="mt-6 text-[10px] font-black uppercase tracking-[0.22em] text-[#b07a12]">
                 Operação
               </p>
 
@@ -278,7 +246,7 @@ export default async function MinhaRotaPage() {
                 Nenhuma rota ativa
               </h2>
 
-              <p className="mx-auto mt-3 max-w-[300px] text-[12px] leading-6 text-slate-400">
+              <p className="mx-auto mt-3 max-w-[300px] text-[13px] leading-6 text-slate-500">
                 Quando uma rota for atribuída ao seu usuário,
                 os clientes e a sequência de atendimento
                 aparecerão aqui automaticamente.
@@ -286,12 +254,9 @@ export default async function MinhaRotaPage() {
 
               <Link
                 href="/mobile"
-                className="mt-7 flex h-[52px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176f3c] text-xs font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.20)]"
+                className="mt-7 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.28)] transition active:scale-[0.985]"
               >
-                <ArrowLeft
-                  size={17}
-                />
-
+                <ArrowLeft size={17} />
                 Voltar ao início
               </Link>
 
@@ -304,11 +269,7 @@ export default async function MinhaRotaPage() {
     );
   }
 
-  /*
-   * =======================================================
-   * ITENS DA ROTA
-   * =======================================================
-   */
+  /* ITENS DA ROTA */
 
   const {
     data: itens,
@@ -321,27 +282,25 @@ export default async function MinhaRotaPage() {
       sequencia,
       status,
       observacao,
-      atendido_at
+      atendido_at,
+      endereco_logradouro,
+      endereco_numero,
+      endereco_complemento,
+      endereco_bairro,
+      endereco_cidade,
+      endereco_uf,
+      endereco_cep
     `)
     .eq(
       "empresa_id",
       usuario.empresa.id,
     )
-    .eq(
-      "rota_id",
-      rota.id,
-    )
-    .order(
-      "sequencia",
-      {
-        ascending:
-          true,
-      },
-    );
+    .eq("rota_id", rota.id)
+    .order("sequencia", {
+      ascending: true,
+    });
 
-  if (
-    itensError
-  ) {
+  if (itensError) {
     console.error(
       "Erro ao consultar clientes da rota:",
       itensError,
@@ -351,28 +310,20 @@ export default async function MinhaRotaPage() {
   const listaItens =
     itens ?? [];
 
-  /*
-   * =======================================================
-   * CLIENTES
-   * =======================================================
-   */
+  /* CLIENTES */
 
   const clienteIds =
     listaItens.map(
-      (item) =>
-        item.cliente_id,
+      (item) => item.cliente_id,
     );
 
   const {
     data: clientes,
     error: clientesError,
   } =
-    clienteIds.length >
-    0
+    clienteIds.length > 0
       ? await supabase
-          .from(
-            "clientes",
-          )
+          .from("clientes")
           .select(`
             id,
             codigo,
@@ -388,44 +339,29 @@ export default async function MinhaRotaPage() {
             "empresa_id",
             usuario.empresa.id,
           )
-          .in(
-            "id",
-            clienteIds,
-          )
+          .in("id", clienteIds)
       : {
           data: [],
           error: null,
         };
 
-  if (
-    clientesError
-  ) {
+  if (clientesError) {
     console.error(
       "Erro ao consultar dados dos clientes:",
       clientesError,
     );
   }
 
-  const clientesMap =
-    new Map(
-      (
-        clientes ??
-        []
-      ).map(
-        (
-          cliente,
-        ) => [
-          cliente.id,
-          cliente,
-        ],
-      ),
-    );
+  const clientesMap = new Map(
+    (clientes ?? []).map(
+      (cliente) => [
+        cliente.id,
+        cliente,
+      ],
+    ),
+  );
 
-  /*
-   * =======================================================
-   * INDICADORES
-   * =======================================================
-   */
+  /* INDICADORES */
 
   const total =
     listaItens.length;
@@ -433,54 +369,42 @@ export default async function MinhaRotaPage() {
   const entregues =
     listaItens.filter(
       (item) =>
-        item.status ===
-        "ENTREGUE",
+        item.status === "ENTREGUE",
     ).length;
 
-  const restantes =
-    Math.max(
-      0,
-      total -
-        entregues,
-    );
+  const restantes = Math.max(
+    0,
+    total - entregues,
+  );
 
   const percentual =
     total > 0
       ? Math.round(
-          (
-            entregues /
-            total
-          ) *
-            100,
+          (entregues / total) * 100,
         )
       : 0;
 
   const finalizada =
-    rota.status ===
-    "FINALIZADA";
+    rota.status === "FINALIZADA";
 
-  /*
-   * =======================================================
-   * TELA
-   * =======================================================
-   */
+  /* TELA */
 
   return (
-    <main className="min-h-dvh bg-[#e9f1eb] text-[#142018]">
+    <main className="app-premium min-h-dvh text-[#142018]">
 
-      <div className="mx-auto min-h-dvh w-full max-w-[480px] overflow-hidden bg-[#f7faf7] shadow-[0_0_70px_rgba(17,63,33,0.14)]">
+      <div className="mx-auto min-h-dvh w-full max-w-[480px] overflow-hidden bg-[#f7faf7]/90 shadow-[0_0_70px_rgba(17,63,33,0.14)]">
 
         {/* =================================================
             HERO
         ================================================= */}
 
-        <header className="relative overflow-hidden bg-[linear-gradient(150deg,#17733f_0%,#0f6536_48%,#084825_100%)] px-5 pb-8 pt-5 text-white">
+        <header className="hero-premium grain relative overflow-hidden px-5 pb-9 pt-5 text-white">
 
-          <div className="pointer-events-none absolute -right-20 -top-20 h-[210px] w-[210px] rounded-full border-[30px] border-white/[0.035]" />
+          <div className="pointer-events-none absolute -right-20 -top-20 h-[210px] w-[210px] rounded-full border-[30px] border-white/[0.04]" />
 
           <div className="pointer-events-none absolute -bottom-20 -left-16 h-[180px] w-[180px] rounded-full bg-white/[0.035]" />
 
-          <div className="pointer-events-none absolute right-16 top-32 h-24 w-24 rounded-full bg-emerald-300/10 blur-3xl" />
+          <div className="animate-orb pointer-events-none absolute right-8 top-28 h-32 w-32 rounded-full bg-[#f4b13f]/[0.14] blur-3xl" />
 
           {/* TOPBAR */}
 
@@ -488,16 +412,15 @@ export default async function MinhaRotaPage() {
 
             <Link
               href="/mobile"
-              className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl transition active:scale-95"
+              aria-label="Voltar"
+              className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl transition active:scale-95"
             >
-              <ArrowLeft
-                size={19}
-              />
+              <ArrowLeft size={19} />
             </Link>
 
             <div className="text-center">
 
-              <p className="text-[8px] font-black uppercase tracking-[0.24em] text-emerald-200">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#a8d8b7]">
                 Operação
               </p>
 
@@ -507,10 +430,8 @@ export default async function MinhaRotaPage() {
 
             </div>
 
-            <div className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.08]">
-              <Route
-                size={19}
-              />
+            <div className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/10">
+              <Route size={19} />
             </div>
 
           </div>
@@ -527,29 +448,28 @@ export default async function MinhaRotaPage() {
 
                   <Navigation
                     size={14}
-                    className="text-emerald-200"
+                    className="text-[#f4b13f]"
                   />
 
-                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-200">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#a8d8b7]">
                     {rota.codigo}
                   </p>
 
                 </div>
 
-                <h2 className="mt-3 text-[30px] font-black leading-none tracking-[-0.05em]">
-                  {total} cliente
-                  {total === 1
-                    ? ""
-                    : "s"}
+                <h2 className="mt-3 text-[34px] font-black leading-none tracking-[-0.05em]">
+                  <span className="text-gold">
+                    {total}
+                  </span>{" "}
+                  cliente
+                  {total === 1 ? "" : "s"}
                 </h2>
 
-                <div className="mt-3 flex items-center gap-2 text-white/55">
+                <div className="mt-3 flex items-center gap-2 text-white/65">
 
-                  <Clock3
-                    size={13}
-                  />
+                  <Clock3 size={14} />
 
-                  <span className="text-[10px] font-semibold">
+                  <span className="text-[12px] font-semibold">
                     {formatarData(
                       rota.data_rota,
                     )}
@@ -560,52 +480,51 @@ export default async function MinhaRotaPage() {
               </div>
 
               <span
-                className={`rounded-full border px-4 py-2 text-[8px] font-black uppercase tracking-[0.12em] ${
+                className={`rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-[0.1em] ${
                   finalizada
-                    ? "border-white bg-white text-[#176f3c]"
-                    : "border-white/10 bg-white/10 text-white"
+                    ? "border-[#f4b13f]/60 bg-[#f4b13f] text-[#3b2600] shadow-[0_8px_20px_rgba(244,177,63,0.35)]"
+                    : "border-white/20 bg-white/10 text-white backdrop-blur"
                 }`}
               >
-                {rota.status}
+                {rotuloStatus(
+                  rota.status,
+                )}
               </span>
 
             </div>
 
             {/* PROGRESSO */}
 
-            <div className="mt-7 rounded-[22px] border border-white/10 bg-white/[0.07] p-4 backdrop-blur-xl">
+            <div className="mt-7 rounded-[24px] border border-white/15 bg-white/[0.09] p-4 backdrop-blur-xl">
 
               <div className="flex items-center justify-between">
 
                 <div>
 
-                  <p className="text-[8px] font-black uppercase tracking-[0.18em] text-white/45">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">
                     Progresso
                   </p>
 
-                  <p className="mt-1 text-[12px] font-bold text-white">
-                    {entregues} de{" "}
-                    {total} concluído
-                    {total === 1
-                      ? ""
-                      : "s"}
+                  <p className="mt-1 text-[14px] font-bold text-white">
+                    {entregues} de {total}{" "}
+                    concluído
+                    {total === 1 ? "" : "s"}
                   </p>
 
                 </div>
 
-                <div className="text-[22px] font-black tracking-[-0.04em]">
+                <div className="text-[28px] font-black tracking-[-0.04em]">
                   {percentual}%
                 </div>
 
               </div>
 
-              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-black/10">
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/20">
 
                 <div
-                  className="h-full rounded-full bg-[linear-gradient(90deg,#9ff6bd,#ffffff)] shadow-[0_0_15px_rgba(255,255,255,0.25)] transition-all duration-500"
+                  className="relative h-full rounded-full bg-[linear-gradient(90deg,#f4b13f,#ffe3a1)] shadow-[0_0_18px_rgba(244,177,63,0.55)] transition-all duration-700"
                   style={{
-                    width:
-                      `${percentual}%`,
+                    width: `${percentual}%`,
                   }}
                 />
 
@@ -624,16 +543,12 @@ export default async function MinhaRotaPage() {
 
               <HeroKpi
                 label="Entregues"
-                valor={
-                  entregues
-                }
+                valor={entregues}
               />
 
               <HeroKpi
                 label="Restantes"
-                valor={
-                  restantes
-                }
+                valor={restantes}
               />
 
             </div>
@@ -646,45 +561,41 @@ export default async function MinhaRotaPage() {
             CONTEÚDO
         ================================================= */}
 
-        <div className="px-5 pb-10 pt-5">
+        <div className="px-5 pb-10 pt-6">
 
           {/* FINALIZADA */}
 
           {finalizada && (
-            <div className="relative mb-5 overflow-hidden rounded-[26px] border border-emerald-200 bg-[linear-gradient(135deg,#ecfdf3,#ffffff)] p-5 shadow-[0_20px_50px_-30px_rgba(16,185,129,0.45)]">
+            <div className="animate-pop relative mb-6 overflow-hidden rounded-[26px] border border-emerald-200 bg-[linear-gradient(135deg,#ecfdf3,#ffffff)] p-5 shadow-[0_20px_50px_-30px_rgba(16,185,129,0.55)]">
 
-              <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-100/60" />
+              <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[#f4b13f]/15" />
 
-              <div className="relative flex items-start gap-4">
+              <div className="relative flex items-center gap-4">
 
-                <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-[18px] bg-[#159653] text-white shadow-[0_12px_25px_rgba(21,150,83,0.22)]">
-
-                  <CircleCheckBig
-                    size={24}
-                  />
-
+                <div className="icon-emerald flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[18px]">
+                  <CircleCheckBig size={25} />
                 </div>
 
                 <div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
 
                     <Sparkles
                       size={13}
-                      className="text-emerald-600"
+                      className="text-[#d58b0a]"
                     />
 
-                    <p className="text-[8px] font-black uppercase tracking-[0.18em] text-emerald-600">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b07a12]">
                       Operação concluída
                     </p>
 
                   </div>
 
-                  <h3 className="mt-2 text-[17px] font-black tracking-[-0.03em] text-[#142018]">
+                  <h3 className="mt-1 text-[19px] font-black tracking-[-0.03em]">
                     Rota finalizada
                   </h3>
 
-                  <p className="mt-2 text-[10px] leading-5 text-slate-500">
+                  <p className="mt-1 text-[12px] leading-5 text-slate-500">
                     Todos os clientes desta rota foram
                     processados com sucesso.
                   </p>
@@ -698,43 +609,39 @@ export default async function MinhaRotaPage() {
 
           {/* TÍTULO LISTA */}
 
-          <div className="mb-4 flex items-end justify-between">
+          <div className="mb-5 flex items-end justify-between">
 
             <div>
 
-              <p className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-700">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#b07a12]">
                 Itinerário
               </p>
 
-              <h3 className="mt-1 text-[19px] font-black tracking-[-0.035em]">
+              <h3 className="mt-1 text-[22px] font-black tracking-[-0.04em]">
                 Sequência de clientes
               </h3>
 
             </div>
 
-            <span className="rounded-full bg-[#eaf5ed] px-3 py-2 text-[8px] font-black uppercase tracking-[0.1em] text-[#176f3c]">
+            <span className="rounded-full border border-[#dceade] bg-white px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-[#176f3c] shadow-[0_6px_16px_rgba(17,63,33,0.06)]">
               {total} parada
-              {total === 1
-                ? ""
-                : "s"}
+              {total === 1 ? "" : "s"}
             </span>
 
           </div>
 
-          {/* CLIENTES */}
+          {/* CLIENTES (com linha de itinerário) */}
 
-          <section className="space-y-4">
+          <section className="relative space-y-4 before:absolute before:bottom-8 before:left-[46px] before:top-8 before:border-l-2 before:border-dashed before:border-emerald-300/70 before:content-['']">
 
             {listaItens.map(
-              (item) => {
+              (item, index) => {
                 const cliente =
                   clientesMap.get(
                     item.cliente_id,
                   );
 
-                if (
-                  !cliente
-                ) {
+                if (!cliente) {
                   return null;
                 }
 
@@ -742,27 +649,74 @@ export default async function MinhaRotaPage() {
                   item.status ===
                   "ENTREGUE";
 
-                const endereco =
-                  [
-                    cliente.logradouro,
-                    cliente.numero,
-                  ]
-                    .filter(
-                      Boolean,
-                    )
-                    .join(
-                      ", ",
-                    );
+                /*
+                 * ENDEREÇO CONGELADO DA ROTA
+                 *
+                 * A rota usa primeiro o snapshot salvo em rota_clientes.
+                 * O cadastro atual do cliente é apenas fallback para registros
+                 * antigos que ainda não possuam snapshot.
+                 */
+                const logradouroRota =
+                  item.endereco_logradouro ??
+                  cliente.logradouro;
+
+                const numeroRota =
+                  item.endereco_numero ??
+                  cliente.numero;
+
+                const bairroRota =
+                  item.endereco_bairro ??
+                  cliente.bairro;
+
+                const cidadeRota =
+                  item.endereco_cidade ??
+                  cliente.cidade;
+
+                const ufRota =
+                  item.endereco_uf ??
+                  cliente.uf;
+
+                const endereco = [
+                  logradouroRota,
+                  numeroRota,
+                ]
+                  .filter(Boolean)
+                  .join(", ");
+
+                const enderecoCompleto =
+                  `${
+                    endereco ||
+                    "Endereço não informado"
+                  }${
+                    bairroRota
+                      ? ` - ${bairroRota}`
+                      : ""
+                  }`;
+
+                const queryMapa =
+                  encodeURIComponent(
+                    [
+                      endereco,
+                      bairroRota,
+                      cidadeRota,
+                      ufRota,
+                    ]
+                      .filter(Boolean)
+                      .join(", "),
+                  );
 
                 return (
                   <article
-                    key={
-                      item.id
-                    }
-                    className={`relative overflow-hidden rounded-[28px] border p-5 transition ${
+                    key={item.id}
+                    style={{
+                      animationDelay: `${
+                        index * 80
+                      }ms`,
+                    }}
+                    className={`animate-fade-up relative overflow-hidden rounded-[28px] p-5 ${
                       concluido
-                        ? "border-emerald-200 bg-[linear-gradient(145deg,#f0fbf4,#ffffff)] shadow-[0_18px_40px_-30px_rgba(16,185,129,0.45)]"
-                        : "border-black/[0.045] bg-white shadow-[0_22px_55px_-32px_rgba(17,63,33,0.25)]"
+                        ? "border border-emerald-200 bg-[linear-gradient(145deg,#f0fbf4,#ffffff)] shadow-[0_18px_40px_-28px_rgba(16,185,129,0.55)]"
+                        : "card-premium"
                     }`}
                   >
 
@@ -770,136 +724,124 @@ export default async function MinhaRotaPage() {
                       className={`absolute inset-x-0 top-0 h-[3px] ${
                         concluido
                           ? "bg-[linear-gradient(90deg,#16a05d,#8ee9b2)]"
-                          : "bg-[linear-gradient(90deg,#176f3c,#81d49e)]"
+                          : "bg-[linear-gradient(90deg,#f4b13f,#176f3c)]"
                       }`}
                     />
 
-                    <div className="flex items-start gap-4">
+                    {/* CABEÇALHO DO CARD */}
 
-                      {/* ORDEM */}
+                    <div className="flex items-center gap-3.5">
 
                       <div
-                        className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[18px] shadow-sm ${
+                        className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[18px] ${
                           concluido
-                            ? "bg-[#159653] text-white"
-                            : "bg-[#eaf5ed] text-[#176f3c]"
+                            ? "icon-emerald"
+                            : "border border-[#f4b13f]/40 bg-[#fff8e8] text-[#b07a12] shadow-[0_8px_18px_rgba(244,177,63,0.2)]"
                         }`}
                       >
                         {concluido ? (
-                          <CheckCircle2
-                            size={23}
-                          />
+                          <CheckCircle2 size={24} />
                         ) : (
-                          <span className="text-[18px] font-black">
-                            {
-                              item.sequencia
-                            }
+                          <span className="text-[20px] font-black">
+                            {item.sequencia}
                           </span>
                         )}
                       </div>
 
-                      {/* DADOS */}
+                      <div className="min-w-0 flex-1">
+
+                        <h4 className="truncate text-[19px] font-black tracking-[-0.035em]">
+                          {cliente.nome}
+                        </h4>
+
+                        <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                          {cliente.codigo}
+                        </p>
+
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] ${
+                          concluido
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {concluido
+                          ? "Entregue"
+                          : "Aguardando"}
+                      </span>
+
+                    </div>
+
+                    {/* ENDEREÇO (largura total) */}
+
+                    <div className="mt-4 flex items-center gap-3 rounded-[18px] bg-[#f4f8f5] p-3.5">
+
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-white text-[#176f3c] shadow-sm">
+                        <MapPin size={17} />
+                      </div>
 
                       <div className="min-w-0 flex-1">
 
-                        <div className="flex items-start justify-between gap-3">
+                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+                          Endereço
+                        </p>
 
-                          <div className="min-w-0">
+                        <p className="mt-0.5 text-[13px] font-semibold leading-5 text-slate-700">
+                          {enderecoCompleto}
+                        </p>
 
-                            <h4 className="truncate text-[18px] font-black tracking-[-0.035em]">
-                              {
-                                cliente.nome
-                              }
-                            </h4>
+                      </div>
 
-                            <p className="mt-1 text-[8px] font-black uppercase tracking-[0.16em] text-slate-400">
-                              {
-                                cliente.codigo
-                              }
-                            </p>
-
-                          </div>
-
-                          <span
-                            className={`shrink-0 rounded-full px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.08em] ${
-                              concluido
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-amber-50 text-amber-700"
-                            }`}
+                      {!concluido &&
+                        !finalizada && (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${queryMapa}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Abrir no mapa"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#176f3c] text-white shadow-[0_8px_18px_rgba(23,111,60,0.3)] transition active:scale-90"
                           >
-                            {
-                              item.status
-                            }
-                          </span>
+                            <Navigation size={16} />
+                          </a>
+                        )}
 
-                        </div>
+                    </div>
 
-                        {/* ENDEREÇO */}
+                    {/* MICRO INFO */}
 
-                        <div className="mt-4 rounded-[18px] bg-[#f7f9f7] p-3.5">
+                    <div className="mt-3 grid grid-cols-2 gap-2.5">
 
-                          <div className="flex items-start gap-2.5">
+                      <div className="rounded-[16px] border border-slate-100 bg-white px-3.5 py-3">
 
-                            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-white text-[#176f3c] shadow-sm">
+                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+                          Parada
+                        </p>
 
-                              <MapPin
-                                size={13}
-                              />
+                        <p className="mt-1 text-[14px] font-black">
+                          #{item.sequencia}
+                        </p>
 
-                            </div>
+                      </div>
 
-                            <div>
+                      <div className="rounded-[16px] border border-slate-100 bg-white px-3.5 py-3">
 
-                              <p className="text-[7px] font-black uppercase tracking-[0.16em] text-slate-400">
-                                Endereço
-                              </p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+                          Situação
+                        </p>
 
-                              <p className="mt-1 text-[10px] font-semibold leading-5 text-slate-600">
-                                {endereco ||
-                                  "Endereço não informado"}
-
-                                {cliente.bairro
-                                  ? ` - ${cliente.bairro}`
-                                  : ""}
-                              </p>
-
-                            </div>
-
-                          </div>
-
-                        </div>
-
-                        {/* MICRO INFO */}
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-
-                          <div className="rounded-[14px] border border-slate-100 bg-white px-3 py-2.5">
-
-                            <p className="text-[7px] font-black uppercase tracking-[0.14em] text-slate-400">
-                              Parada
-                            </p>
-
-                            <p className="mt-1 text-[10px] font-black">
-                              #{item.sequencia}
-                            </p>
-
-                          </div>
-
-                          <div className="rounded-[14px] border border-slate-100 bg-white px-3 py-2.5">
-
-                            <p className="text-[7px] font-black uppercase tracking-[0.14em] text-slate-400">
-                              Situação
-                            </p>
-
-                            <p className="mt-1 text-[10px] font-black">
-                              {concluido
-                                ? "Concluído"
-                                : "Aguardando"}
-                            </p>
-
-                          </div>
-
-                        </div>
+                        <p
+                          className={`mt-1 text-[14px] font-black ${
+                            concluido
+                              ? "text-emerald-700"
+                              : "text-amber-700"
+                          }`}
+                        >
+                          {concluido
+                            ? "Concluído"
+                            : "Aguardando"}
+                        </p>
 
                       </div>
 
@@ -911,26 +853,20 @@ export default async function MinhaRotaPage() {
                       !finalizada && (
                         <Link
                           href={`/mobile/entregas/nova?rotaClienteId=${item.id}`}
-                          className="mt-5 flex h-[52px] w-full items-center justify-center gap-2 rounded-[17px] bg-[linear-gradient(135deg,#197a43,#105f33)] text-xs font-black text-white shadow-[0_14px_28px_rgba(23,111,60,0.22)] transition active:scale-[0.985]"
+                          className="mt-5 flex h-[56px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_30px_rgba(23,111,60,0.30)] transition active:scale-[0.985]"
                         >
-                          <PackageCheck
-                            size={17}
-                          />
+                          <PackageCheck size={18} />
 
                           Atender cliente
 
-                          <ChevronRight
-                            size={16}
-                          />
+                          <ChevronRight size={17} />
                         </Link>
                       )}
 
                     {concluido && (
-                      <div className="mt-5 flex h-[48px] items-center justify-center gap-2 rounded-[16px] border border-emerald-100 bg-emerald-50 text-[10px] font-black text-emerald-700">
+                      <div className="mt-5 flex h-[50px] items-center justify-center gap-2 rounded-[16px] border border-emerald-100 bg-emerald-50 text-[12px] font-black text-emerald-700">
 
-                        <CheckCircle2
-                          size={16}
-                        />
+                        <CheckCircle2 size={17} />
 
                         Atendimento concluído
 
@@ -948,11 +884,9 @@ export default async function MinhaRotaPage() {
 
           <Link
             href="/mobile"
-            className="mt-5 flex h-[52px] w-full items-center justify-center gap-2 rounded-[17px] border border-emerald-100 bg-white text-xs font-black text-[#176f3c] shadow-[0_12px_30px_-24px_rgba(17,63,33,0.30)] transition active:scale-[0.985]"
+            className="glass mt-6 flex h-[54px] w-full items-center justify-center gap-2 rounded-[18px] text-[13px] font-black text-[#176f3c] transition active:scale-[0.985]"
           >
-            <ArrowLeft
-              size={16}
-            />
+            <ArrowLeft size={16} />
 
             Voltar ao início
           </Link>
@@ -977,13 +911,13 @@ function HeroKpi({
   valor: number;
 }) {
   return (
-    <div className="rounded-[18px] border border-white/10 bg-white/[0.07] px-3 py-3 backdrop-blur-xl">
+    <div className="rounded-[18px] border border-white/15 bg-white/[0.09] px-3.5 py-3 backdrop-blur-xl">
 
-      <p className="text-[7px] font-black uppercase tracking-[0.16em] text-white/45">
+      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/55">
         {label}
       </p>
 
-      <p className="mt-1 text-[20px] font-black tracking-[-0.04em] text-white">
+      <p className="mt-1 text-[24px] font-black tracking-[-0.04em] text-white">
         {valor}
       </p>
 

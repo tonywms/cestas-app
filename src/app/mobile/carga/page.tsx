@@ -3,6 +3,7 @@ export const instant = false;
 import {
   AlertTriangle,
   ArrowLeft,
+  Barcode,
   Boxes,
   CheckCircle2,
   CircleAlert,
@@ -17,11 +18,16 @@ import Link from "next/link";
 
 import {
   PERMISSOES,
+  temPermissao,
 } from "@/lib/auth/permissions";
 
 import {
   requirePermission,
 } from "@/lib/auth/require-permission";
+
+import {
+  createClient,
+} from "@/lib/supabase/server";
 
 import {
   getCargaAtiva,
@@ -76,7 +82,7 @@ function StatusCarga({
 export default async function MinhaCargaPage() {
   /*
    * =========================================================
-   * PERMISSÃO
+   * PERMISSÃƒO
    * =========================================================
    */
 
@@ -90,7 +96,7 @@ export default async function MinhaCargaPage() {
    * IDENTIDADE DO TENANT
    * =========================================================
    *
-   * Aqui NÃO usamos:
+   * Aqui NÃƒO usamos:
    *
    * usuario.empresaId
    * usuario.empresa_id
@@ -247,8 +253,7 @@ export default async function MinhaCargaPage() {
 
               Voltar ao início
             </Link>
-
-          </section>
+</section>
         </div>
       </main>
     );
@@ -326,6 +331,103 @@ export default async function MinhaCargaPage() {
           ),
         )
       : 0;
+
+  const podeFecharCarga =
+    usuario.isPlatformAdmin ||
+    temPermissao(
+      usuario.permissoes,
+      PERMISSOES.CARGA_RETORNAR,
+    );
+
+  const modoVolume =
+    usuario.configuracao
+      .modoControleCarga ===
+    "VOLUME";
+
+  const exigeBipagemCarga =
+    modoVolume &&
+    usuario.configuracao
+      .exigirBipagemCarga;
+
+  const podeBiparCarga =
+    usuario.isPlatformAdmin ||
+    (
+      temPermissao(
+        usuario.permissoes,
+        PERMISSOES.CARGA_RECEBER,
+      ) &&
+      temPermissao(
+        usuario.permissoes,
+        PERMISSOES.CARGA_BIPAR_VOLUME,
+      )
+    );
+
+  let volumesEsperados = 0;
+  let volumesConfirmados = 0;
+
+  if (exigeBipagemCarga) {
+    const supabase =
+      await createClient();
+
+    const [
+      esperadosResult,
+      confirmadosResult,
+    ] = await Promise.all([
+      supabase
+        .from(
+          "cesta_volumes",
+        )
+        .select(
+          "id",
+          {
+            count: "exact",
+            head: true,
+          },
+        )
+        .eq(
+          "empresa_id",
+          empresaId,
+        )
+        .eq(
+          "carga_id",
+          carga.id,
+        ),
+
+      supabase
+        .from(
+          "carga_volume_bipagens",
+        )
+        .select(
+          "id",
+          {
+            count: "exact",
+            head: true,
+          },
+        )
+        .eq(
+          "empresa_id",
+          empresaId,
+        )
+        .eq(
+          "carga_id",
+          carga.id,
+        ),
+    ]);
+
+    volumesEsperados =
+      esperadosResult.count ?? 0;
+
+    volumesConfirmados =
+      confirmadosResult.count ?? 0;
+  }
+
+  const recebimentoCompleto =
+    !exigeBipagemCarga ||
+    (
+      volumesEsperados > 0 &&
+      volumesConfirmados >=
+        volumesEsperados
+    );
 
   /*
    * =========================================================
@@ -629,8 +731,109 @@ export default async function MinhaCargaPage() {
 
           </div>
 
+          {exigeBipagemCarga && (
+            <div className={`mt-5 overflow-hidden rounded-[22px] border p-4 ${
+              recebimentoCompleto
+                ? "border-emerald-200 bg-emerald-50"
+                : "border-amber-200 bg-amber-50"
+            }`}>
+
+              <div className="flex items-start gap-3">
+
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] ${
+                  recebimentoCompleto
+                    ? "bg-emerald-600 text-white"
+                    : "bg-amber-500 text-white"
+                }`}>
+                  <Barcode
+                    size={20}
+                  />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-400">
+                    Conferência da carga
+                  </p>
+
+                  <div className="mt-1 flex items-end justify-between gap-3">
+                    <p className="text-[13px] font-black">
+                      {recebimentoCompleto
+                        ? "Carga conferida"
+                        : "Bipagem pendente"}
+                    </p>
+
+                    <p className="text-[13px] font-black text-[#176b3a]">
+                      {volumesConfirmados}/{volumesEsperados}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
+                    <div
+                      className={`h-full rounded-full ${
+                        recebimentoCompleto
+                          ? "bg-emerald-600"
+                          : "bg-amber-500"
+                      }`}
+                      style={{
+                        width:
+                          `${volumesEsperados > 0
+                            ? Math.min(
+                                100,
+                                Math.round(
+                                  (volumesConfirmados / volumesEsperados) * 100,
+                                ),
+                              )
+                            : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {!recebimentoCompleto &&
+                podeBiparCarga && (
+                <Link
+                  href="/mobile/carga/receber"
+                  className="mt-4 flex h-[48px] w-full items-center justify-center gap-2 rounded-[15px] bg-[#176b3a] text-[10px] font-black text-white"
+                >
+                  <Barcode
+                    size={16}
+                  />
+                  Bipar volumes da carga
+                </Link>
+              )}
+            </div>
+          )}
+
+          {podeFecharCarga &&
+            recebimentoCompleto && (
+<Link
+              href="/mobile/carga/fechar"
+              className="mt-5 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176b3a] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,107,58,0.18)]"
+            >
+              <RotateCcw
+                size={17}
+              />
+
+              Fechar carga / informar retorno
+            </Link>
+          )}
+
           {/* SEGURANÇA */}
-          <div className="mt-5 flex items-start gap-3 rounded-[20px] border border-emerald-100 bg-emerald-50 px-4 py-4">
+          
+          {/* VOLUME_RECEBIMENTO_PATCH_OK */}
+          {usuario.configuracao.modoControleCarga === "VOLUME" &&
+            usuario.configuracao.exigirBipagemCarga &&
+            !recebimentoCompleto && (
+              <Link
+                href="/mobile/carga/receber"
+                className="mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-[18px] border border-emerald-200 bg-emerald-50 text-[11px] font-black text-[#176f3c] shadow-[0_10px_28px_rgba(17,63,33,0.06)] transition active:scale-[0.99]"
+              >
+                Receber carga / bipar volumes
+              </Link>
+            )}
+          {/* FIM_VOLUME_RECEBIMENTO_PATCH_OK */}
+<div className="mt-5 flex items-start gap-3 rounded-[20px] border border-emerald-100 bg-emerald-50 px-4 py-4">
 
             <ShieldCheck
               size={18}
@@ -645,8 +848,7 @@ export default async function MinhaCargaPage() {
             </p>
 
           </div>
-
-        </section>
+</section>
       </div>
     </main>
   );
@@ -767,3 +969,5 @@ function MiniInfo({
     </div>
   );
 }
+
+

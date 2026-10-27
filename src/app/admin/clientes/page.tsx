@@ -2,6 +2,7 @@ export const instant = false;
 
 import {
   ArrowLeft,
+  ChevronRight,
   MapPin,
   UserRound,
 } from "lucide-react";
@@ -102,9 +103,10 @@ export default async function ClientesPage() {
 
           {(clientes ?? []).map(
             (cliente) => (
-              <div
+              <Link
                 key={cliente.id}
-                className="rounded-[22px] bg-white p-5 shadow-sm"
+                href={`/admin/clientes/${cliente.id}`}
+                className="group block rounded-[22px] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(17,63,33,0.10)]"
               >
 
                 <div className="flex items-start gap-4">
@@ -144,15 +146,24 @@ export default async function ClientesPage() {
 
                   </div>
 
-                  <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[8px] font-black text-emerald-700">
-                    {cliente.ativo
-                      ? "ATIVO"
-                      : "INATIVO"}
-                  </span>
+                  <div className="flex items-center gap-3">
+
+                    <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[8px] font-black text-emerald-700">
+                      {cliente.ativo
+                        ? "ATIVO"
+                        : "INATIVO"}
+                    </span>
+
+                    <ChevronRight
+                      size={17}
+                      className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-600"
+                    />
+
+                  </div>
 
                 </div>
 
-              </div>
+              </Link>
             ),
           )}
 
