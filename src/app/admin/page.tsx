@@ -2,187 +2,284 @@
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
 import {
   Boxes,
   ChevronRight,
   CircleDollarSign,
-  CircleUserRound,
   LayoutDashboard,
-  PackageCheck,
   Route,
   Smartphone,
   UsersRound,
 } from "lucide-react";
 
-import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
+import {
+  getCurrentUserProfile,
+} from "@/lib/auth/get-current-user";
 
-export default async function AdminHome() {
-  const usuario = await getCurrentUserProfile();
+type Modulo = {
+  titulo: string;
+  descricao: string;
+  href: string;
+  icone: React.ReactNode;
+};
 
-  if (!usuario || !usuario.ativo) {
+export default async function AdminPage() {
+  const usuario =
+    await getCurrentUserProfile();
+
+  if (
+    !usuario ||
+    !usuario.ativo
+  ) {
     redirect("/");
   }
 
-  if (usuario.perfilCodigo === "ENTREGADOR") {
+  /*
+   * ENTREGADOR não acessa painel administrativo.
+   */
+  if (
+    usuario.perfilCodigo ===
+    "ENTREGADOR"
+  ) {
     redirect("/mobile");
   }
 
+  const modulos: Modulo[] = [
+    {
+      titulo: "Dashboard",
+      descricao:
+        "Indicadores executivos da operação.",
+      href: "/admin/dashboard",
+      icone: (
+        <LayoutDashboard
+          size={22}
+        />
+      ),
+    },
+    {
+      titulo: "Clientes",
+      descricao:
+        "Cadastro, endereço, contratos e crédito.",
+      href: "/admin/clientes",
+      icone: (
+        <UsersRound
+          size={22}
+        />
+      ),
+    },
+    {
+      titulo: "Estoque",
+      descricao:
+        "Estoque central, cargas e movimentações.",
+      href: "/admin/cargas",
+      icone: (
+        <Boxes
+          size={22}
+        />
+      ),
+    },
+    {
+      titulo: "Rotas",
+      descricao:
+        "Planejamento e acompanhamento de entregas.",
+      href: "/admin/rotas",
+      icone: (
+        <Route
+          size={22}
+        />
+      ),
+    },
+    {
+      titulo: "Financeiro",
+      descricao:
+        "Parcelas, pagamentos e caixa.",
+      href: "/admin/financeiro",
+      icone: (
+        <CircleDollarSign
+          size={22}
+        />
+      ),
+    },
+    {
+      titulo: "Usuários",
+      descricao:
+        "Perfis, acessos e permissões.",
+      href: "/admin/usuarios",
+      icone: (
+        <UsersRound
+          size={22}
+        />
+      ),
+    },
+  ];
+
   return (
-    <main className="min-h-dvh bg-[#f3f7f4] p-5 text-[#142018] md:p-8">
+    <main className="min-h-screen bg-[#f3f7f4] px-5 py-7 text-[#142018]">
+
       <div className="mx-auto max-w-[1280px]">
 
-        <header className="flex flex-col gap-4 rounded-[28px] border border-black/[0.04] bg-white p-5 shadow-[0_16px_45px_rgba(17,63,33,0.07)] sm:flex-row sm:items-center sm:justify-between">
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
+        <header className="flex items-center justify-between gap-5 rounded-[28px] border border-black/[0.03] bg-white px-5 py-4 shadow-[0_15px_45px_rgba(17,63,33,0.06)]">
 
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-[15px] bg-[#176b3a] text-white">
-              <PackageCheck size={24} />
+
+            <div className="flex h-[48px] w-[48px] items-center justify-center rounded-[15px] bg-[#176f3c] text-white">
+              <Boxes
+                size={23}
+              />
             </div>
 
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#849085]">
+
+              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#819083]">
                 Cestas APP
               </p>
 
-              <h1 className="text-xl font-black tracking-[-0.04em]">
+              <h1 className="mt-0.5 text-[20px] font-black tracking-[-0.04em]">
                 Central de Gestão
               </h1>
+
             </div>
+
           </div>
 
-          <div className="flex items-center gap-3 rounded-full bg-[#f2f7f3] px-4 py-2.5">
-            <CircleUserRound
-              size={20}
-              className="text-[#176b3a]"
-            />
+          <div className="flex items-center gap-3 rounded-full bg-[#f1f6f2] px-4 py-3">
 
-            <div>
-              <p className="text-xs font-black">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full text-[#176f3c]">
+              <UsersRound
+                size={19}
+              />
+            </div>
+
+            <div className="hidden sm:block">
+
+              <p className="text-[11px] font-black">
                 {usuario.nome}
               </p>
 
-              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#849085]">
+              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-[#829184]">
                 {usuario.perfilNome}
               </p>
+
             </div>
+
           </div>
+
         </header>
 
-        <section className="mt-6 rounded-[32px] bg-[linear-gradient(135deg,#176b3a,#0c512a)] p-7 text-white shadow-[0_24px_60px_rgba(23,107,58,0.18)]">
+        {/* =====================================================
+            HERO
+        ===================================================== */}
+        <section className="relative mt-6 overflow-hidden rounded-[32px] bg-[linear-gradient(135deg,#176f3c_0%,#0d5d31_100%)] px-7 py-8 text-white shadow-[0_22px_60px_rgba(21,105,57,0.14)]">
 
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/55">
-            Visão executiva
-          </p>
+          <div className="pointer-events-none absolute -right-28 -top-28 h-[280px] w-[280px] rounded-full bg-white/[0.025]" />
 
-          <h2 className="mt-3 text-3xl font-black tracking-[-0.05em]">
-            Sua operação em um só lugar.
-          </h2>
+          <div className="relative z-10">
 
-          <p className="mt-3 max-w-[600px] text-sm font-medium leading-6 text-white/65">
-            Administração, clientes, estoque, rotas, crédito e financeiro do Cestas APP.
-          </p>
-
-          <Link
-            href="/mobile"
-            className="mt-7 inline-flex h-12 items-center gap-3 rounded-[16px] bg-white px-5 text-xs font-black text-[#176b3a] shadow-lg transition hover:-translate-y-0.5"
-          >
-            <Smartphone size={18} />
-            Abrir visão Mobile
-            <ChevronRight size={16} />
-          </Link>
-        </section>
-
-        <section className="mt-6">
-          <div className="mb-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#89958a]">
-              Administração
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#a9d6b6]">
+              Visão executiva
             </p>
 
-            <h2 className="mt-1 text-xl font-black tracking-[-0.035em]">
-              Módulos do sistema
+            <h2 className="mt-4 text-[31px] font-black leading-none tracking-[-0.055em]">
+              Sua operação em um só lugar.
             </h2>
-          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <p className="mt-4 text-sm font-medium text-white/70">
+              Administração, clientes, estoque,
+              rotas, crédito e financeiro do
+              Cestas APP.
+            </p>
 
-            <Modulo
-              icon={<LayoutDashboard size={22} />}
-              titulo="Dashboard"
-              descricao="Indicadores executivos da operação."
-            />
+            <Link
+              href="/mobile"
+              className="mt-7 inline-flex h-[50px] items-center gap-3 rounded-[15px] bg-white px-5 text-[11px] font-black text-[#176f3c] shadow-[0_10px_25px_rgba(0,0,0,0.08)] transition hover:-translate-y-0.5"
+            >
+              <Smartphone
+                size={17}
+              />
 
-            <Modulo
-              icon={<UsersRound size={22} />}
-              titulo="Clientes"
-              descricao="Cadastro, endereço, contratos e crédito."
-            />
+              Abrir visão Mobile
 
-            <Modulo
-              icon={<Boxes size={22} />}
-              titulo="Estoque"
-              descricao="Estoque central, cargas e movimentações."
-            />
-
-            <Modulo
-              icon={<Route size={22} />}
-              titulo="Rotas"
-              descricao="Planejamento e acompanhamento de entregas."
-            />
-
-            <Modulo
-              icon={<CircleDollarSign size={22} />}
-              titulo="Financeiro"
-              descricao="Parcelas, pagamentos e caixa."
-            />
-
-            <Modulo
-              icon={<CircleUserRound size={22} />}
-              titulo="Usuários"
-              descricao="Perfis, acessos e permissões."
-            />
+              <ChevronRight
+                size={16}
+              />
+            </Link>
 
           </div>
+
         </section>
+
+        {/* =====================================================
+            MÓDULOS
+        ===================================================== */}
+        <section className="mt-7">
+
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#819083]">
+            Administração
+          </p>
+
+          <h2 className="mt-1 text-[22px] font-black tracking-[-0.04em]">
+            Módulos do sistema
+          </h2>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+
+            {modulos.map(
+              (modulo) => (
+                <Link
+                  key={
+                    modulo.titulo
+                  }
+                  href={
+                    modulo.href
+                  }
+                  className="group flex min-h-[155px] flex-col justify-between rounded-[25px] border border-black/[0.035] bg-white p-5 shadow-[0_13px_35px_rgba(17,63,33,0.055)] transition duration-200 hover:-translate-y-1 hover:border-emerald-100 hover:shadow-[0_20px_45px_rgba(17,63,33,0.09)] active:translate-y-0 active:scale-[0.99]"
+                >
+
+                  <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#eaf5ed] text-[#176f3c]">
+                    {
+                      modulo.icone
+                    }
+                  </div>
+
+                  <div className="mt-6 flex items-end justify-between gap-4">
+
+                    <div>
+
+                      <h3 className="text-[16px] font-black tracking-[-0.03em]">
+                        {
+                          modulo.titulo
+                        }
+                      </h3>
+
+                      <p className="mt-1 text-[11px] leading-5 text-[#869087]">
+                        {
+                          modulo.descricao
+                        }
+                      </p>
+
+                    </div>
+
+                    <ChevronRight
+                      size={18}
+                      className="mb-1 shrink-0 text-[#a3afa5] transition-transform duration-200 group-hover:translate-x-1 group-hover:text-[#176f3c]"
+                    />
+
+                  </div>
+
+                </Link>
+              ),
+            )}
+
+          </div>
+
+        </section>
+
       </div>
+
     </main>
   );
 }
-
-function Modulo({
-  icon,
-  titulo,
-  descricao,
-}: {
-  icon: React.ReactNode;
-  titulo: string;
-  descricao: string;
-}) {
-  return (
-    <button
-      type="button"
-      className="group rounded-[24px] border border-black/[0.04] bg-white p-5 text-left shadow-[0_12px_32px_rgba(17,63,33,0.055)] transition hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(17,63,33,0.09)]"
-    >
-      <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#eaf5ed] text-[#176b3a]">
-        {icon}
-      </div>
-
-      <div className="mt-5 flex items-center justify-between">
-        <div>
-          <h3 className="font-black tracking-[-0.025em]">
-            {titulo}
-          </h3>
-
-          <p className="mt-2 text-xs leading-5 text-[#849085]">
-            {descricao}
-          </p>
-        </div>
-
-        <ChevronRight
-          size={18}
-          className="text-[#a0aba1]"
-        />
-      </div>
-    </button>
-  );
-}
-
-
