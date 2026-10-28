@@ -146,7 +146,9 @@ export default function EntregaForm({
               <div className="min-w-0 flex-1">
 
                 <p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-700">
-                  Cliente da rota
+                  {rotaClienteId
+                    ? "Cliente da rota"
+                    : "Cliente da venda"}
                 </p>
 
                 <h3 className="mt-1 text-base font-black">
@@ -186,7 +188,9 @@ export default function EntregaForm({
               </div>
 
               <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[8px] font-black text-emerald-700">
-                ROTA
+                {rotaClienteId
+                  ? "ROTA"
+                  : "CAMPO"}
               </span>
 
             </div>

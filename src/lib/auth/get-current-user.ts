@@ -1,4 +1,4 @@
-﻿import { connection } from "next/server";
+import { connection } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -10,7 +10,8 @@ export type PerfilCodigo =
   | "ADMINISTRADOR"
   | "GESTOR"
   | "ESTOQUE"
-  | "ENTREGADOR";
+  | "ENTREGADOR"
+  | "FINANCEIRO";
 
 export type ModoControleCarga =
   | "QUANTIDADE"

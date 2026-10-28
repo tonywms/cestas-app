@@ -963,7 +963,7 @@ export default async function Cliente360Page({
             </Link>
 
             <Link
-              href="/admin/financeiro"
+              href={`/admin/financeiro?cliente=${cliente.id}`}
               className="flex h-11 items-center gap-2 rounded-[14px] border border-emerald-100 bg-white px-4 text-[9px] font-black text-[#176f3c]"
             >
               <CircleDollarSign size={15} />
@@ -971,7 +971,7 @@ export default async function Cliente360Page({
             </Link>
 
             <Link
-              href="/admin/credito"
+              href={`/admin/credito?cliente=${cliente.id}`}
               className="flex h-11 items-center gap-2 rounded-[14px] bg-[#176f3c] px-4 text-[9px] font-black text-white"
             >
               <CreditCard size={15} />
@@ -1396,7 +1396,7 @@ export default async function Cliente360Page({
             )}
 
             <Link
-              href="/admin/credito"
+              href={`/admin/credito?cliente=${cliente.id}`}
               className="mt-5 flex h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-[#176f3c] text-[10px] font-black text-white"
             >
               <CreditCard size={16} />

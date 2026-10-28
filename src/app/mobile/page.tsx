@@ -14,7 +14,9 @@ import {
   PackageOpen,
   Route,
   ScanBarcode,
+  ShoppingBag,
   Truck,
+  UsersRound,
   WalletCards,
 } from "lucide-react";
 
@@ -82,6 +84,32 @@ export default async function MobileHome() {
         PERMISSOES.PAGAMENTO_REGISTRAR,
       )
     );
+
+  const podeCadastrarCliente =
+    usuario.isPlatformAdmin ||
+    temPermissao(
+      usuario.permissoes,
+      PERMISSOES.CLIENTE_MOBILE_CADASTRAR,
+    );
+
+  const podeEditarCliente =
+    usuario.isPlatformAdmin ||
+    temPermissao(
+      usuario.permissoes,
+      PERMISSOES.CLIENTE_MOBILE_EDITAR,
+    );
+
+  const podeVenderCampo =
+    usuario.isPlatformAdmin ||
+    temPermissao(
+      usuario.permissoes,
+      PERMISSOES.ENTREGA_REALIZAR,
+    );
+
+  const podeClientesCampo =
+    podeCadastrarCliente ||
+    podeEditarCliente ||
+    podeVenderCampo;
 
   return (
     <main className="app-premium min-h-dvh text-[#142018]">
@@ -249,6 +277,30 @@ export default async function MobileHome() {
               />
             )}
 
+            {podeVenderCampo && (
+              <ActionCard
+                href="/mobile/clientes?modo=venda"
+                icon={
+                  <ShoppingBag size={22} />
+                }
+                titulo="Venda em campo"
+                descricao="Cliente novo ou avulso"
+                delay={210}
+              />
+            )}
+
+            {podeClientesCampo && (
+              <ActionCard
+                href="/mobile/clientes"
+                icon={
+                  <UsersRound size={22} />
+                }
+                titulo="Clientes"
+                descricao="Cadastrar, localizar e editar"
+                delay={235}
+              />
+            )}
+
             {podeBiparEntrega && (
               <ActionCard
                 icon={
@@ -376,12 +428,22 @@ export default async function MobileHome() {
             />
           )}
 
-          <NavItem
-            icon={
-              <CircleUserRound size={20} />
-            }
-            label="Perfil"
-          />
+          {podeClientesCampo ? (
+            <NavItem
+              href="/mobile/clientes"
+              icon={
+                <UsersRound size={20} />
+              }
+              label="Clientes"
+            />
+          ) : (
+            <NavItem
+              icon={
+                <CircleUserRound size={20} />
+              }
+              label="Perfil"
+            />
+          )}
 
         </nav>
 

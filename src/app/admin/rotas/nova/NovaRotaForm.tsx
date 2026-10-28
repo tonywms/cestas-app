@@ -1,18 +1,26 @@
 "use client";
 
+import Link from "next/link";
+
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   CheckCircle2,
   MapPin,
   Route,
   Save,
+  Search,
+  Trash2,
   Truck,
+  UserRound,
   XCircle,
 } from "lucide-react";
-import Link from "next/link";
+
 import {
   useActionState,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -21,9 +29,12 @@ import {
 } from "../actions";
 
 const initialState = {
-  success: false,
-  message: "",
-  rotaId: null as number | null,
+  success:
+    false,
+  message:
+    "",
+  rotaId:
+    null as number | null,
 };
 
 type Entregador = {
@@ -36,96 +47,257 @@ type Cliente = {
   id: number;
   codigo: string;
   nome: string;
+  telefone: string | null;
   logradouro: string | null;
   numero: string | null;
+  complemento: string | null;
   bairro: string | null;
   cidade: string | null;
   uf: string | null;
+  cep: string | null;
 };
+
+function endereco(
+  cliente: Cliente,
+) {
+  const linha1 =
+    [
+      cliente.logradouro,
+      cliente.numero,
+    ]
+      .filter(
+        Boolean,
+      )
+      .join(
+        ", ",
+      );
+
+  const linha2 =
+    [
+      cliente.bairro,
+      cliente.cidade,
+      cliente.uf,
+    ]
+      .filter(
+        Boolean,
+      )
+      .join(
+        " • ",
+      );
+
+  return {
+    linha1:
+      linha1 ||
+      "Endereço não informado",
+    linha2,
+  };
+}
 
 export default function NovaRotaForm({
   entregadores,
   clientes,
   dataInicial,
 }: {
-  entregadores: Entregador[];
-  clientes: Cliente[];
-  dataInicial: string;
+  entregadores:
+    Entregador[];
+  clientes:
+    Cliente[];
+  dataInicial:
+    string;
 }) {
   const [
     state,
     formAction,
     pending,
-  ] = useActionState(
-    criarRota,
-    initialState,
-  );
+  ] =
+    useActionState(
+      criarRota,
+      initialState,
+    );
 
   const [
     selecionados,
     setSelecionados,
-  ] = useState<number[]>([]);
+  ] =
+    useState<
+      number[]
+    >([]);
+
+  const [
+    busca,
+    setBusca,
+  ] =
+    useState(
+      "",
+    );
 
   const [
     modal,
     setModal,
-  ] = useState(false);
+  ] =
+    useState(
+      false,
+    );
 
-  useEffect(() => {
-    if (state.message) {
-      setModal(true);
-    }
-  }, [state]);
+  useEffect(
+    () => {
+      if (
+        state.message
+      ) {
+        setModal(
+          true,
+        );
+      }
+    },
+    [
+      state,
+    ],
+  );
+
+  const clientesMap =
+    useMemo(
+      () =>
+        new Map(
+          clientes.map(
+            (
+              cliente,
+            ) => [
+              cliente.id,
+              cliente,
+            ],
+          ),
+        ),
+      [
+        clientes,
+      ],
+    );
+
+  const filtrados =
+    useMemo(
+      () => {
+        const termo =
+          busca
+            .trim()
+            .toLocaleLowerCase(
+              "pt-BR",
+            );
+
+        if (
+          !termo
+        ) {
+          return clientes;
+        }
+
+        return clientes.filter(
+          (
+            cliente,
+          ) => {
+            const texto =
+              [
+                cliente.nome,
+                cliente.codigo,
+                cliente.telefone,
+                cliente.logradouro,
+                cliente.bairro,
+                cliente.cidade,
+              ]
+                .filter(
+                  Boolean,
+                )
+                .join(
+                  " ",
+                )
+                .toLocaleLowerCase(
+                  "pt-BR",
+                );
+
+            return texto.includes(
+              termo,
+            );
+          },
+        );
+      },
+      [
+        busca,
+        clientes,
+      ],
+    );
+
+  const clientesSelecionados =
+    selecionados
+      .map(
+        (
+          id,
+        ) =>
+          clientesMap.get(
+            id,
+          ),
+      )
+      .filter(
+        (
+          cliente,
+        ): cliente is Cliente =>
+          !!cliente,
+      );
 
   function alternarCliente(
     clienteId: number,
   ) {
     setSelecionados(
-      (atual) => {
-        if (
-          atual.includes(clienteId)
-        ) {
-          return atual.filter(
-            (id) =>
-              id !== clienteId,
-          );
-        }
-
-        return [
-          ...atual,
+      (
+        atual,
+      ) =>
+        atual.includes(
           clienteId,
-        ];
-      },
+        )
+          ? atual.filter(
+              (
+                id,
+              ) =>
+                id !==
+                clienteId,
+            )
+          : [
+              ...atual,
+              clienteId,
+            ],
     );
   }
 
   function mover(
     clienteId: number,
-    direcao: -1 | 1,
+    direcao:
+      -1 |
+      1,
   ) {
     setSelecionados(
-      (atual) => {
+      (
+        atual,
+      ) => {
         const indice =
-          atual.indexOf(clienteId);
-
-        if (indice < 0) {
-          return atual;
-        }
+          atual.indexOf(
+            clienteId,
+          );
 
         const novoIndice =
-          indice + direcao;
+          indice +
+          direcao;
 
         if (
-          novoIndice < 0 ||
+          indice <
+            0 ||
+          novoIndice <
+            0 ||
           novoIndice >=
             atual.length
         ) {
           return atual;
         }
 
-        const novo = [
-          ...atual,
-        ];
+        const novo =
+          [
+            ...atual,
+          ];
 
         [
           novo[indice],
@@ -140,69 +312,108 @@ export default function NovaRotaForm({
     );
   }
 
+  function selecionarVisiveis() {
+    setSelecionados(
+      (
+        atual,
+      ) => {
+        const novo =
+          [
+            ...atual,
+          ];
+
+        for (
+          const cliente of
+          filtrados
+        ) {
+          if (
+            !novo.includes(
+              cliente.id,
+            )
+          ) {
+            novo.push(
+              cliente.id,
+            );
+          }
+        }
+
+        return novo;
+      },
+    );
+  }
+
   return (
     <>
       <form
-        action={formAction}
+        action={
+          formAction
+        }
         className="space-y-5"
       >
-        <section className="rounded-[28px] bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-emerald-50 text-emerald-700">
-              <Truck size={21} />
+        <section className="card-premium rounded-[30px] p-6">
+          <div className="flex items-start gap-4">
+            <div className="icon-emerald flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px]">
+              <Truck
+                size={22}
+              />
             </div>
 
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700">
-                Operação
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#b07a12]">
+                Responsável
               </p>
 
-              <h2 className="text-lg font-black">
-                Responsável pela rota
+              <h2 className="mt-1 text-[22px] font-black tracking-[-0.035em]">
+                Quem fará a rota?
               </h2>
+
+              <p className="mt-1 text-[12px] text-slate-500">
+                Selecione o entregador e a data planejada.
+              </p>
             </div>
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-[9px] font-black uppercase tracking-[0.13em] text-slate-500">
+            <label>
+              <span className="text-[11px] font-extrabold text-slate-600">
                 Entregador
-              </label>
+              </span>
 
               <select
                 name="entregador_id"
                 required
                 defaultValue=""
-                className="mt-2 h-[54px] w-full rounded-[16px] border border-slate-200 bg-white px-4 text-sm font-semibold outline-none focus:border-emerald-500"
+                className="mt-2 h-[56px] w-full rounded-[17px] border border-slate-200 bg-white px-4 text-[14px] font-bold outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
               >
                 <option value="">
-                  Selecione
+                  Selecione o entregador
                 </option>
 
                 {entregadores.map(
-                  (entregador) => (
+                  (
+                    entregador,
+                  ) => (
                     <option
-                      key={entregador.id}
-                      value={entregador.id}
+                      key={
+                        entregador.id
+                      }
+                      value={
+                        entregador.id
+                      }
                     >
-                      {entregador.nome}
+                      {
+                        entregador.nome
+                      }
                     </option>
                   ),
                 )}
               </select>
+            </label>
 
-              {entregadores.length ===
-                0 && (
-                <p className="mt-2 text-[10px] font-bold text-amber-700">
-                  Nenhum ENTREGADOR ativo encontrado nesta empresa.
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="text-[9px] font-black uppercase tracking-[0.13em] text-slate-500">
+            <label>
+              <span className="text-[11px] font-extrabold text-slate-600">
                 Data da rota
-              </label>
+              </span>
 
               <input
                 type="date"
@@ -211,244 +422,408 @@ export default function NovaRotaForm({
                   dataInicial
                 }
                 required
-                className="mt-2 h-[54px] w-full rounded-[16px] border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-emerald-500"
+                className="mt-2 h-[56px] w-full rounded-[17px] border border-slate-200 bg-white px-4 text-[14px] font-bold outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
               />
-            </div>
+            </label>
           </div>
 
-          <div className="mt-4">
-            <label className="text-[9px] font-black uppercase tracking-[0.13em] text-slate-500">
+          <label className="mt-4 block">
+            <span className="text-[11px] font-extrabold text-slate-600">
               Observação
-            </label>
+            </span>
 
             <input
               name="observacao"
-              placeholder="Opcional"
-              className="mt-2 h-[54px] w-full rounded-[16px] border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-emerald-500"
+              placeholder="Ex.: rota da manhã, prioridade de atendimento..."
+              className="mt-2 h-[56px] w-full rounded-[17px] border border-slate-200 bg-white px-4 text-[14px] font-semibold outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
             />
-          </div>
+          </label>
         </section>
 
-        <section className="rounded-[28px] bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700">
-                Clientes
-              </p>
+        <div className="grid gap-5 xl:grid-cols-[1.15fr_.85fr]">
+          <section className="card-premium overflow-hidden rounded-[30px]">
+            <div className="border-b border-slate-100 p-6">
+              <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#b07a12]">
+                    Clientes disponíveis
+                  </p>
 
-              <h2 className="mt-1 text-lg font-black">
-                Sequência de atendimento
-              </h2>
+                  <h2 className="mt-1 text-[22px] font-black tracking-[-0.035em]">
+                    Adicionar paradas
+                  </h2>
 
-              <p className="mt-1 text-[10px] text-slate-400">
-                A ordem de seleção define a sequência da rota.
-              </p>
+                  <p className="mt-1 text-[12px] text-slate-500">
+                    Pesquise por nome, código, telefone ou endereço.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    selecionarVisiveis
+                  }
+                  className="rounded-[14px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-[11px] font-extrabold text-emerald-800"
+                >
+                  Selecionar visíveis
+                </button>
+              </div>
+
+              <div className="relative mt-5">
+                <Search
+                  size={19}
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-emerald-700"
+                />
+
+                <input
+                  value={
+                    busca
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setBusca(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="Buscar cliente..."
+                  className="h-[56px] w-full rounded-[17px] border border-slate-200 bg-white pl-12 pr-4 text-[14px] font-semibold outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
+                />
+              </div>
+
+              <div className="mt-3 flex items-center justify-between text-[11px] font-bold text-slate-400">
+                <span>
+                  {
+                    filtrados.length
+                  } cliente(s) encontrado(s)
+                </span>
+
+                <span className="text-emerald-700">
+                  {
+                    selecionados.length
+                  } selecionado(s)
+                </span>
+              </div>
             </div>
 
-            <span className="rounded-full bg-emerald-50 px-4 py-2 text-[9px] font-black text-emerald-700">
-              {selecionados.length} selecionado(s)
-            </span>
-          </div>
+            <div className="max-h-[680px] space-y-3 overflow-y-auto p-5">
+              {filtrados.length ===
+              0 ? (
+                <div className="rounded-[22px] bg-slate-50 p-8 text-center">
+                  <Search
+                    size={28}
+                    className="mx-auto text-slate-300"
+                  />
 
-          {clientes.length === 0 ? (
-            <div className="mt-5 rounded-[20px] bg-slate-50 p-6 text-center">
-              <p className="text-sm font-black">
-                Nenhum cliente ativo
-              </p>
+                  <p className="mt-3 text-[14px] font-extrabold">
+                    Nenhum cliente encontrado
+                  </p>
+                </div>
+              ) : (
+                filtrados.map(
+                  (
+                    cliente,
+                  ) => {
+                    const ativo =
+                      selecionados.includes(
+                        cliente.id,
+                      );
 
-              <p className="mt-2 text-[10px] leading-5 text-slate-400">
-                Cadastre clientes antes de montar a rota.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-5 space-y-3">
-              {clientes.map(
-                (cliente) => {
-                  const ativo =
-                    selecionados.includes(
-                      cliente.id,
+                    const local =
+                      endereco(
+                        cliente,
+                      );
+
+                    return (
+                      <button
+                        key={
+                          cliente.id
+                        }
+                        type="button"
+                        onClick={() =>
+                          alternarCliente(
+                            cliente.id,
+                          )
+                        }
+                        className={`w-full rounded-[20px] border p-4 text-left transition ${
+                          ativo
+                            ? "border-emerald-300 bg-emerald-50/70 shadow-[0_10px_25px_rgba(23,111,60,0.08)]"
+                            : "border-slate-100 bg-white hover:border-emerald-100 hover:bg-[#fbfdfb]"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] ${
+                              ativo
+                                ? "bg-[#176f3c] text-white"
+                                : "bg-slate-50 text-slate-400"
+                            }`}
+                          >
+                            {ativo ? (
+                              <Check
+                                size={20}
+                                strokeWidth={3}
+                              />
+                            ) : (
+                              <UserRound
+                                size={19}
+                              />
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-[15px] font-black">
+                                  {
+                                    cliente.nome
+                                  }
+                                </p>
+
+                                <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#b07a12]">
+                                  {
+                                    cliente.codigo
+                                  }
+                                </p>
+                              </div>
+
+                              {ativo && (
+                                <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-black text-emerald-700 shadow-sm">
+                                  #
+                                  {
+                                    selecionados.indexOf(
+                                      cliente.id,
+                                    ) +
+                                    1
+                                  }
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mt-3 flex items-start gap-2 text-[12px] leading-5 text-slate-500">
+                              <MapPin
+                                size={15}
+                                className="mt-0.5 shrink-0 text-emerald-700"
+                              />
+
+                              <span>
+                                {
+                                  local.linha1
+                                }
+
+                                {local.linha2
+                                  ? ` • ${local.linha2}`
+                                  : ""}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
                     );
-
-                  const ordem =
-                    selecionados.indexOf(
-                      cliente.id,
-                    ) + 1;
-
-                  return (
-                    <div
-                      key={cliente.id}
-                      className={`rounded-[20px] border p-4 transition ${
-                        ativo
-                          ? "border-emerald-200 bg-[#f3fbf6]"
-                          : "border-slate-100 bg-white"
-                      }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            alternarCliente(
-                              cliente.id,
-                            )
-                          }
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border transition ${
-                            ativo
-                              ? "border-[#176f3c] bg-[#176f3c] text-white"
-                              : "border-slate-200 bg-white text-slate-300"
-                          }`}
-                        >
-                          {ativo ? (
-                            <Check
-                              size={18}
-                              strokeWidth={
-                                3
-                              }
-                            />
-                          ) : (
-                            <span className="h-3 w-3 rounded-full border-2 border-current" />
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            alternarCliente(
-                              cliente.id,
-                            )
-                          }
-                          className="min-w-0 flex-1 text-left"
-                        >
-                          <p className="text-sm font-black">
-                            {cliente.nome}
-                          </p>
-
-                          <p className="mt-1 text-[9px] font-bold text-slate-400">
-                            {cliente.codigo}
-                          </p>
-
-                          <div className="mt-2 flex items-start gap-2 text-[10px] leading-4 text-slate-500">
-                            <MapPin
-                              size={13}
-                              className="mt-0.5 shrink-0"
-                            />
-
-                            <span>
-                              {cliente.logradouro ??
-                                "Endereço não informado"}
-
-                              {cliente.numero
-                                ? `, ${cliente.numero}`
-                                : ""}
-
-                              {cliente.bairro
-                                ? ` - ${cliente.bairro}`
-                                : ""}
-                            </span>
-                          </div>
-                        </button>
-
-                        {ativo && (
-                          <div className="flex shrink-0 flex-col items-center gap-2">
-                            <div className="flex h-9 min-w-9 items-center justify-center rounded-[12px] bg-emerald-50 px-3 text-xs font-black text-emerald-700">
-                              {ordem}
-                            </div>
-
-                            <div className="flex gap-1">
-                              <button
-                                type="button"
-                                disabled={
-                                  ordem ===
-                                  1
-                                }
-                                onClick={() =>
-                                  mover(
-                                    cliente.id,
-                                    -1,
-                                  )
-                                }
-                                className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-[10px] font-black disabled:opacity-30"
-                                title="Subir"
-                              >
-                                ↑
-                              </button>
-
-                              <button
-                                type="button"
-                                disabled={
-                                  ordem ===
-                                  selecionados.length
-                                }
-                                onClick={() =>
-                                  mover(
-                                    cliente.id,
-                                    1,
-                                  )
-                                }
-                                className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-[10px] font-black disabled:opacity-30"
-                                title="Descer"
-                              >
-                                ↓
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {ativo && (
-                        <>
-                          <input
-                            type="hidden"
-                            name="clientes"
-                            value={
-                              cliente.id
-                            }
-                          />
-
-                          <input
-                            type="hidden"
-                            name={`sequencia_${cliente.id}`}
-                            value={
-                              ordem
-                            }
-                          />
-                        </>
-                      )}
-                    </div>
-                  );
-                },
+                  },
+                )
               )}
             </div>
-          )}
-        </section>
+          </section>
 
-        <button
-          type="submit"
-          disabled={
-            pending ||
-            entregadores.length ===
-              0 ||
-            selecionados.length ===
-              0
-          }
-          className="flex h-[56px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#176f3c] text-sm font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.18)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Save size={18} />
+          <section className="card-premium h-fit overflow-hidden rounded-[30px] xl:sticky xl:top-5">
+            <div className="border-b border-slate-100 p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#b07a12]">
+                    Sequência
+                  </p>
 
-          {pending
-            ? "Criando rota..."
-            : "Criar rota"}
-        </button>
+                  <h2 className="mt-1 text-[22px] font-black tracking-[-0.035em]">
+                    Ordem de atendimento
+                  </h2>
+
+                  <p className="mt-1 text-[12px] text-slate-500">
+                    Esta será a ordem mostrada ao entregador.
+                  </p>
+                </div>
+
+                <span className="rounded-full bg-emerald-50 px-4 py-2 text-[12px] font-black text-emerald-700">
+                  {
+                    selecionados.length
+                  }
+                </span>
+              </div>
+            </div>
+
+            {clientesSelecionados.length ===
+            0 ? (
+              <div className="p-8 text-center">
+                <Route
+                  size={34}
+                  className="mx-auto text-slate-300"
+                />
+
+                <p className="mt-4 text-[15px] font-black">
+                  Nenhuma parada
+                </p>
+
+                <p className="mt-2 text-[12px] leading-5 text-slate-400">
+                  Selecione clientes ao lado para montar o itinerário.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[600px] space-y-2 overflow-y-auto p-5">
+                {clientesSelecionados.map(
+                  (
+                    cliente,
+                    index,
+                  ) => {
+                    const local =
+                      endereco(
+                        cliente,
+                      );
+
+                    return (
+                      <div
+                        key={
+                          cliente.id
+                        }
+                        className="rounded-[18px] border border-slate-100 bg-white p-4"
+                      >
+                        <input
+                          type="hidden"
+                          name="clientes"
+                          value={
+                            cliente.id
+                          }
+                        />
+
+                        <input
+                          type="hidden"
+                          name={`sequencia_${cliente.id}`}
+                          value={
+                            index +
+                            1
+                          }
+                        />
+
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-emerald-50 text-[14px] font-black text-emerald-700">
+                            {
+                              index +
+                              1
+                            }
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[14px] font-black">
+                              {
+                                cliente.nome
+                              }
+                            </p>
+
+                            <p className="mt-1 truncate text-[11px] text-slate-400">
+                              {
+                                local.linha1
+                              }
+                            </p>
+                          </div>
+
+                          <div className="flex shrink-0 gap-1">
+                            <button
+                              type="button"
+                              title="Subir"
+                              disabled={
+                                index ===
+                                0
+                              }
+                              onClick={() =>
+                                mover(
+                                  cliente.id,
+                                  -1,
+                                )
+                              }
+                              className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-slate-50 text-slate-600 disabled:opacity-25"
+                            >
+                              <ArrowUp
+                                size={16}
+                              />
+                            </button>
+
+                            <button
+                              type="button"
+                              title="Descer"
+                              disabled={
+                                index ===
+                                clientesSelecionados.length -
+                                  1
+                              }
+                              onClick={() =>
+                                mover(
+                                  cliente.id,
+                                  1,
+                                )
+                              }
+                              className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-slate-50 text-slate-600 disabled:opacity-25"
+                            >
+                              <ArrowDown
+                                size={16}
+                              />
+                            </button>
+
+                            <button
+                              type="button"
+                              title="Remover"
+                              onClick={() =>
+                                alternarCliente(
+                                  cliente.id,
+                                )
+                              }
+                              className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-red-50 text-red-500"
+                            >
+                              <Trash2
+                                size={15}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  },
+                )}
+              </div>
+            )}
+
+            <div className="border-t border-slate-100 bg-[#fbfdfb] p-5">
+              <button
+                type="submit"
+                disabled={
+                  pending ||
+                  entregadores.length ===
+                    0 ||
+                  selecionados.length ===
+                    0
+                }
+                className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[14px] font-black text-white shadow-[0_16px_30px_rgba(23,111,60,0.24)] transition active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Save
+                  size={19}
+                />
+
+                {pending
+                  ? "Criando rota..."
+                  : `Criar rota com ${selecionados.length} parada(s)`}
+              </button>
+            </div>
+          </section>
+        </div>
       </form>
 
       {modal &&
         state.message && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[#07150d]/55 p-4 backdrop-blur-[5px]">
-            <div className="w-full max-w-[420px] rounded-[30px] bg-white p-7 text-center shadow-[0_30px_100px_rgba(15,50,30,0.25)]">
+          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[#07150d]/55 p-4 backdrop-blur-[6px]">
+            <div className="w-full max-w-[430px] rounded-[30px] bg-white p-7 text-center shadow-[0_30px_100px_rgba(15,50,30,0.28)]">
               <div
                 className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${
                   state.success
-                    ? "bg-emerald-50 text-emerald-600"
-                    : "bg-red-50 text-red-600"
+                    ? "bg-emerald-100 text-emerald-600"
+                    : "bg-red-100 text-red-600"
                 }`}
               >
                 {state.success ? (
@@ -462,39 +837,53 @@ export default function NovaRotaForm({
                 )}
               </div>
 
-              <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
+              <p className="mt-5 text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
                 {state.success
                   ? "Planejamento concluído"
-                  : "Falha na operação"}
+                  : "Operação não concluída"}
               </p>
 
-              <h3 className="mt-2 text-xl font-black">
+              <h3 className="mt-2 text-[23px] font-black tracking-[-0.04em]">
                 {state.success
                   ? "Rota criada"
-                  : "Não foi possível criar"}
+                  : "Verifique os dados"}
               </h3>
 
-              <p className="mt-3 text-xs leading-6 text-slate-500">
-                {state.message}
+              <p className="mt-3 text-[13px] leading-6 text-slate-500">
+                {
+                  state.message
+                }
               </p>
 
-              {state.success ? (
+              {state.success &&
+              state.rotaId ? (
                 <div className="mt-6 space-y-2">
                   <Link
-                    href="/admin/rotas"
-                    className="flex h-[50px] items-center justify-center gap-2 rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
+                    href={`/admin/rotas/${state.rotaId}`}
+                    className="flex h-[52px] items-center justify-center gap-2 rounded-[16px] bg-[#176f3c] text-[13px] font-black text-white"
                   >
-                    <Route size={17} />
-                    Ver rotas
+                    <Route
+                      size={17}
+                    />
+                    Abrir rota criada
+                  </Link>
+
+                  <Link
+                    href="/admin/rotas"
+                    className="flex h-[48px] items-center justify-center rounded-[15px] border border-slate-200 text-[12px] font-extrabold text-slate-600"
+                  >
+                    Ver todas as rotas
                   </Link>
                 </div>
               ) : (
                 <button
                   type="button"
                   onClick={() =>
-                    setModal(false)
+                    setModal(
+                      false,
+                    )
                   }
-                  className="mt-6 h-[50px] w-full rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
+                  className="mt-6 h-[52px] w-full rounded-[16px] bg-[#176f3c] text-[13px] font-black text-white"
                 >
                   Entendi
                 </button>

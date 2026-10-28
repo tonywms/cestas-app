@@ -98,6 +98,7 @@ export async function atualizarConfiguracoesEmpresa(
   revalidatePath("/admin");
   revalidatePath("/admin/acesso");
   revalidatePath("/admin/configuracoes");
+  revalidatePath("/admin/dashboard");
   revalidatePath("/admin/permissoes");
   revalidatePath("/mobile");
   revalidatePath("/mobile/carga");

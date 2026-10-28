@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import {
@@ -93,7 +93,7 @@ export default function OnboardingScreen() {
 
                 <div className="relative h-[210px] w-[260px]">
                   <Image
-                    src="/branding/cestas-app-logo.png"
+                    src="/branding/cestas-app-logo.svg"
                     alt="Logo Cestas APP"
                     fill
                     priority

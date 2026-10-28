@@ -168,7 +168,9 @@ export async function criarContrato(
     usuario.perfilCodigo ===
       "ADMINISTRADOR" ||
     usuario.perfilCodigo ===
-      "GESTOR";
+      "GESTOR" ||
+    usuario.perfilCodigo ===
+      "FINANCEIRO";
 
   if (!autorizado) {
     return {
@@ -730,7 +732,15 @@ export async function criarContrato(
   );
 
   revalidatePath(
+    "/admin/dashboard",
+  );
+
+  revalidatePath(
     "/mobile/recebimentos",
+  );
+
+  revalidatePath(
+    `/admin/clientes/${clienteId}`,
   );
 
   return {

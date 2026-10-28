@@ -1,0 +1,21 @@
+-- MOBILE CLIENTES / VENDA EM CAMPO
+-- MIGRAÇÃO JÁ APLICADA NO SUPABASE DO PROJETO pwnaldrxjnyovlhudxan EM 28/10/2026.
+--
+-- Objetos criados:
+--   permissao CLIENTE_MOBILE_CADASTRAR
+--   permissao CLIENTE_MOBILE_EDITAR
+--   RPC public.mobile_criar_cliente(...)
+--   RPC public.mobile_editar_cliente(...)
+--
+-- Os perfis ADMINISTRADOR, GESTOR e ENTREGADOR das empresas ativas
+-- receberam as duas permissões.
+--
+-- As RPCs:
+-- - validam auth.uid()
+-- - validam membership da empresa
+-- - validam permissão específica
+-- - respeitam empresa_id
+-- - registram auditoria_eventos
+--
+-- Nenhuma permissão CLIENTES_GERENCIAR ou ROTA_GERENCIAR foi concedida
+-- ao entregador.

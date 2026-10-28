@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Route,
   ShieldCheck,
+  Settings2,
   Smartphone,
   Sparkles,
   UsersRound,
@@ -46,33 +47,153 @@ export default async function AdminPage() {
     timeZone: "America/Fortaleza",
   });
 
-  const modulos: Modulo[] = [
-    { titulo: "Dashboard", descricao: "Indicadores executivos da operação.", href: "/admin/dashboard", icone: <LayoutDashboard size={22} /> },
-    { titulo: "Clientes", descricao: "Cadastro, endereço, contratos e crédito.", href: "/admin/clientes", icone: <UsersRound size={22} /> },
-    { titulo: "Estoque", descricao: "Estoque central, cargas e movimentações.", href: "/admin/estoque", icone: <Boxes size={22} /> },
-    { titulo: "Rotas", descricao: "Planejamento e acompanhamento de entregas.", href: "/admin/rotas", icone: <Route size={22} /> },
-    { titulo: "Financeiro", descricao: "Parcelas, pagamentos e caixa.", href: "/admin/financeiro", icone: <CircleDollarSign size={22} /> },
-  ];
+  const financeiro =
+    usuario.perfilCodigo ===
+    "FINANCEIRO";
+
+  const modulos: Modulo[] =
+    financeiro
+      ? [
+          {
+            titulo:
+              "Dashboard",
+            descricao:
+              "Indicadores financeiros e visão da operação.",
+            href:
+              "/admin/dashboard",
+            icone:
+              <LayoutDashboard size={22} />,
+          },
+          {
+            titulo:
+              "Clientes",
+            descricao:
+              "Cadastro, contratos, parcelas e situação financeira.",
+            href:
+              "/admin/clientes",
+            icone:
+              <UsersRound size={22} />,
+          },
+          {
+            titulo:
+              "Financeiro",
+            descricao:
+              "Parcelas, recebimentos e contas a receber.",
+            href:
+              "/admin/financeiro",
+            icone:
+              <CircleDollarSign size={22} />,
+          },
+          {
+            titulo:
+              "Crédito",
+            descricao:
+              "Bloqueios, atrasos e liberações.",
+            href:
+              "/admin/credito",
+            icone:
+              <CreditCard size={22} />,
+          },
+        ]
+      : [
+          {
+            titulo:
+              "Dashboard",
+            descricao:
+              "Indicadores executivos da operação.",
+            href:
+              "/admin/dashboard",
+            icone:
+              <LayoutDashboard size={22} />,
+          },
+          {
+            titulo:
+              "Clientes",
+            descricao:
+              "Cadastro, endereço, contratos e crédito.",
+            href:
+              "/admin/clientes",
+            icone:
+              <UsersRound size={22} />,
+          },
+          {
+            titulo:
+              "Estoque",
+            descricao:
+              "Estoque central, cargas e movimentações.",
+            href:
+              "/admin/estoque",
+            icone:
+              <Boxes size={22} />,
+          },
+          {
+            titulo:
+              "Rotas",
+            descricao:
+              "Planejamento e acompanhamento de entregas.",
+            href:
+              "/admin/rotas",
+            icone:
+              <Route size={22} />,
+          },
+          {
+            titulo:
+              "Financeiro",
+            descricao:
+              "Parcelas, pagamentos e caixa.",
+            href:
+              "/admin/financeiro",
+            icone:
+              <CircleDollarSign size={22} />,
+          },
+          {
+            titulo:
+              "Configurações",
+            descricao:
+              "Regras da empresa, carga, bipagem e operação.",
+            href:
+              "/admin/configuracoes",
+            icone:
+              <Settings2 size={22} />,
+          },
+        ];
 
   if (
-    usuario.isPlatformAdmin ||
-    usuario.perfilCodigo === "ADMINISTRADOR" ||
-    usuario.perfilCodigo === "GESTOR"
+    !financeiro &&
+    (
+      usuario.isPlatformAdmin ||
+      usuario.perfilCodigo ===
+        "ADMINISTRADOR" ||
+      usuario.perfilCodigo ===
+        "GESTOR"
+    )
   ) {
     modulos.push({
-      titulo: "Crédito",
-      descricao: "Bloqueios, regras, exceções e auditoria.",
-      href: "/admin/credito",
-      icone: <CreditCard size={22} />,
+      titulo:
+        "Crédito",
+      descricao:
+        "Bloqueios, regras, exceções e auditoria.",
+      href:
+        "/admin/credito",
+      icone:
+        <CreditCard size={22} />,
     });
   }
 
-  modulos.push({
-    titulo: "Usuários",
-    descricao: "Perfis, acessos e permissões.",
-    href: "/admin/usuarios",
-    icone: <ShieldCheck size={22} />,
-  });
+  if (
+    !financeiro
+  ) {
+    modulos.push({
+      titulo:
+        "Usuários",
+      descricao:
+        "Perfis, acessos, licenças e permissões.",
+      href:
+        "/admin/usuarios",
+      icone:
+        <ShieldCheck size={22} />,
+    });
+  }
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">

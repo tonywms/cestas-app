@@ -176,7 +176,14 @@ export async function criarRota(
     .from("clientes")
     .select(`
       id,
-      nome
+      nome,
+      logradouro,
+      numero,
+      complemento,
+      bairro,
+      cidade,
+      uf,
+      cep
     `)
     .eq("empresa_id", usuario.empresa.id)
     .eq("ativo", true)
@@ -256,14 +263,71 @@ export async function criarRota(
         a.sequencia - b.sequencia,
     );
 
+  const clientesPorId =
+    new Map(
+      clientes.map(
+        (
+          cliente,
+        ) => [
+          Number(
+            cliente.id,
+          ),
+          cliente,
+        ],
+      ),
+    );
+
   const itens = ordenados.map(
-    (item, index) => ({
-      empresa_id: usuario.empresa.id,
-      rota_id: rota.id,
-      cliente_id: item.clienteId,
-      sequencia: index + 1,
-      status: "PENDENTE",
-    }),
+    (
+      item,
+      index,
+    ) => {
+      const cliente =
+        clientesPorId.get(
+          item.clienteId,
+        );
+
+      return {
+        empresa_id:
+          usuario.empresa.id,
+        rota_id:
+          rota.id,
+        cliente_id:
+          item.clienteId,
+        sequencia:
+          index + 1,
+        status:
+          "PENDENTE",
+
+        /*
+         * Snapshot do endereço.
+         * A rota preserva exatamente o local
+         * planejado mesmo que o cadastro do
+         * cliente seja alterado depois.
+         */
+        endereco_logradouro:
+          cliente?.logradouro ??
+          null,
+        endereco_numero:
+          cliente?.numero ??
+          null,
+        endereco_complemento:
+          cliente?.complemento ??
+          null,
+        endereco_bairro:
+          cliente?.bairro ??
+          null,
+        endereco_cidade:
+          cliente?.cidade ??
+          null,
+        endereco_uf:
+          cliente?.uf ??
+          null,
+        endereco_cep:
+          cliente?.cep ??
+          null,
+      };
+    },
   );
 
   const {

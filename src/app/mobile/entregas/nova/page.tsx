@@ -41,6 +41,7 @@ type PageProps = {
   searchParams:
     Promise<{
       rotaClienteId?: string;
+      clienteId?: string;
     }>;
 };
 
@@ -65,14 +66,37 @@ export default async function NovaEntregaPage({
   const params =
     await searchParams;
 
+  /* ENTREGA_VOLUME_REDIRECT_PATCH_V3 */
+  const modoControleCarga =
+    String(
+      usuario.configuracao
+        .modoControleCarga,
+    );
+
   if (
-    usuario.configuracao
-      .modoControleCarga ===
+    modoControleCarga ===
     "VOLUME"
   ) {
+    const queryParams =
+      new URLSearchParams();
+
+    if (params.rotaClienteId) {
+      queryParams.set(
+        "rotaClienteId",
+        params.rotaClienteId,
+      );
+    }
+
+    if (params.clienteId) {
+      queryParams.set(
+        "clienteId",
+        params.clienteId,
+      );
+    }
+
     const query =
-      params.rotaClienteId
-        ? `?rotaClienteId=${encodeURIComponent(params.rotaClienteId)}`
+      queryParams.toString()
+        ? `?${queryParams.toString()}`
         : "";
 
     redirect(
@@ -90,6 +114,13 @@ export default async function NovaEntregaPage({
     params.rotaClienteId
       ? Number(
           params.rotaClienteId,
+        )
+      : null;
+
+  const clienteIdInformado =
+    params.clienteId
+      ? Number(
+          params.clienteId,
         )
       : null;
 
@@ -212,7 +243,13 @@ export default async function NovaEntregaPage({
 
   let clienteSelecionadoId:
     number | null =
-    null;
+    clienteIdInformado &&
+    Number.isInteger(
+      clienteIdInformado,
+    ) &&
+    clienteIdInformado > 0
+      ? clienteIdInformado
+      : null;
 
   let sequenciaRota:
     number | null =
@@ -463,7 +500,9 @@ export default async function NovaEntregaPage({
               href={
                 rotaClienteId
                   ? "/mobile/rota"
-                  : "/mobile/carga"
+                  : clienteIdInformado
+                    ? "/mobile/clientes"
+                    : "/mobile/carga"
               }
               className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-[#eaf5ed] text-[#176f3c] transition active:scale-95"
             >
@@ -511,7 +550,7 @@ export default async function NovaEntregaPage({
             <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">
               {rotaClienteId
                 ? "Atendimento da rota"
-                : "Entrega avulsa"}
+                : "Venda em campo"}
             </p>
 
             <h2 className="mt-2 text-[30px] font-black leading-none tracking-[-0.05em]">
@@ -524,7 +563,7 @@ export default async function NovaEntregaPage({
             <p className="mt-4 max-w-[330px] text-[11px] leading-5 text-white/60">
               {rotaClienteId
                 ? "O cliente desta parada já foi definido pelo planejamento da rota."
-                : "Selecione o cliente, a cesta e informe a quantidade da entrega."}
+                : "Selecione ou cadastre o cliente, escolha a cesta e conclua a venda diretamente da sua carga."}
             </p>
 
             {/* INFO OPERAÇÃO */}

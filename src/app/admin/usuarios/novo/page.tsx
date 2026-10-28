@@ -1,18 +1,33 @@
 export const instant = false;
 
+import Link from "next/link";
+import {
+  redirect,
+} from "next/navigation";
+
 import {
   ArrowLeft,
-  ShieldCheck,
-  UserPlus,
 } from "lucide-react";
-import Link from "next/link";
-import { redirect } from "next/navigation";
 
-import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
+import {
+  Hero,
+  Kpi,
+  KpiGrid,
+  ModuleHeader,
+} from "@/components/admin/PremiumModuleUi";
+
+import {
+  getCurrentUserProfile,
+} from "@/lib/auth/get-current-user";
+
 import {
   PERMISSOES,
   temPermissao,
 } from "@/lib/auth/permissions";
+
+import {
+  createClient,
+} from "@/lib/supabase/server";
 
 import NovoEntregadorForm from "./NovoEntregadorForm";
 
@@ -31,67 +46,141 @@ export default async function NovoEntregadorPage() {
       PERMISSOES.USUARIOS_GERENCIAR,
     );
 
-  if (!podeGerenciar) {
-    redirect("/admin");
+  if (
+    !podeGerenciar
+  ) {
+    redirect(
+      "/admin",
+    );
   }
 
+  const supabase =
+    await createClient();
+
+  const [
+    empresaResult,
+    membrosResult,
+  ] =
+    await Promise.all([
+      supabase
+        .from("empresas")
+        .select(`
+          limite_usuarios
+        `)
+        .eq(
+          "id",
+          usuario.empresa.id,
+        )
+        .maybeSingle(),
+
+      supabase
+        .from(
+          "empresa_usuarios",
+        )
+        .select(
+          "usuario_id",
+          {
+            count:
+              "exact",
+            head:
+              true,
+          },
+        )
+        .eq(
+          "empresa_id",
+          usuario.empresa.id,
+        )
+        .eq(
+          "ativo",
+          true,
+        ),
+    ]);
+
+  const limiteUsuarios =
+    Number(
+      empresaResult.data
+        ?.limite_usuarios ??
+        10,
+    );
+
+  const usuariosAtivos =
+    membrosResult.count ??
+    0;
+
+  const disponiveis =
+    Math.max(
+      0,
+      limiteUsuarios -
+        usuariosAtivos,
+    );
+
   return (
-    <main className="min-h-screen bg-[#f3f7f4] px-4 py-6 text-[#142019] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[900px]">
+    <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
+      <div className="mx-auto max-w-[980px]">
+        <ModuleHeader
+          eyebrow="Equipe"
+          title="Novo colaborador"
+          actions={
+            <Link
+              href="/admin/usuarios"
+              className="flex items-center gap-2 rounded-[14px] border border-emerald-100 bg-white px-4 py-3 text-[12px] font-extrabold text-emerald-800"
+            >
+              <ArrowLeft
+                size={16}
+              />
+              Voltar
+            </Link>
+          }
+        />
 
-        <header className="flex items-center gap-4 rounded-[26px] bg-white px-5 py-4 shadow-sm">
-          <Link
-            href="/admin/usuarios"
-            className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-emerald-50 text-emerald-700"
-          >
-            <ArrowLeft size={19} />
-          </Link>
+        <Hero
+          eyebrow="Gestão de acessos"
+          title="Cadastre a pessoa certa no perfil certo."
+          description="Entregadores trabalham na operação mobile. Financeiro acessa os módulos administrativos de cobrança e crédito."
+        >
+          <KpiGrid>
+            <Kpi
+              label="Usuários ativos"
+              value={
+                usuariosAtivos
+              }
+            />
 
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700">
-              Cestas APP
-            </p>
+            <Kpi
+              label="Limite contratado"
+              value={
+                limiteUsuarios
+              }
+            />
 
-            <h1 className="text-base font-black">
-              Novo colaborador
-            </h1>
-          </div>
-        </header>
+            <Kpi
+              label="Disponíveis"
+              value={
+                disponiveis
+              }
+              warning={
+                disponiveis ===
+                0
+              }
+              highlight={
+                disponiveis >
+                0
+              }
+            />
+          </KpiGrid>
+        </Hero>
 
-        <section className="mt-5 rounded-[32px] bg-[linear-gradient(135deg,#176f3c,#0d5a30)] p-7 text-white shadow-[0_22px_55px_rgba(17,86,46,0.17)]">
-          <div className="flex items-start justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">
-                <UserPlus size={15} />
-
-                Gestão de equipe
-              </div>
-
-              <h2 className="mt-4 text-[30px] font-black leading-[1.05] tracking-[-0.05em]">
-                Cadastrar entregador.
-              </h2>
-
-              <p className="mt-3 max-w-xl text-xs leading-6 text-white/65">
-                O colaborador será criado no
-                Supabase Auth e vinculado
-                exclusivamente à{" "}
-                <strong>
-                  {usuario.empresa.nomeFantasia}
-                </strong>
-                .
-              </p>
-            </div>
-
-            <div className="hidden h-14 w-14 items-center justify-center rounded-[18px] bg-white/10 md:flex">
-              <ShieldCheck size={27} />
-            </div>
-          </div>
-        </section>
-
-        <div className="mt-5">
+        <div className="mt-6">
           <NovoEntregadorForm
             empresaNome={
-              usuario.empresa.nomeFantasia
+              usuario.empresa
+                .nomeFantasia
+            }
+            usuariosAtivos={
+              usuariosAtivos
+            }
+            limiteUsuarios={
+              limiteUsuarios
             }
           />
         </div>

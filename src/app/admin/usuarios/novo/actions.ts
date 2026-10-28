@@ -1,33 +1,152 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import {
+  revalidatePath,
+} from "next/cache";
 
-import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
+import {
+  getCurrentUserProfile,
+} from "@/lib/auth/get-current-user";
+
 import {
   PERMISSOES,
   temPermissao,
 } from "@/lib/auth/permissions";
-import { createAdminClient } from "@/lib/supabase/admin";
 
-type CriarEntregadorState = {
+import {
+  createAdminClient,
+} from "@/lib/supabase/admin";
+
+export type CriarColaboradorState = {
   success: boolean;
   message: string;
   usuarioId: string | null;
 };
 
-export async function criarEntregador(
-  _previousState: CriarEntregadorState,
-  formData: FormData,
-): Promise<CriarEntregadorState> {
+const PERFIS_PERMITIDOS =
+  new Set([
+    "ENTREGADOR",
+    "FINANCEIRO",
+  ]);
+
+async function garantirPermissoesFinanceiro({
+  supabaseAdmin,
+  empresaId,
+  perfilId,
+}: {
+  supabaseAdmin:
+    ReturnType<
+      typeof createAdminClient
+    >;
+  empresaId: string;
+  perfilId: number;
+}) {
+  const {
+    data:
+      permissoes,
+    error:
+      permissoesError,
+  } =
+    await supabaseAdmin
+      .from("permissoes")
+      .select(`
+        id,
+        codigo
+      `)
+      .in(
+        "codigo",
+        [
+          "PAGAMENTO_REGISTRAR",
+          "CREDITO_LIBERAR",
+        ],
+      )
+      .eq(
+        "ativo",
+        true,
+      );
+
+  if (
+    permissoesError
+  ) {
+    console.error(
+      "Erro permissões Financeiro:",
+      permissoesError,
+    );
+
+    return;
+  }
+
+  const registros =
+    (
+      permissoes ??
+      []
+    ).map(
+      (
+        permissao,
+      ) => ({
+        empresa_id:
+          empresaId,
+        perfil_id:
+          perfilId,
+        permissao_id:
+          permissao.id,
+        permitido:
+          true,
+        updated_at:
+          new Date()
+            .toISOString(),
+      }),
+    );
+
+  if (
+    registros.length ===
+    0
+  ) {
+    return;
+  }
+
+  const {
+    error,
+  } =
+    await supabaseAdmin
+      .from(
+        "perfil_permissoes",
+      )
+      .upsert(
+        registros,
+        {
+          onConflict:
+            "empresa_id,perfil_id,permissao_id",
+        },
+      );
+
+  if (
+    error
+  ) {
+    console.error(
+      "Erro perfil_permissoes Financeiro:",
+      error,
+    );
+  }
+}
+
+export async function criarColaborador(
+  _previousState:
+    CriarColaboradorState,
+  formData:
+    FormData,
+): Promise<CriarColaboradorState> {
   const atual =
     await getCurrentUserProfile();
 
   if (!atual) {
     return {
-      success: false,
+      success:
+        false,
       message:
         "Sessão inválida. Entre novamente no sistema.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
@@ -38,39 +157,74 @@ export async function criarEntregador(
       PERMISSOES.USUARIOS_GERENCIAR,
     );
 
-  if (!podeGerenciar) {
+  if (
+    !podeGerenciar
+  ) {
     return {
-      success: false,
+      success:
+        false,
       message:
         "Você não possui permissão para cadastrar usuários.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
-  const nome = String(
-    formData.get("nome") ?? "",
-  ).trim();
+  const nome =
+    String(
+      formData.get(
+        "nome",
+      ) ??
+        "",
+    ).trim();
 
-  const email = String(
-    formData.get("email") ?? "",
-  )
-    .trim()
-    .toLowerCase();
+  const email =
+    String(
+      formData.get(
+        "email",
+      ) ??
+        "",
+    )
+      .trim()
+      .toLowerCase();
 
-  const telefone = String(
-    formData.get("telefone") ?? "",
-  ).trim();
+  const telefone =
+    String(
+      formData.get(
+        "telefone",
+      ) ??
+        "",
+    ).trim();
 
-  const senha = String(
-    formData.get("senha") ?? "",
-  );
+  const senha =
+    String(
+      formData.get(
+        "senha",
+      ) ??
+        "",
+    );
 
-  if (nome.length < 3) {
+  const perfilCodigo =
+    String(
+      formData.get(
+        "perfil_codigo",
+      ) ??
+        "",
+    )
+      .trim()
+      .toUpperCase();
+
+  if (
+    nome.length <
+    3
+  ) {
     return {
-      success: false,
+      success:
+        false,
       message:
         "Informe o nome completo do colaborador.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
@@ -79,30 +233,59 @@ export async function criarEntregador(
       email,
     );
 
-  if (!emailValido) {
+  if (
+    !emailValido
+  ) {
     return {
-      success: false,
+      success:
+        false,
       message:
         "Informe um e-mail válido.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
-  if (senha.length < 8) {
+  if (
+    senha.length <
+    8
+  ) {
     return {
-      success: false,
+      success:
+        false,
       message:
         "A senha inicial deve possuir pelo menos 8 caracteres.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
-  if (!process.env.SUPABASE_SECRET_KEY) {
+  if (
+    !PERFIS_PERMITIDOS.has(
+      perfilCodigo,
+    )
+  ) {
     return {
-      success: false,
+      success:
+        false,
+      message:
+        "Perfil inválido. Cadastre apenas Entregador ou Financeiro.",
+      usuarioId:
+        null,
+    };
+  }
+
+  if (
+    !process.env
+      .SUPABASE_SECRET_KEY
+  ) {
+    return {
+      success:
+        false,
       message:
         "SUPABASE_SECRET_KEY não está configurada no servidor.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
@@ -110,36 +293,130 @@ export async function criarEntregador(
     createAdminClient();
 
   /*
-   * PERFIL ENTREGADOR
+   * LICENCIAMENTO / LIMITE DE USUÁRIOS
+   */
+  const [
+    empresaResult,
+    membrosResult,
+  ] =
+    await Promise.all([
+      supabaseAdmin
+        .from("empresas")
+        .select(`
+          id,
+          nome_fantasia,
+          limite_usuarios
+        `)
+        .eq(
+          "id",
+          atual.empresa.id,
+        )
+        .maybeSingle(),
+
+      supabaseAdmin
+        .from(
+          "empresa_usuarios",
+        )
+        .select(
+          "usuario_id",
+          {
+            count:
+              "exact",
+            head:
+              true,
+          },
+        )
+        .eq(
+          "empresa_id",
+          atual.empresa.id,
+        )
+        .eq(
+          "ativo",
+          true,
+        ),
+    ]);
+
+  if (
+    empresaResult.error ||
+    !empresaResult.data
+  ) {
+    return {
+      success:
+        false,
+      message:
+        "Não foi possível consultar o limite de usuários da empresa.",
+      usuarioId:
+        null,
+    };
+  }
+
+  const limite =
+    Number(
+      empresaResult.data
+        .limite_usuarios ??
+        10,
+    );
+
+  const usados =
+    membrosResult.count ??
+    0;
+
+  if (
+    usados >=
+    limite
+  ) {
+    return {
+      success:
+        false,
+      message:
+        `Limite de usuários atingido: ${usados}/${limite}. Aumente o limite da empresa antes de cadastrar outro colaborador.`,
+      usuarioId:
+        null,
+    };
+  }
+
+  /*
+   * PERFIL ESCOLHIDO
    */
   const {
-    data: perfil,
-    error: perfilError,
-  } = await supabaseAdmin
-    .from("perfis")
-    .select(`
-      id,
-      codigo,
-      nome
-    `)
-    .eq("codigo", "ENTREGADOR")
-    .eq("ativo", true)
-    .maybeSingle();
+    data:
+      perfil,
+    error:
+      perfilError,
+  } =
+    await supabaseAdmin
+      .from("perfis")
+      .select(`
+        id,
+        codigo,
+        nome
+      `)
+      .eq(
+        "codigo",
+        perfilCodigo,
+      )
+      .eq(
+        "ativo",
+        true,
+      )
+      .maybeSingle();
 
   if (
     perfilError ||
     !perfil
   ) {
     console.error(
-      "Perfil ENTREGADOR:",
+      "Perfil:",
       perfilError,
     );
 
     return {
-      success: false,
+      success:
+        false,
       message:
-        "Perfil ENTREGADOR não encontrado.",
-      usuarioId: null,
+        `Perfil ${perfilCodigo} não encontrado.`,
+      usuarioId:
+        null,
     };
   }
 
@@ -147,68 +424,76 @@ export async function criarEntregador(
    * EVITA E-MAIL DUPLICADO
    */
   const {
-    data: usuarioExistente,
-    error: usuarioExistenteError,
-  } = await supabaseAdmin
-    .from("usuarios")
-    .select(`
-      id,
-      email
-    `)
-    .eq("email", email)
-    .maybeSingle();
+    data:
+      usuarioExistente,
+    error:
+      usuarioExistenteError,
+  } =
+    await supabaseAdmin
+      .from("usuarios")
+      .select(`
+        id,
+        email
+      `)
+      .eq(
+        "email",
+        email,
+      )
+      .maybeSingle();
 
-  if (usuarioExistenteError) {
+  if (
+    usuarioExistenteError
+  ) {
     console.error(
       "Erro ao verificar usuário existente:",
       usuarioExistenteError,
     );
 
     return {
-      success: false,
+      success:
+        false,
       message:
         "Não foi possível validar o e-mail informado.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
-  if (usuarioExistente) {
+  if (
+    usuarioExistente
+  ) {
     return {
-      success: false,
+      success:
+        false,
       message:
         "Já existe um usuário cadastrado com este e-mail.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
-  /*
-   * CRIA NO SUPABASE AUTH
-   *
-   * IMPORTANTE:
-   * já existe um trigger:
-   *
-   * auth.users
-   *   ↓
-   * public.handle_new_auth_user()
-   *   ↓
-   * public.usuarios
-   *
-   * Portanto NÃO fazemos INSERT em usuarios.
-   */
   const {
-    data: authData,
-    error: authError,
+    data:
+      authData,
+    error:
+      authError,
   } =
-    await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: senha,
-      email_confirm: true,
+    await supabaseAdmin
+      .auth
+      .admin
+      .createUser({
+        email,
+        password:
+          senha,
+        email_confirm:
+          true,
 
-      user_metadata: {
-        full_name: nome,
-        nome,
-      },
-    });
+        user_metadata: {
+          full_name:
+            nome,
+          nome,
+        },
+      });
 
   if (
     authError ||
@@ -220,55 +505,58 @@ export async function criarEntregador(
     );
 
     return {
-      success: false,
+      success:
+        false,
       message:
-        authError?.message ??
+        authError
+          ?.message ??
         "Não foi possível criar o usuário no Auth.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
   const novoUsuarioId =
     authData.user.id;
 
-  /*
-   * O TRIGGER JÁ CRIOU public.usuarios.
-   *
-   * Agora apenas atualizamos o cadastro
-   * com os dados informados no formulário.
-   */
   const {
-    data: usuarioAtualizado,
-    error: usuarioError,
-  } = await supabaseAdmin
-    .from("usuarios")
-    .update({
-      perfil_id:
-        perfil.id,
+    data:
+      usuarioAtualizado,
+    error:
+      usuarioError,
+  } =
+    await supabaseAdmin
+      .from("usuarios")
+      .update({
+        perfil_id:
+          perfil.id,
 
-      nome,
+        nome,
 
-      email,
+        email,
 
-      telefone:
-        telefone || null,
+        telefone:
+          telefone ||
+          null,
 
-      ativo: true,
+        ativo:
+          true,
 
-      updated_at:
-        new Date().toISOString(),
-    })
-    .eq(
-      "id",
-      novoUsuarioId,
-    )
-    .select(`
-      id,
-      nome,
-      email,
-      perfil_id
-    `)
-    .maybeSingle();
+        updated_at:
+          new Date()
+            .toISOString(),
+      })
+      .eq(
+        "id",
+        novoUsuarioId,
+      )
+      .select(`
+        id,
+        nome,
+        email,
+        perfil_id
+      `)
+      .maybeSingle();
 
   if (
     usuarioError ||
@@ -279,69 +567,89 @@ export async function criarEntregador(
       usuarioError,
     );
 
-    /*
-     * ROLLBACK
-     *
-     * Apagando auth.users,
-     * public.usuarios também é removido
-     * pelo ON DELETE CASCADE.
-     */
-    await supabaseAdmin.auth.admin.deleteUser(
-      novoUsuarioId,
-    );
+    await supabaseAdmin
+      .auth
+      .admin
+      .deleteUser(
+        novoUsuarioId,
+      );
 
     return {
-      success: false,
+      success:
+        false,
       message:
         "Não foi possível completar o cadastro do colaborador.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
-  /*
-   * VINCULA À EMPRESA ATUAL
-   */
   const {
-    error: vinculoError,
-  } = await supabaseAdmin
-    .from("empresa_usuarios")
-    .insert({
-      empresa_id:
-        atual.empresa.id,
+    error:
+      vinculoError,
+  } =
+    await supabaseAdmin
+      .from(
+        "empresa_usuarios",
+      )
+      .insert({
+        empresa_id:
+          atual.empresa.id,
 
-      usuario_id:
-        novoUsuarioId,
+        usuario_id:
+          novoUsuarioId,
 
-      perfil_id:
-        perfil.id,
+        perfil_id:
+          perfil.id,
 
-      ativo: true,
+        ativo:
+          true,
 
-      updated_at:
-        new Date().toISOString(),
-    });
+        updated_at:
+          new Date()
+            .toISOString(),
+      });
 
-  if (vinculoError) {
+  if (
+    vinculoError
+  ) {
     console.error(
       "Erro empresa_usuarios:",
       vinculoError,
     );
 
-    await supabaseAdmin.auth.admin.deleteUser(
-      novoUsuarioId,
-    );
+    await supabaseAdmin
+      .auth
+      .admin
+      .deleteUser(
+        novoUsuarioId,
+      );
 
     return {
-      success: false,
+      success:
+        false,
       message:
         "Não foi possível vincular o colaborador à empresa.",
-      usuarioId: null,
+      usuarioId:
+        null,
     };
   }
 
-  /*
-   * ATUALIZA TELAS
-   */
+  if (
+    perfilCodigo ===
+    "FINANCEIRO"
+  ) {
+    await garantirPermissoesFinanceiro({
+      supabaseAdmin,
+      empresaId:
+        atual.empresa.id,
+      perfilId:
+        Number(
+          perfil.id,
+        ),
+    });
+  }
+
   revalidatePath(
     "/admin/usuarios",
   );
@@ -351,13 +659,23 @@ export async function criarEntregador(
   );
 
   revalidatePath(
-    `/admin/usuarios/${novoUsuarioId}/permissoes`,
+    "/admin",
   );
 
+  if (
+    perfilCodigo ===
+    "ENTREGADOR"
+  ) {
+    revalidatePath(
+      `/admin/usuarios/${novoUsuarioId}/permissoes`,
+    );
+  }
+
   return {
-    success: true,
+    success:
+      true,
     message:
-      `${nome} foi cadastrado como ENTREGADOR da ${atual.empresa.nomeFantasia}.`,
+      `${nome} foi cadastrado como ${perfil.nome} da ${atual.empresa.nomeFantasia}.`,
     usuarioId:
       novoUsuarioId,
   };

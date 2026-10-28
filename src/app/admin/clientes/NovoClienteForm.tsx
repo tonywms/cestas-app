@@ -22,7 +22,11 @@ const initialState = {
   message: "",
 };
 
-export default function NovoClienteForm() {
+export default function NovoClienteForm({
+  onSuccess,
+}: {
+  onSuccess?: () => void;
+}) {
   const [
     state,
     formAction,
@@ -173,9 +177,13 @@ export default function NovoClienteForm() {
 
               <button
                 type="button"
-                onClick={() =>
-                  setModal(false)
-                }
+                onClick={() => {
+                  setModal(false);
+
+                  if (state.success) {
+                    onSuccess?.();
+                  }
+                }}
                 className="mt-6 h-[48px] w-full rounded-[15px] bg-[#176f3c] text-xs font-black text-white"
               >
                 Entendi

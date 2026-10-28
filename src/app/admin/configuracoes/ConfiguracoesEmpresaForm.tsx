@@ -61,7 +61,14 @@ export default function ConfiguracoesEmpresaForm({
     initialConfiguracaoEmpresaState,
   );
 
-  const formRef =
+  
+  /*
+   * Evita reaproveitar o resultado de uma submissao anterior
+   * quando o usuario entra novamente na pagina pelo menu.
+   */
+  const submissaoNestaVisita =
+    useRef(false);
+const formRef =
     useRef<HTMLFormElement>(null);
 
   const envioConfirmadoRef =
@@ -122,7 +129,7 @@ export default function ConfiguracoesEmpresaForm({
   }, [modoControleCarga]);
 
   useEffect(() => {
-    if (state.message) {
+    if (submissaoNestaVisita.current && state.message) {
       setModalResultado(true);
     }
   }, [state]);
@@ -151,7 +158,10 @@ export default function ConfiguracoesEmpresaForm({
   return (
     <>
       <form
-        ref={formRef}
+      onSubmitCapture={() => {
+        submissaoNestaVisita.current = true;
+      }}
+ref={formRef}
         action={formAction}
         onSubmit={handleSubmit}
         className="space-y-5"

@@ -17,6 +17,11 @@ import {
   createClient,
 } from "@/lib/supabase/server";
 
+import {
+  mensagemBloqueioEntrega,
+  validarCreditoCliente,
+} from "@/lib/credito/validar-credito-cliente";
+
 type ActionState = {
   success: boolean;
   message: string;
@@ -164,6 +169,46 @@ export async function registrarEntrega(
     };
   }
 
+  const validacaoCredito =
+    await validarCreditoCliente({
+      empresaId:
+        usuario.empresa.id,
+      clienteId,
+    });
+
+  if (!validacaoCredito.ok) {
+    return {
+      success:
+        false,
+      message:
+        validacaoCredito.erro ??
+        "Não foi possível validar o crédito do cliente.",
+      saldoAnterior:
+        null,
+      saldoAtual:
+        null,
+    };
+  }
+
+  if (
+    validacaoCredito
+      .avaliacao
+      .bloqueado
+  ) {
+    return {
+      success:
+        false,
+      message:
+        mensagemBloqueioEntrega(
+          validacaoCredito,
+        ),
+      saldoAnterior:
+        null,
+      saldoAtual:
+        null,
+    };
+  }
+
   const supabase =
     await createClient();
 
@@ -225,6 +270,10 @@ export async function registrarEntrega(
   revalidatePath("/mobile/rota");
   revalidatePath("/mobile/entregas/nova");
   revalidatePath("/admin/rotas");
+  revalidatePath("/admin/credito");
+  revalidatePath(
+    `/admin/clientes/${clienteId}`,
+  );
 
   return {
     success: true,

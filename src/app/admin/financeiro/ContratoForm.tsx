@@ -36,9 +36,11 @@ type Cliente = {
 export default function ContratoForm({
   clientes,
   primeiroVencimento,
+  clienteSelecionadoId = null,
 }: {
   clientes: Cliente[];
   primeiroVencimento: string;
+  clienteSelecionadoId?: number | null;
 }) {
   const [
     state,
@@ -103,7 +105,13 @@ export default function ContratoForm({
               <select
                 name="cliente_id"
                 required
-                defaultValue=""
+                defaultValue={
+                  clienteSelecionadoId
+                    ? String(
+                        clienteSelecionadoId,
+                      )
+                    : ""
+                }
                 className="h-[54px] w-full appearance-none rounded-[17px] border border-slate-200 bg-white pl-11 pr-4 text-sm font-semibold outline-none focus:border-emerald-400"
               >
                 <option value="">

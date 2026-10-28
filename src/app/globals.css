@@ -200,3 +200,292 @@ img {
   border-top: 1px solid rgba(255,255,255,.8);
   box-shadow: 0 -12px 40px rgba(17,63,33,.10);
 }
+
+/* CESTAS_ADMIN_CLAUDE_THEME_START */
+
+/* =========================================================
+   CESTAS APP — ADMIN DESIGN SYSTEM
+   Referência visual oficial: /admin/estoque
+   Escopo EXCLUSIVO de /admin via src/app/admin/layout.tsx
+   NÃO afeta /mobile.
+========================================================= */
+
+.admin-claude-theme {
+  --admin-ink: #0f1d13;
+  --admin-ink-soft: #44524a;
+  --admin-muted: #6b786c;
+  --admin-muted-2: #8a968b;
+
+  --admin-green-950: #07331a;
+  --admin-green-900: #0c4d27;
+  --admin-green-800: #0f5a30;
+  --admin-green-700: #14743d;
+  --admin-green-600: #1d7a43;
+  --admin-green-500: #1f8a4b;
+
+  --admin-green-100: #e3f5e9;
+  --admin-green-50: #f4faf6;
+
+  --admin-gold: #f4b13f;
+  --admin-gold-soft: #fff6df;
+  --admin-border: #dfe6df;
+  --admin-border-soft: #eef2ee;
+
+  color: var(--admin-ink);
+  background:
+    radial-gradient(56rem 34rem at 4% -8%, rgba(31,138,75,.14), transparent 62%),
+    radial-gradient(42rem 30rem at 100% 0%, rgba(244,177,63,.10), transparent 58%),
+    radial-gradient(48rem 36rem at 50% 112%, rgba(15,90,48,.09), transparent 65%),
+    linear-gradient(180deg, #f5faf6 0%, #edf5ef 100%);
+  background-attachment: fixed;
+}
+
+/* Mantém o fundo do módulo consistente sem alterar o mobile. */
+.admin-claude-theme main {
+  color: var(--admin-ink);
+  background-color: transparent !important;
+}
+
+/* ---------------------------------------------------------
+   TIPOGRAFIA
+   Remove microfontes herdadas das telas antigas.
+--------------------------------------------------------- */
+.admin-claude-theme [class*="text-[6px]"],
+.admin-claude-theme [class*="text-[7px]"] {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.admin-claude-theme [class*="text-[8px]"] {
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+.admin-claude-theme [class*="text-[9px]"] {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+}
+
+.admin-claude-theme [class*="text-[10px]"] {
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+}
+
+.admin-claude-theme [class*="text-[11px]"] {
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+
+.admin-claude-theme [class*="text-[12px]"] {
+  line-height: 1.5 !important;
+}
+
+/* ---------------------------------------------------------
+   HEADER / GLASS
+--------------------------------------------------------- */
+.admin-claude-theme .glass {
+  background: rgba(255,255,255,.82);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid rgba(255,255,255,.95);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.95) inset,
+    0 0 0 1px rgba(17,63,33,.04),
+    0 22px 44px -28px rgba(12,77,39,.35);
+}
+
+/* ---------------------------------------------------------
+   HERO — mesmo comportamento visual do Estoque novo.
+--------------------------------------------------------- */
+.admin-claude-theme .hero-premium {
+  position: relative;
+  overflow: hidden;
+  background-image:
+    radial-gradient(110% 140% at 100% 0%, rgba(244,177,63,.24), transparent 46%),
+    radial-gradient(90% 120% at 0% 110%, rgba(63,191,120,.30), transparent 56%),
+    linear-gradient(135deg, #1d7a43 0%, #0f5a30 48%, #07331a 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.25) inset,
+    0 36px 70px -30px rgba(7,51,26,.75);
+}
+
+/* ---------------------------------------------------------
+   CARDS
+--------------------------------------------------------- */
+.admin-claude-theme .card-premium {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid rgba(255,255,255,.95);
+  box-shadow:
+    0 0 0 1px rgba(17,63,33,.05),
+    0 18px 40px -26px rgba(12,77,39,.35);
+  transition:
+    transform .28s cubic-bezier(.22,1,.36,1),
+    box-shadow .28s cubic-bezier(.22,1,.36,1),
+    border-color .28s ease;
+}
+
+.admin-claude-theme .card-premium:hover {
+  transform: translateY(-3px);
+  border-color: rgba(191,229,203,.95);
+  box-shadow:
+    0 0 0 1px rgba(17,63,33,.055),
+    0 26px 54px -28px rgba(12,77,39,.42);
+}
+
+.admin-claude-theme .card-premium::before {
+  display: none !important;
+}
+
+/* Suaviza cards antigos sem forçar um layout novo sobre componentes internos. */
+.admin-claude-theme article,
+.admin-claude-theme section {
+  transition:
+    box-shadow .25s ease,
+    border-color .25s ease,
+    transform .25s ease;
+}
+
+/* ---------------------------------------------------------
+   ÍCONES
+--------------------------------------------------------- */
+.admin-claude-theme .icon-emerald {
+  background: linear-gradient(145deg, #2a9d5c, #0f5a30);
+  color: #fff;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.30) inset,
+    0 12px 22px -10px rgba(12,77,39,.65);
+}
+
+/* ---------------------------------------------------------
+   CAMPOS
+--------------------------------------------------------- */
+.admin-claude-theme input:not([type="checkbox"]):not([type="radio"]),
+.admin-claude-theme select,
+.admin-claude-theme textarea {
+  font-size: 14px !important;
+  color: var(--admin-ink);
+  border-color: var(--admin-border);
+  transition:
+    border-color .2s ease,
+    box-shadow .2s ease,
+    background-color .2s ease;
+}
+
+.admin-claude-theme input:not([type="checkbox"]):not([type="radio"]):hover,
+.admin-claude-theme select:hover,
+.admin-claude-theme textarea:hover {
+  border-color: #c4d2c6;
+}
+
+.admin-claude-theme input:not([type="checkbox"]):not([type="radio"]):focus,
+.admin-claude-theme select:focus,
+.admin-claude-theme textarea:focus {
+  outline: none;
+  border-color: #1d7a43 !important;
+  box-shadow: 0 0 0 4px rgba(29,122,67,.10);
+}
+
+/* ---------------------------------------------------------
+   BOTÕES E LINKS DE AÇÃO
+--------------------------------------------------------- */
+.admin-claude-theme button,
+.admin-claude-theme a {
+  transition:
+    transform .2s ease,
+    box-shadow .2s ease,
+    background-color .2s ease,
+    border-color .2s ease,
+    color .2s ease,
+    opacity .2s ease;
+}
+
+.admin-claude-theme button:active,
+.admin-claude-theme a:active {
+  transform: scale(.985);
+}
+
+/* ---------------------------------------------------------
+   TABELAS
+--------------------------------------------------------- */
+.admin-claude-theme table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.admin-claude-theme th {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--admin-muted-2);
+}
+
+.admin-claude-theme td {
+  font-size: 13px !important;
+  color: var(--admin-ink-soft);
+}
+
+.admin-claude-theme tbody tr {
+  transition: background-color .18s ease;
+}
+
+.admin-claude-theme tbody tr:hover {
+  background: rgba(227,245,233,.42);
+}
+
+/* ---------------------------------------------------------
+   BADGES / DETAILS
+--------------------------------------------------------- */
+.admin-claude-theme details > summary {
+  outline: none;
+}
+
+.admin-claude-theme details[open] > summary {
+  color: var(--admin-green-700);
+}
+
+/* ---------------------------------------------------------
+   SCROLLBAR — apenas área administrativa
+--------------------------------------------------------- */
+.admin-claude-theme * {
+  scrollbar-width: thin;
+  scrollbar-color: #b9d3c0 transparent;
+}
+
+.admin-claude-theme *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.admin-claude-theme *::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #b9d3c0;
+}
+
+.admin-claude-theme *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------
+   ACESSIBILIDADE E RESPONSIVIDADE
+--------------------------------------------------------- */
+@media (max-width: 640px) {
+  .admin-claude-theme {
+    background-attachment: scroll;
+  }
+
+  .admin-claude-theme [class*="text-[6px]"],
+  .admin-claude-theme [class*="text-[7px]"],
+  .admin-claude-theme [class*="text-[8px]"] {
+    font-size: 11px !important;
+  }
+
+  .admin-claude-theme [class*="text-[9px]"],
+  .admin-claude-theme [class*="text-[10px]"] {
+    font-size: 12px !important;
+  }
+}
+
+/* CESTAS_ADMIN_CLAUDE_THEME_END */

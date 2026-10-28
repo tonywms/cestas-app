@@ -1,13 +1,5 @@
 export const instant = false;
 
-import {
-  ArrowLeft,
-  ChevronRight,
-  KeyRound,
-  ShieldCheck,
-  UserRound,
-  UsersRound,
-} from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -17,6 +9,31 @@ import {
   temPermissao,
 } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
+
+import {
+  ApplyButton,
+  EmptyState,
+  Field,
+  Hero,
+  Kpi,
+  KpiGrid,
+  MiniMetric,
+  ModuleHeader,
+  QuickLink,
+  SmartFilters,
+  StatusBadge,
+  formatDate,
+  inputClass,
+} from "@/components/admin/PremiumModuleUi";
+
+type PageProps = {
+  searchParams: Promise<{
+    q?: string;
+    perfil?: string;
+    status?: string;
+    acesso?: string;
+  }>;
+};
 
 type UsuarioEmpresa = {
   usuario_id: string;
@@ -29,6 +46,7 @@ type UsuarioEmpresa = {
         email: string | null;
         telefone: string | null;
         ativo: boolean;
+        ultimo_acesso: string | null;
       }
     | {
         id: string;
@@ -36,6 +54,7 @@ type UsuarioEmpresa = {
         email: string | null;
         telefone: string | null;
         ativo: boolean;
+        ultimo_acesso: string | null;
       }[];
 
   perfis:
@@ -58,14 +77,14 @@ function itemUnico<T>(
     return null;
   }
 
-  if (Array.isArray(valor)) {
-    return valor[0] ?? null;
-  }
-
-  return valor;
+  return Array.isArray(valor)
+    ? valor[0] ?? null
+    : valor;
 }
 
-export default async function UsuariosPage() {
+export default async function UsuariosPage({
+  searchParams,
+}: PageProps) {
   const usuario =
     await getCurrentUserProfile();
 
@@ -88,251 +107,698 @@ export default async function UsuariosPage() {
     redirect("/admin");
   }
 
+  const filtros =
+    await searchParams;
+
   const supabase =
     await createClient();
 
-  const {
-    data,
-    error,
-  } = await supabase
-    .from("empresa_usuarios")
-    .select(`
-      usuario_id,
-      ativo,
-      usuarios!inner (
-        id,
-        nome,
-        email,
-        telefone,
-        ativo
-      ),
-      perfis!inner (
-        id,
-        codigo,
-        nome
-      )
-    `)
-    .eq(
-      "empresa_id",
-      usuario.empresa.id,
-    )
-    .eq(
-      "ativo",
-      true,
-    );
+  const [
+    membrosResult,
+    empresaResult,
+  ] =
+    await Promise.all([
+      supabase
+        .from("empresa_usuarios")
+        .select(`
+          usuario_id,
+          ativo,
+          usuarios!inner (
+            id,
+            nome,
+            email,
+            telefone,
+            ativo,
+            ultimo_acesso
+          ),
+          perfis!inner (
+            id,
+            codigo,
+            nome
+          )
+        `)
+        .eq(
+          "empresa_id",
+          usuario.empresa.id,
+        ),
 
-  if (error) {
-    console.error(
-      "Erro ao carregar usuários:",
-      error,
+      supabase
+        .from("empresas")
+        .select(`
+          limite_usuarios
+        `)
+        .eq(
+          "id",
+          usuario.empresa.id,
+        )
+        .maybeSingle(),
+    ]);
+
+  const data =
+    membrosResult.data;
+
+  const limiteUsuarios =
+    Number(
+      empresaResult.data
+        ?.limite_usuarios ??
+        10,
     );
-  }
 
   const membros =
-    ((data ?? []) as unknown as UsuarioEmpresa[])
-      .map((item) => ({
-        ...item,
-        usuario:
-          itemUnico(
-            item.usuarios,
-          ),
-        perfil:
-          itemUnico(
-            item.perfis,
-          ),
-      }))
+    (
+      (
+        data ??
+        []
+      ) as unknown as UsuarioEmpresa[]
+    )
+      .map(
+        (
+          item,
+        ) => ({
+          ...item,
+          usuario:
+            itemUnico(
+              item.usuarios,
+            ),
+          perfil:
+            itemUnico(
+              item.perfis,
+            ),
+        }),
+      )
       .filter(
-        (item) =>
+        (
+          item,
+        ) =>
           item.usuario &&
           item.perfil,
-      )
-      .sort((a, b) =>
-        (a.usuario?.nome ?? "").localeCompare(
-          b.usuario?.nome ?? "",
-          "pt-BR",
-        ),
       );
 
+  const busca =
+    (
+      filtros.q ??
+      ""
+    )
+      .trim()
+      .toLocaleLowerCase(
+        "pt-BR",
+      );
+
+  const agora =
+    Date.now();
+
+  const filtrados =
+    membros
+      .filter(
+        (
+          item,
+        ) => {
+          const colaborador =
+            item.usuario!;
+
+          const perfil =
+            item.perfil!;
+
+          if (
+            busca &&
+            !colaborador.nome
+              .toLocaleLowerCase(
+                "pt-BR",
+              )
+              .includes(
+                busca,
+              ) &&
+            !(
+              colaborador.email ??
+              ""
+            )
+              .toLocaleLowerCase(
+                "pt-BR",
+              )
+              .includes(
+                busca,
+              )
+          ) {
+            return false;
+          }
+
+          if (
+            filtros.perfil &&
+            perfil.codigo !==
+              filtros.perfil
+          ) {
+            return false;
+          }
+
+          const ativo =
+            item.ativo &&
+            colaborador.ativo;
+
+          if (
+            filtros.status ===
+              "ativo" &&
+            !ativo
+          ) {
+            return false;
+          }
+
+          if (
+            filtros.status ===
+              "inativo" &&
+            ativo
+          ) {
+            return false;
+          }
+
+          if (
+            filtros.acesso
+          ) {
+            const ultimo =
+              colaborador.ultimo_acesso
+                ? new Date(
+                    colaborador.ultimo_acesso,
+                  ).getTime()
+                : null;
+
+            if (
+              filtros.acesso ===
+                "nunca" &&
+              ultimo !==
+                null
+            ) {
+              return false;
+            }
+
+            if (
+              filtros.acesso ===
+                "7" &&
+              (
+                !ultimo ||
+                agora -
+                  ultimo >
+                  7 *
+                    86400000
+              )
+            ) {
+              return false;
+            }
+
+            if (
+              filtros.acesso ===
+                "30" &&
+              (
+                !ultimo ||
+                agora -
+                  ultimo >
+                  30 *
+                    86400000
+              )
+            ) {
+              return false;
+            }
+          }
+
+          return true;
+        },
+      )
+      .sort(
+        (
+          a,
+          b,
+        ) =>
+          (
+            a.usuario?.nome ??
+            ""
+          ).localeCompare(
+            b.usuario?.nome ??
+              "",
+            "pt-BR",
+          ),
+      );
+
+  const ativos =
+    filtrados.filter(
+      (
+        item,
+      ) =>
+        item.ativo &&
+        item.usuario?.ativo,
+    ).length;
+
   const entregadores =
-    membros.filter(
-      (item) =>
-        item.perfil?.codigo ===
+    filtrados.filter(
+      (
+        item,
+      ) =>
+        item.perfil
+          ?.codigo ===
         "ENTREGADOR",
+    ).length;
+
+  const gestores =
+    filtrados.filter(
+      (
+        item,
+      ) =>
+        item.perfil
+          ?.codigo ===
+          "GESTOR" ||
+        item.perfil
+          ?.codigo ===
+          "ADMINISTRADOR",
+    ).length;
+
+  const financeiros =
+    filtrados.filter(
+      (
+        item,
+      ) =>
+        item.perfil
+          ?.codigo ===
+        "FINANCEIRO",
+    ).length;
+
+  const usuariosAtivosEmpresa =
+    membros.filter(
+      (
+        item,
+      ) =>
+        item.ativo &&
+        item.usuario?.ativo,
+    ).length;
+
+  const licencasDisponiveis =
+    Math.max(
+      0,
+      limiteUsuarios -
+        usuariosAtivosEmpresa,
     );
 
+  const semAcesso =
+    filtrados.filter(
+      (
+        item,
+      ) =>
+        !item.usuario
+          ?.ultimo_acesso,
+    ).length;
+
+  const perfis =
+    Array.from(
+      new Map(
+        membros.map(
+          (
+            item,
+          ) => [
+            item.perfil!
+              .codigo,
+            item.perfil!,
+          ],
+        ),
+      ).values(),
+    );
+
+  const activeCount =
+    Object.values(
+      filtros,
+    ).filter(
+      (
+        value,
+      ) =>
+        typeof value ===
+          "string" &&
+        value.trim(),
+    ).length;
+
   return (
-    <main className="min-h-screen bg-[#f3f7f4] px-4 py-6 text-[#142019] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1080px]">
+    <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
 
-        <div className="flex items-center justify-between gap-4 rounded-[26px] border border-black/[0.04] bg-white px-5 py-4 shadow-[0_12px_40px_rgba(17,63,33,0.05)]">
-          <div className="flex items-center gap-4">
+      <div className="mx-auto max-w-[1180px]">
+
+        <ModuleHeader
+          eyebrow="Segurança"
+          title="Usuários e colaboradores"
+          actions={
             <Link
-              href="/admin"
-              className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#edf7f0] text-[#14743d]"
+              href="/admin/usuarios/novo"
+              className="rounded-[14px] bg-[#176f3c] px-4 py-3 text-[9px] font-black text-white"
             >
-              <ArrowLeft size={19} />
+              + Novo colaborador
             </Link>
+          }
+        />
 
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#1b7b46]">
-                Cestas APP
-              </p>
-
-              <h1 className="mt-0.5 text-base font-black">
-                Usuários e colaboradores
-              </h1>
-            </div>
-          </div>
-        </div>
-
-        <section className="mt-5 rounded-[32px] bg-[linear-gradient(135deg,#176f3c,#0d5a30)] p-7 text-white shadow-[0_22px_55px_rgba(17,86,46,0.17)]">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">
-                <UsersRound size={14} />
-
-                Gestão de equipe
-              </div>
-
-              <h2 className="mt-4 text-[30px] font-black leading-none tracking-[-0.05em]">
-                Colaboradores da empresa.
-              </h2>
-
-              <p className="mt-3 text-[12px] text-white/65">
-                Gerencie os acessos individuais dos
-                entregadores de{" "}
-                <strong>
-                  {usuario.empresa.nomeFantasia}
-                </strong>
-                .
-              </p>
-            </div>
-
-            <div className="hidden h-14 w-14 items-center justify-center rounded-[18px] bg-white/10 md:flex">
-              <ShieldCheck size={27} />
-            </div>
-          </div>
-
-          <div className="mt-6 flex gap-2">
-            <Tag
-              titulo="Usuários"
-              valor={String(
-                membros.length,
-              )}
+        <Hero
+          eyebrow="Gestão de equipe"
+          title="Acessos da empresa"
+          description="Controle equipe, perfis, permissões e consumo de licenças da empresa sem ultrapassar o limite contratado."
+        >
+          <KpiGrid>
+            <Kpi
+              label="Usuários"
+              value={
+                filtrados.length
+              }
             />
 
-            <Tag
-              titulo="Entregadores"
-              valor={String(
-                entregadores.length,
-              )}
+            <Kpi
+              label="Ativos"
+              value={ativos}
             />
-          </div>
-        </section>
 
-        <section className="mt-5 overflow-hidden rounded-[28px] border border-black/[0.04] bg-white shadow-[0_16px_45px_rgba(17,63,33,0.05)]">
-          <div className="border-b border-slate-100 px-6 py-5">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#18834a]">
-              Colaboradores mobile
-            </p>
+            <Kpi
+              label="Entregadores"
+              value={
+                entregadores
+              }
+            />
 
-            <h2 className="mt-1 text-lg font-black">
-              Entregadores
-            </h2>
-          </div>
+            <Kpi
+              label="Gestão"
+              value={gestores}
+            />
 
-          {entregadores.length === 0 ? (
-            <div className="px-6 py-14 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[20px] bg-emerald-50 text-emerald-700">
-                <UserRound
-                  size={25}
-                />
-              </div>
+            <Kpi
+              label="Financeiro"
+              value={
+                financeiros
+              }
+            />
 
-              <h3 className="mt-5 text-base font-black">
-                Nenhum entregador cadastrado
-              </h3>
+            <Kpi
+              label="Licenças"
+              value={`${usuariosAtivosEmpresa}/${limiteUsuarios}`}
+              warning={
+                licencasDisponiveis ===
+                0
+              }
+              highlight={
+                licencasDisponiveis >
+                0
+              }
+              subtitle={`${licencasDisponiveis} disponível(is)`}
+            />
 
-              <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-400">
-                A estrutura de permissões individuais
-                já está pronta. Precisamos cadastrar o
-                primeiro colaborador ENTREGADOR para
-                configurar exceções individuais.
-              </p>
+            <Kpi
+              label="Nunca acessaram"
+              value={semAcesso}
+              warning={
+                semAcesso >
+                0
+              }
+            />
+          </KpiGrid>
+        </Hero>
+
+        <SmartFilters
+          resetHref="/admin/usuarios"
+          activeCount={
+            activeCount
+          }
+          quick={
+            <div className="flex flex-wrap gap-2">
+
+              <QuickLink
+                href="/admin/usuarios"
+                active={
+                  !filtros.perfil &&
+                  !filtros.status &&
+                  !filtros.acesso
+                }
+              >
+                Todos
+              </QuickLink>
+
+              <QuickLink
+                href="/admin/usuarios?perfil=ENTREGADOR"
+                active={
+                  filtros.perfil ===
+                  "ENTREGADOR"
+                }
+              >
+                Entregadores
+              </QuickLink>
+
+              <QuickLink
+                href="/admin/usuarios?perfil=FINANCEIRO"
+                active={
+                  filtros.perfil ===
+                  "FINANCEIRO"
+                }
+              >
+                Financeiro
+              </QuickLink>
+
+              <QuickLink
+                href="/admin/usuarios?status=ativo"
+                active={
+                  filtros.status ===
+                  "ativo"
+                }
+              >
+                Ativos
+              </QuickLink>
+
+              <QuickLink
+                href="/admin/usuarios?acesso=nunca"
+                active={
+                  filtros.acesso ===
+                  "nunca"
+                }
+                tone="gold"
+              >
+                Nunca acessaram
+              </QuickLink>
+
             </div>
+          }
+        >
+          <form
+            method="get"
+            className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+          >
+
+            <Field label="Buscar">
+              <input
+                name="q"
+                defaultValue={
+                  filtros.q ??
+                  ""
+                }
+                placeholder="Nome ou e-mail"
+                className={
+                  inputClass
+                }
+              />
+            </Field>
+
+            <Field label="Perfil">
+              <select
+                name="perfil"
+                defaultValue={
+                  filtros.perfil ??
+                  ""
+                }
+                className={
+                  inputClass
+                }
+              >
+                <option value="">
+                  Todos
+                </option>
+
+                {perfis.map(
+                  (
+                    perfil,
+                  ) => (
+                    <option
+                      key={
+                        perfil.codigo
+                      }
+                      value={
+                        perfil.codigo
+                      }
+                    >
+                      {
+                        perfil.nome
+                      }
+                    </option>
+                  ),
+                )}
+              </select>
+            </Field>
+
+            <Field label="Status">
+              <select
+                name="status"
+                defaultValue={
+                  filtros.status ??
+                  ""
+                }
+                className={
+                  inputClass
+                }
+              >
+                <option value="">
+                  Todos
+                </option>
+
+                <option value="ativo">
+                  Ativo
+                </option>
+
+                <option value="inativo">
+                  Inativo
+                </option>
+              </select>
+            </Field>
+
+            <div className="flex items-end">
+              <ApplyButton />
+            </div>
+
+          </form>
+        </SmartFilters>
+
+        <section className="mt-7">
+
+          {filtrados.length ===
+          0 ? (
+            <EmptyState
+              title="Nenhum colaborador encontrado"
+              text="Ajuste os filtros ou cadastre um novo colaborador."
+            />
           ) : (
-            <div className="divide-y divide-slate-100">
-              {entregadores.map(
-                (item) => {
+            <div className="grid gap-4 xl:grid-cols-2">
+
+              {filtrados.map(
+                (
+                  item,
+                ) => {
                   const colaborador =
                     item.usuario!;
 
-                  return (
+                  const perfil =
+                    item.perfil!;
+
+                  const ativo =
+                    item.ativo &&
+                    colaborador.ativo;
+
+                  const podeAbrirPermissoes =
+                    perfil.codigo ===
+                    "ENTREGADOR";
+
+                  const card = (
+                    <article className="flex h-full min-h-[222px] flex-col rounded-[28px] border border-black/[0.04] bg-white p-5 shadow-[0_16px_42px_rgba(17,63,33,0.06)] transition hover:border-emerald-100">
+
+                      <div className="flex items-start justify-between gap-4">
+
+                        <div className="min-w-0">
+
+                          <p className="text-[8px] font-black uppercase tracking-[0.13em] text-[#b28735]">
+                            {
+                              perfil.nome
+                            }
+                          </p>
+
+                          <h3 className="mt-1 truncate text-[18px] font-black">
+                            {
+                              colaborador.nome
+                            }
+                          </h3>
+
+                          <p className="mt-1 truncate text-[9px] text-slate-400">
+                            {
+                              colaborador.email ??
+                              "Sem e-mail"
+                            }
+                          </p>
+
+                        </div>
+
+                        <StatusBadge
+                          tone={
+                            ativo
+                              ? "green"
+                              : "slate"
+                          }
+                        >
+                          {ativo
+                            ? "Ativo"
+                            : "Inativo"}
+                        </StatusBadge>
+
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+
+                        <MiniMetric
+                          label="Perfil"
+                          value={
+                            perfil.codigo
+                          }
+                        />
+
+                        <MiniMetric
+                          label="Último acesso"
+                          value={
+                            colaborador.ultimo_acesso
+                              ? formatDate(
+                                  colaborador.ultimo_acesso,
+                                )
+                              : "Nunca"
+                          }
+                          tone={
+                            colaborador.ultimo_acesso
+                              ? "green"
+                              : "amber"
+                          }
+                        />
+
+                      </div>
+
+                      <div className="mt-auto min-h-[34px] pt-4">
+                        {podeAbrirPermissoes ? (
+                          <p className="text-center text-[8px] font-black text-emerald-700">
+                            Clique para configurar permissões individuais →
+                          </p>
+                        ) : null}
+                      </div>
+
+                    </article>
+                  );
+
+                  return podeAbrirPermissoes ? (
                     <Link
                       key={
                         item.usuario_id
                       }
                       href={`/admin/usuarios/${item.usuario_id}/permissoes`}
-                      className="flex items-center gap-4 px-5 py-5 transition hover:bg-[#f8fcf9] md:px-6"
+                      className="block h-full"
                     >
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[17px] bg-[#eaf7ee] text-[#14743d]">
-                        <UserRound
-                          size={21}
-                        />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-black">
-                          {
-                            colaborador.nome
-                          }
-                        </p>
-
-                        <p className="mt-1 truncate text-[10px] text-slate-400">
-                          {
-                            colaborador.email ??
-                            "Sem e-mail"
-                          }
-                        </p>
-                      </div>
-
-                      <div className="hidden rounded-full bg-[#eff8f2] px-3 py-1.5 text-[9px] font-black text-[#187640] sm:block">
-                        ENTREGADOR
-                      </div>
-
-                      <div className="flex h-9 w-9 items-center justify-center rounded-[13px] bg-slate-50 text-slate-400">
-                        <ChevronRight
-                          size={18}
-                        />
-                      </div>
+                      {card}
                     </Link>
+                  ) : (
+                    <div
+                      key={
+                        item.usuario_id
+                      }
+                      className="h-full"
+                    >
+                      {card}
+                    </div>
                   );
                 },
               )}
+
             </div>
           )}
+
         </section>
+
       </div>
+
     </main>
-  );
-}
-
-function Tag({
-  titulo,
-  valor,
-}: {
-  titulo: string;
-  valor: string;
-}) {
-  return (
-    <div className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-2">
-      <span className="text-[8px] font-bold uppercase text-white/45">
-        {titulo}
-      </span>
-
-      <span className="ml-2 text-[10px] font-black">
-        {valor}
-      </span>
-    </div>
   );
 }

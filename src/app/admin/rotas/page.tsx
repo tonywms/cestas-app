@@ -1,14 +1,5 @@
 export const instant = false;
 
-import {
-  ArrowLeft,
-  CheckCircle2,
-  ChevronRight,
-  MapPinned,
-  Plus,
-  Route,
-  Truck,
-} from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -19,38 +10,42 @@ import {
 } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 
-function statusClasses(status: string) {
-  if (status === "FINALIZADA") {
-    return "bg-emerald-50 text-emerald-700";
-  }
+import {
+  ApplyButton,
+  EmptyState,
+  Field,
+  Hero,
+  Kpi,
+  KpiGrid,
+  MiniMetric,
+  ModuleHeader,
+  QuickLink,
+  SmartFilters,
+  StatusBadge,
+  dateTodayFortaleza,
+  formatDate,
+  inputClass,
+  subtractDays,
+} from "@/components/admin/PremiumModuleUi";
 
-  if (status === "EM_ROTA") {
-    return "bg-blue-50 text-blue-700";
-  }
+type PageProps = {
+  searchParams: Promise<{
+    q?: string;
+    status?: string;
+    entregador?: string;
+    periodo?: string;
+    progresso?: string;
+    de?: string;
+    ate?: string;
+  }>;
+};
 
-  if (status === "CANCELADA") {
-    return "bg-red-50 text-red-700";
-  }
-
-  return "bg-amber-50 text-amber-700";
-}
-
-function formatarData(data: string) {
-  const [ano, mes, dia] = data.split("-");
-
-  if (!ano || !mes || !dia) {
-    return data;
-  }
-
-  return `${dia}/${mes}/${ano}`;
-}
-
-export default async function RotasPage() {
+export default async function RotasPage({
+  searchParams,
+}: PageProps) {
   const usuario = await getCurrentUserProfile();
 
-  if (!usuario) {
-    redirect("/");
-  }
+  if (!usuario) redirect("/");
 
   const podeGerenciar =
     usuario.isPlatformAdmin ||
@@ -61,16 +56,12 @@ export default async function RotasPage() {
       PERMISSOES.ROTA_GERENCIAR,
     );
 
-  if (!podeGerenciar) {
-    redirect("/admin");
-  }
+  if (!podeGerenciar) redirect("/admin");
 
+  const filtros = await searchParams;
   const supabase = await createClient();
 
-  const {
-    data: rotas,
-    error: rotasError,
-  } = await supabase
+  const { data: rotasData } = await supabase
     .from("rotas")
     .select(`
       id,
@@ -79,301 +70,412 @@ export default async function RotasPage() {
       data_rota,
       status,
       observacao,
+      iniciada_at,
+      finalizada_at,
       created_at
     `)
     .eq("empresa_id", usuario.empresa.id)
-    .order("data_rota", {
-      ascending: false,
-    })
-    .order("created_at", {
-      ascending: false,
-    });
+    .order("data_rota", { ascending: false })
+    .order("created_at", { ascending: false });
 
-  if (rotasError) {
-    console.error(
-      "Erro ao carregar rotas:",
-      rotasError,
-    );
-  }
-
-  const listaRotas = rotas ?? [];
-
+  const rotasBase = rotasData ?? [];
+  const rotaIds = rotasBase.map((item) => Number(item.id));
   const entregadorIds = Array.from(
-    new Set(
-      listaRotas.map(
-        (rota) => rota.entregador_id,
-      ),
-    ),
+    new Set(rotasBase.map((item) => String(item.entregador_id))),
   );
 
-  const rotaIds = listaRotas.map(
-    (rota) => rota.id,
-  );
-
-  const [
-    entregadoresResult,
-    itensResult,
-  ] = await Promise.all([
-    entregadorIds.length > 0
+  const [usuariosResult, itensResult] = await Promise.all([
+    entregadorIds.length
       ? supabase
           .from("usuarios")
-          .select(`
-            id,
-            nome
-          `)
+          .select(`id, nome`)
           .in("id", entregadorIds)
-      : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+      : Promise.resolve({ data: [], error: null }),
 
-    rotaIds.length > 0
+    rotaIds.length
       ? supabase
           .from("rota_clientes")
-          .select(`
-            rota_id,
-            status
-          `)
+          .select(`rota_id, status`)
           .eq("empresa_id", usuario.empresa.id)
           .in("rota_id", rotaIds)
-      : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
-  const entregadoresMap = new Map(
-    (entregadoresResult.data ?? []).map(
-      (entregador) => [
-        entregador.id,
-        entregador.nome,
-      ],
-    ),
+  const usuariosMap = new Map(
+    (usuariosResult.data ?? []).map((item) => [
+      String(item.id),
+      String(item.nome),
+    ]),
   );
 
-  const resumoRotas = new Map<
+  const resumo = new Map<
     number,
     {
       total: number;
-      processados: number;
       entregues: number;
-      ocorrencias: number;
+      ausentes: number;
     }
   >();
 
-  for (
-    const item of itensResult.data ?? []
-  ) {
+  for (const item of itensResult.data ?? []) {
+    const rotaId = Number(item.rota_id);
+
     const atual =
-      resumoRotas.get(item.rota_id) ?? {
+      resumo.get(rotaId) ?? {
         total: 0,
-        processados: 0,
         entregues: 0,
-        ocorrencias: 0,
+        ausentes: 0,
       };
 
     atual.total += 1;
 
-    if (item.status !== "PENDENTE") {
-      atual.processados += 1;
-    }
+    if (item.status === "ENTREGUE") atual.entregues += 1;
+    if (item.status === "AUSENTE") atual.ausentes += 1;
 
-    if (item.status === "ENTREGUE") {
-      atual.entregues += 1;
-    } else if (item.status !== "PENDENTE") {
-      atual.ocorrencias += 1;
-    }
-
-    resumoRotas.set(
-      item.rota_id,
-      atual,
-    );
+    resumo.set(rotaId, atual);
   }
 
+  const hoje = dateTodayFortaleza();
+  let inicio: string | null = null;
+
+  if (filtros.periodo === "hoje") {
+    inicio = hoje;
+  } else if (["7", "15", "30"].includes(filtros.periodo ?? "")) {
+    inicio = subtractDays(hoje, Number(filtros.periodo) - 1);
+  }
+
+  const busca = (filtros.q ?? "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+
+  const rotas = rotasBase
+    .map((rota) => {
+      const res =
+        resumo.get(Number(rota.id)) ?? {
+          total: 0,
+          entregues: 0,
+          ausentes: 0,
+        };
+
+      const percentual =
+        res.total > 0
+          ? Math.round((res.entregues / res.total) * 100)
+          : 0;
+
+      return {
+        ...rota,
+        entregadorNome:
+          usuariosMap.get(String(rota.entregador_id)) ?? "Entregador",
+        ...res,
+        percentual,
+      };
+    })
+    .filter((rota) => {
+      if (
+        busca &&
+        !String(rota.codigo)
+          .toLocaleLowerCase("pt-BR")
+          .includes(busca) &&
+        !rota.entregadorNome
+          .toLocaleLowerCase("pt-BR")
+          .includes(busca)
+      ) {
+        return false;
+      }
+
+      if (filtros.status && rota.status !== filtros.status) return false;
+
+      if (
+        filtros.entregador &&
+        String(rota.entregador_id) !== filtros.entregador
+      ) {
+        return false;
+      }
+
+      if (filtros.de && String(rota.data_rota) < filtros.de) return false;
+      if (filtros.ate && String(rota.data_rota) > filtros.ate) return false;
+
+      if (
+        !filtros.de &&
+        !filtros.ate &&
+        inicio &&
+        String(rota.data_rota) < inicio
+      ) {
+        return false;
+      }
+
+      if (filtros.progresso === "concluida" && rota.percentual !== 100) {
+        return false;
+      }
+
+      if (
+        filtros.progresso === "parcial" &&
+        !(rota.percentual > 0 && rota.percentual < 100)
+      ) {
+        return false;
+      }
+
+      if (filtros.progresso === "pendente" && rota.percentual !== 0) {
+        return false;
+      }
+
+      return true;
+    });
+
+  const finalizadas = rotas.filter((r) => r.status === "FINALIZADA").length;
+  const emRota = rotas.filter((r) => r.status === "EM_ROTA").length;
+  const planejadas = rotas.filter((r) => r.status === "PLANEJADA").length;
+  const clientes = rotas.reduce((sum, r) => sum + r.total, 0);
+  const entregues = rotas.reduce((sum, r) => sum + r.entregues, 0);
+  const ausentes = rotas.reduce((sum, r) => sum + r.ausentes, 0);
+
+  const activeCount = Object.values(filtros).filter(
+    (value) => typeof value === "string" && value.trim(),
+  ).length;
+
   return (
-    <main className="min-h-screen bg-[#f3f7f4] px-4 py-6 text-[#142018] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1100px]">
-        <header className="flex items-center justify-between gap-4 rounded-[26px] bg-white px-5 py-4 shadow-[0_12px_40px_rgba(17,63,33,0.05)]">
-          <div className="flex items-center gap-4">
+    <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
+      <div className="mx-auto max-w-[1180px]">
+        <ModuleHeader
+          eyebrow="Logística"
+          title="Rotas"
+          actions={
             <Link
-              href="/admin"
-              className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100"
+              href="/admin/rotas/nova"
+              className="rounded-[14px] bg-[#176f3c] px-4 py-3 text-[9px] font-black text-white"
             >
-              <ArrowLeft size={19} />
+              + Nova rota
             </Link>
+          }
+        />
 
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-700">
-                Logística
-              </p>
+        <Hero
+          eyebrow="Planejamento operacional"
+          title="Rotas da empresa"
+          description="Veja entregador, data, progresso, clientes atendidos e exceções sem precisar interpretar o status."
+        >
+          <KpiGrid>
+            <Kpi label="Rotas" value={rotas.length} />
+            <Kpi label="Planejadas" value={planejadas} />
+            <Kpi label="Em rota" value={emRota} highlight={emRota > 0} />
+            <Kpi label="Finalizadas" value={finalizadas} />
+            <Kpi label="Clientes" value={clientes} />
+            <Kpi
+              label="Ausentes"
+              value={ausentes}
+              warning={ausentes > 0}
+              subtitle={`${entregues} entregues`}
+            />
+          </KpiGrid>
+        </Hero>
 
-              <h1 className="mt-0.5 text-base font-black">
-                Rotas
-              </h1>
-            </div>
-          </div>
-
-          <Link
-            href="/admin/rotas/nova"
-            className="flex h-[44px] items-center gap-2 rounded-[14px] bg-[#176f3c] px-4 text-xs font-black text-white transition hover:bg-[#125d32]"
-          >
-            <Plus size={17} />
-            Nova rota
-          </Link>
-        </header>
-
-        <section className="relative mt-5 overflow-hidden rounded-[32px] bg-[linear-gradient(135deg,#176f3c,#0d5a30)] p-7 text-white shadow-[0_20px_55px_rgba(17,86,46,0.14)] md:p-8">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/[0.035]" />
-
-          <Route size={27} />
-
-          <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">
-            Planejamento operacional
-          </p>
-
-          <h2 className="mt-2 text-[30px] font-black tracking-[-0.05em]">
-            Rotas da empresa.
-          </h2>
-
-          <p className="mt-3 text-xs text-white/65">
-            {listaRotas.length} rota(s) cadastrada(s) em{" "}
-            {usuario.empresa.nomeFantasia}.
-          </p>
-        </section>
-
-        <section className="mt-5 space-y-3">
-          {listaRotas.length === 0 ? (
-            <div className="rounded-[28px] bg-white p-10 text-center shadow-sm">
-              <MapPinned
-                size={38}
-                className="mx-auto text-emerald-700"
-              />
-
-              <h3 className="mt-5 text-lg font-black">
-                Nenhuma rota criada
-              </h3>
-
-              <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-400">
-                Crie a primeira rota e vincule os clientes ao entregador.
-              </p>
-
-              <Link
-                href="/admin/rotas/nova"
-                className="mx-auto mt-6 flex h-[48px] max-w-[260px] items-center justify-center gap-2 rounded-[15px] bg-[#176f3c] text-xs font-black text-white"
+        <SmartFilters
+          resetHref="/admin/rotas"
+          activeCount={activeCount}
+          quick={
+            <div className="flex flex-wrap gap-2">
+              <QuickLink
+                href="/admin/rotas"
+                active={!filtros.periodo && !filtros.status}
               >
-                <Plus size={16} />
-                Criar primeira rota
-              </Link>
-            </div>
-          ) : (
-            listaRotas.map(
-              (rota) => {
-                const resumo =
-                  resumoRotas.get(rota.id) ?? {
-                    total: 0,
-                    processados: 0,
-                    entregues: 0,
-                    ocorrencias: 0,
-                  };
+                Todas
+              </QuickLink>
 
-                const percentual =
-                  resumo.total > 0
-                    ? Math.round(
-                        (resumo.processados /
-                          resumo.total) *
-                          100,
-                      )
-                    : 0;
+              <QuickLink
+                href="/admin/rotas?periodo=hoje"
+                active={filtros.periodo === "hoje"}
+              >
+                Hoje
+              </QuickLink>
+
+              <QuickLink
+                href="/admin/rotas?periodo=7"
+                active={filtros.periodo === "7"}
+              >
+                7 dias
+              </QuickLink>
+
+              <QuickLink
+                href="/admin/rotas?status=EM_ROTA"
+                active={filtros.status === "EM_ROTA"}
+              >
+                Em rota
+              </QuickLink>
+
+              <QuickLink
+                href="/admin/rotas?status=FINALIZADA"
+                active={filtros.status === "FINALIZADA"}
+              >
+                Finalizadas
+              </QuickLink>
+            </div>
+          }
+        >
+          <form
+            method="get"
+            className="grid gap-3 md:grid-cols-2 xl:grid-cols-5"
+          >
+            <Field label="Buscar">
+              <input
+                name="q"
+                defaultValue={filtros.q ?? ""}
+                placeholder="Rota ou entregador"
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Entregador">
+              <select
+                name="entregador"
+                defaultValue={filtros.entregador ?? ""}
+                className={inputClass}
+              >
+                <option value="">Todos</option>
+                {(usuariosResult.data ?? []).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nome}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Status">
+              <select
+                name="status"
+                defaultValue={filtros.status ?? ""}
+                className={inputClass}
+              >
+                <option value="">Todos</option>
+                <option value="PLANEJADA">Planejada</option>
+                <option value="EM_ROTA">Em rota</option>
+                <option value="FINALIZADA">Finalizada</option>
+                <option value="CANCELADA">Cancelada</option>
+              </select>
+            </Field>
+
+            <Field label="Progresso">
+              <select
+                name="progresso"
+                defaultValue={filtros.progresso ?? ""}
+                className={inputClass}
+              >
+                <option value="">Todos</option>
+                <option value="pendente">Pendente</option>
+                <option value="parcial">Parcial</option>
+                <option value="concluida">Concluída</option>
+              </select>
+            </Field>
+
+            <div className="flex items-end">
+              <ApplyButton />
+            </div>
+          </form>
+        </SmartFilters>
+
+        <section className="mt-7">
+          {rotas.length === 0 ? (
+            <EmptyState
+              title="Nenhuma rota encontrada"
+              text="Ajuste os filtros ou crie uma nova rota."
+            />
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {rotas.map((rota) => {
+                const tone =
+                  rota.status === "FINALIZADA"
+                    ? "green"
+                    : rota.status === "EM_ROTA"
+                      ? "blue"
+                      : rota.status === "CANCELADA"
+                        ? "red"
+                        : "amber";
 
                 return (
                   <Link
                     key={rota.id}
                     href={`/admin/rotas/${rota.id}`}
-                    className="group block rounded-[24px] border border-black/[0.04] bg-white p-5 shadow-[0_12px_35px_rgba(17,63,33,0.05)] transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_18px_45px_rgba(17,63,33,0.10)]"
+                    className="group block"
                   >
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-emerald-50 text-emerald-700">
-                        {rota.status ===
-                        "FINALIZADA" ? (
-                          <CheckCircle2
-                            size={21}
-                          />
-                        ) : (
-                          <Truck
-                            size={21}
-                          />
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-black">
-                            {rota.codigo}
-                          </h3>
-
-                          <span
-                            className={`rounded-full px-3 py-1.5 text-[8px] font-black ${statusClasses(
-                              rota.status,
-                            )}`}
-                          >
-                            {rota.status}
-                          </span>
-                        </div>
-
-                        <p className="mt-1 text-[10px] text-slate-400">
-                          {entregadoresMap.get(
-                            rota.entregador_id,
-                          ) ?? "Entregador"}
-                          {" • "}
-                          {formatarData(
-                            rota.data_rota,
-                          )}
+                    <article className="card-premium rounded-[28px] p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-[8px] font-black uppercase tracking-[0.13em] text-[#b28735]">
+                          {formatDate(String(rota.data_rota))}
                         </p>
+
+                        <h3 className="mt-1 text-[18px] font-black">
+                          {rota.codigo}
+                        </h3>
                       </div>
 
-                      <ChevronRight
-                        size={18}
-                        className="mt-2 text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-600"
+                      <StatusBadge tone={tone}>
+                        {String(rota.status).replaceAll("_", " ")}
+                      </StatusBadge>
+                    </div>
+
+                    <div className="mt-4 rounded-[18px] border border-emerald-100 bg-[#f5faf6] p-4">
+                      <p className="text-[7px] font-black uppercase tracking-[0.13em] text-emerald-700">
+                        Entregador responsável
+                      </p>
+
+                      <p className="mt-1 text-[15px] font-black">
+                        {rota.entregadorNome}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      <MiniMetric label="Clientes" value={rota.total} />
+                      <MiniMetric
+                        label="Entregues"
+                        value={rota.entregues}
+                        tone="green"
+                      />
+                      <MiniMetric
+                        label="Ausentes"
+                        value={rota.ausentes}
+                        tone={rota.ausentes > 0 ? "amber" : "default"}
                       />
                     </div>
 
-                    <div className="mt-5">
-                      <div className="flex items-center justify-between text-[9px] font-bold text-slate-400">
-                        <span>
-                          {resumo.processados} de{" "}
-                          {resumo.total} processado(s)
+                    <div className="mt-4 rounded-[18px] bg-[#f5f8f5] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[8px] font-black text-slate-500">
+                          {rota.entregues} de {rota.total} concluído(s)
                         </span>
 
-                        <span>
-                          {percentual}%
+                        <span className="text-[16px] font-black text-emerald-700">
+                          {rota.percentual}%
                         </span>
                       </div>
 
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
                         <div
                           className="h-full rounded-full bg-[#176f3c]"
-                          style={{
-                            width: `${percentual}%`,
-                          }}
+                          style={{ width: `${rota.percentual}%` }}
                         />
                       </div>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap gap-2 text-[8px] font-black uppercase tracking-[0.08em]">
-                      <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">
-                        {resumo.entregues} entrega(s)
-                      </span>
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+                      <div>
+                        <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">
+                          Abrir acompanhamento
+                        </p>
 
-                      {resumo.ocorrencias > 0 && (
-                        <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-700">
-                          {resumo.ocorrencias} ocorrência(s)
-                        </span>
-                      )}
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          Clientes, entregas, ocorrências e andamento
+                        </p>
+                      </div>
+
+                      <span className="text-[22px] font-black text-emerald-700 transition group-hover:translate-x-1">
+                        →
+                      </span>
                     </div>
+                  </article>
                   </Link>
                 );
-              },
-            )
+              })}
+            </div>
           )}
         </section>
       </div>
