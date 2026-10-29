@@ -1,0 +1,15 @@
+-- CANCELAMENTO SEGURO DE CARGA - JÁ APLICADO NO SUPABASE
+-- Projeto: pwnaldrxjnyovlhudxan
+-- Migration remota: cancelamento_seguro_carga
+-- Data: 2026-10-29
+--
+-- Regra aplicada:
+-- - somente carga ABERTA;
+-- - exige CARGA_GERENCIAR;
+-- - bloqueia rota PLANEJADA/EM_ROTA;
+-- - bloqueia qualquer entrega já vinculada;
+-- - bloqueia carga com entrega/retorno/avaria já movimentados;
+-- - devolve o saldo ao estoque central;
+-- - em modo VOLUME, muda EM_CARGA -> CANCELADO preservando carga_id;
+-- - grava auditoria CARGA_CANCELADA;
+-- - status final da carga = CANCELADA.

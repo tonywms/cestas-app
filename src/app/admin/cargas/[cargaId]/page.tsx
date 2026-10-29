@@ -18,6 +18,8 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { createClient } from "@/lib/supabase/server";
 
+import CancelarCargaButton from "./CancelarCargaButton";
+
 type PageProps = {
   params: Promise<{
     cargaId: string;
@@ -101,6 +103,7 @@ export default async function CargaDetalhePage({
     itensResult,
     bipagensResult,
     volumesGeradosResult,
+    rotaAtivaResult,
   ] = await Promise.all([
     supabase
       .from("usuarios")
@@ -145,6 +148,14 @@ export default async function CargaDetalhePage({
       .eq("empresa_id", usuario.empresa.id)
       .eq("carga_id", cargaId)
       .order("created_at", { ascending: true }),
+
+    supabase
+      .from("rotas")
+      .select("id, status")
+      .eq("empresa_id", usuario.empresa.id)
+      .eq("entregador_id", carga.entregador_id)
+      .in("status", ["PLANEJADA", "EM_ROTA"])
+      .limit(1),
   ]);
 
   const bipagens = bipagensResult.data ?? [];
@@ -233,6 +244,26 @@ export default async function CargaDetalhePage({
       entregadorResult.data?.nome ??
       "Entregador",
     );
+
+  const existeRotaAtiva = (rotaAtivaResult.data ?? []).length > 0;
+  const possuiMovimentacao =
+    totais.entregue > 0 ||
+    totais.retornado > 0 ||
+    totais.avariado > 0;
+
+  const cancelamentoBloqueado =
+    carga.status !== "ABERTA" ||
+    existeRotaAtiva ||
+    possuiMovimentacao;
+
+  const motivoBloqueioCancelamento =
+    carga.status !== "ABERTA"
+      ? `A carga está ${String(carga.status).replaceAll("_", " ").toLowerCase()} e não pode mais ser cancelada.`
+      : existeRotaAtiva
+        ? "Existe uma rota PLANEJADA ou EM ROTA para este entregador. Finalize ou cancele a rota primeiro."
+        : possuiMovimentacao
+          ? "A carga já possui entrega, retorno ou avaria. Use o fechamento normal da carga."
+          : "";
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
@@ -493,6 +524,27 @@ export default async function CargaDetalhePage({
               })}
             </div>
           )}
+        </section>
+
+        <section className="mt-5 rounded-[26px] border border-red-100 bg-[linear-gradient(145deg,#fffafa,#ffffff)] p-5 shadow-[0_12px_30px_rgba(120,20,20,0.04)]">
+          <div className="mb-4">
+            <p className="text-[8px] font-black uppercase tracking-[0.16em] text-red-500">
+              Administração da carga
+            </p>
+            <h3 className="mt-1 text-[17px] font-black tracking-[-0.03em]">
+              Cancelamento seguro
+            </h3>
+            <p className="mt-1 text-[9px] leading-5 text-slate-400">
+              Use somente quando a operação não seguirá. O sistema devolve o saldo ao estoque e preserva os volumes no histórico como CANCELADO.
+            </p>
+          </div>
+
+          <CancelarCargaButton
+            cargaId={cargaId}
+            codigo={String(carga.codigo)}
+            bloqueado={cancelamentoBloqueado}
+            motivoBloqueio={motivoBloqueioCancelamento}
+          />
         </section>
 
         <section className="mt-5 rounded-[24px] border border-black/[0.04] bg-white px-5 py-4 shadow-[0_12px_30px_rgba(17,63,33,0.04)]">

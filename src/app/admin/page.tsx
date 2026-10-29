@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import {
   ArrowUpRight,
+  BarChart3,
   Boxes,
   CircleDollarSign,
   CreditCard,
@@ -70,6 +71,16 @@ export default async function AdminPage() {
           },
           {
             titulo:
+              "Relatórios",
+            descricao:
+              "Vendas, operação e análises consolidadas.",
+            href:
+              "/admin/relatorios",
+            icone:
+              <BarChart3 size={22} />,
+          },
+          {
+            titulo:
               "Clientes",
             descricao:
               "Cadastro, contratos, parcelas e situação financeira.",
@@ -109,6 +120,16 @@ export default async function AdminPage() {
               "/admin/dashboard",
             icone:
               <LayoutDashboard size={22} />,
+          },
+          {
+            titulo:
+              "Relatórios",
+            descricao:
+              "Central de relatórios gerenciais e operacionais.",
+            href:
+              "/admin/relatorios",
+            icone:
+              <BarChart3 size={22} />,
           },
           {
             titulo:

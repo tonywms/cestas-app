@@ -273,6 +273,12 @@ export default async function DashboardPage({
     parcelasResult,
     pagamentosResult,
     cargasResult,
+    volumesEmCargaResult,
+    volumesDisponiveisResult,
+    volumesEntreguesResult,
+    volumesRetornadosResult,
+    volumesAvariadosResult,
+    volumesTotalResult,
     membrosResult,
   ] =
     await Promise.all([
@@ -531,6 +537,41 @@ export default async function DashboardPage({
         ),
 
       supabase
+        .from("cesta_volumes")
+        .select("id", { count: "exact", head: true })
+        .eq("empresa_id", usuario.empresa.id)
+        .eq("status", "EM_CARGA"),
+
+      supabase
+        .from("cesta_volumes")
+        .select("id", { count: "exact", head: true })
+        .eq("empresa_id", usuario.empresa.id)
+        .eq("status", "DISPONIVEL"),
+
+      supabase
+        .from("cesta_volumes")
+        .select("id", { count: "exact", head: true })
+        .eq("empresa_id", usuario.empresa.id)
+        .eq("status", "ENTREGUE"),
+
+      supabase
+        .from("cesta_volumes")
+        .select("id", { count: "exact", head: true })
+        .eq("empresa_id", usuario.empresa.id)
+        .eq("status", "RETORNADO"),
+
+      supabase
+        .from("cesta_volumes")
+        .select("id", { count: "exact", head: true })
+        .eq("empresa_id", usuario.empresa.id)
+        .eq("status", "AVARIADO"),
+
+      supabase
+        .from("cesta_volumes")
+        .select("id", { count: "exact", head: true })
+        .eq("empresa_id", usuario.empresa.id),
+
+      supabase
         .from(
           "empresa_usuarios",
         )
@@ -592,6 +633,35 @@ export default async function DashboardPage({
   const cargas =
     cargasResult.data ??
     [];
+
+  const volumesEmCarga =
+    volumesEmCargaResult.count ??
+    0;
+
+  const volumesDisponiveis =
+    volumesDisponiveisResult.count ??
+    0;
+
+  const volumesEntregues =
+    volumesEntreguesResult.count ??
+    0;
+
+  const volumesRetornados =
+    volumesRetornadosResult.count ??
+    0;
+
+  const volumesAvariados =
+    volumesAvariadosResult.count ??
+    0;
+
+  const volumesTotal =
+    volumesTotalResult.count ??
+    0;
+
+  const modoVolume =
+    usuario.configuracao
+      .modoControleCarga ===
+    "VOLUME";
 
   const membros =
     membrosResult.data ??
@@ -1311,6 +1381,103 @@ export default async function DashboardPage({
           </div>
         </section>
 
+        <section className="mt-7 card-premium overflow-hidden rounded-[30px] p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#b07a12]">
+                Estoque em movimento
+              </p>
+
+              <h2 className="mt-1 text-[24px] font-black tracking-[-0.04em]">
+                Pulso da operação
+              </h2>
+
+              <p className="mt-1 max-w-2xl text-[12px] text-slate-500">
+                {modoVolume
+                  ? "Visão atual dos volumes físicos: em rua, entregues, retornados e avariados."
+                  : "Esta empresa trabalha por quantidade. O estoque móvel é acompanhado pelas cargas e entregas, sem QR Code individual."}
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Link
+                href="/admin/cargas"
+                className="flex h-[44px] items-center gap-2 rounded-[14px] bg-emerald-50 px-4 text-[11px] font-extrabold text-emerald-800"
+              >
+                <Truck size={16} />
+                Cargas
+              </Link>
+
+              {modoVolume && (
+                <Link
+                  href="/admin/volumes"
+                  className="flex h-[44px] items-center gap-2 rounded-[14px] bg-[#176f3c] px-4 text-[11px] font-extrabold text-white"
+                >
+                  <Boxes size={16} />
+                  Volumes
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {modoVolume ? (
+            <>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                <PulseCard label="Em carga" value={volumesEmCarga} tone="blue" />
+                <PulseCard label="Disponíveis" value={volumesDisponiveis} tone="green" />
+                <PulseCard label="Entregues" value={volumesEntregues} tone="default" />
+                <PulseCard label="Retornados" value={volumesRetornados} tone="violet" />
+                <PulseCard label="Avariados" value={volumesAvariados} tone="amber" />
+                <PulseCard label="Histórico" value={volumesTotal} tone="dark" />
+              </div>
+
+              <div className="mt-5 grid gap-3 lg:grid-cols-3">
+                <div className="rounded-[20px] bg-blue-50 p-5">
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-blue-500">
+                    Estoque em rua
+                  </p>
+                  <p className="mt-2 text-[28px] font-black text-blue-800">
+                    {volumesEmCarga}
+                  </p>
+                  <p className="mt-1 text-[11px] font-bold text-blue-500">
+                    volume(s) ainda sob responsabilidade dos entregadores
+                  </p>
+                </div>
+
+                <div className="rounded-[20px] bg-emerald-50 p-5">
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-emerald-500">
+                    Conversão física
+                  </p>
+                  <p className="mt-2 text-[28px] font-black text-emerald-800">
+                    {percentual(volumesEntregues, Math.max(1, volumesEntregues + volumesRetornados + volumesAvariados))}%
+                  </p>
+                  <p className="mt-1 text-[11px] font-bold text-emerald-500">
+                    dos volumes encerrados terminaram como entrega
+                  </p>
+                </div>
+
+                <div className={`rounded-[20px] p-5 ${volumesAvariados > 0 ? "bg-amber-50" : "bg-[#f5f8f5]"}`}>
+                  <p className={`text-[9px] font-extrabold uppercase tracking-[0.15em] ${volumesAvariados > 0 ? "text-amber-600" : "text-slate-400"}`}>
+                    Atenção operacional
+                  </p>
+                  <p className={`mt-2 text-[28px] font-black ${volumesAvariados > 0 ? "text-amber-800" : "text-slate-700"}`}>
+                    {volumesAvariados}
+                  </p>
+                  <p className={`mt-1 text-[11px] font-bold ${volumesAvariados > 0 ? "text-amber-600" : "text-slate-400"}`}>
+                    volume(s) atualmente classificados como avaria
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <PulseCard label="Estoque central" value={estoqueTotal} tone="green" />
+              <PulseCard label="Cargas em aberto" value={cargasAbertas} tone="blue" />
+              <PulseCard label="Cestas entregues" value={cestasEntregues} tone="default" />
+            </div>
+          )}
+        </section>
+
         <section className="mt-7 grid gap-4 xl:grid-cols-[1.35fr_.65fr]">
           <div className="card-premium rounded-[30px] p-6">
             <div className="flex items-start justify-between gap-4">
@@ -1816,6 +1983,46 @@ export default async function DashboardPage({
         </section>
       </div>
     </main>
+  );
+}
+
+function PulseCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone:
+    | "default"
+    | "green"
+    | "blue"
+    | "violet"
+    | "amber"
+    | "dark";
+}) {
+  const classes =
+    tone === "green"
+      ? "border-emerald-100 bg-emerald-50 text-emerald-800"
+      : tone === "blue"
+        ? "border-blue-100 bg-blue-50 text-blue-800"
+        : tone === "violet"
+          ? "border-violet-100 bg-violet-50 text-violet-800"
+          : tone === "amber"
+            ? "border-amber-100 bg-amber-50 text-amber-800"
+            : tone === "dark"
+              ? "border-slate-200 bg-slate-800 text-white"
+              : "border-slate-200 bg-slate-50 text-slate-800";
+
+  return (
+    <div className={`rounded-[19px] border px-4 py-4 ${classes}`}>
+      <p className="text-[8px] font-black uppercase tracking-[0.14em] opacity-60">
+        {label}
+      </p>
+      <p className="mt-2 text-[24px] font-black">
+        {value}
+      </p>
+    </div>
   );
 }
 
