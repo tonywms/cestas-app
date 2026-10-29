@@ -28,6 +28,8 @@ const initialState = {
     null as number | null,
   saldoAtual:
     null as number | null,
+  entregaId:
+    null as number | null,
 };
 
 type Cliente = {
@@ -53,6 +55,7 @@ export default function EntregaForm({
   itens,
   rotaClienteId,
   clienteSelecionado,
+  habilitarFinanceiro,
 }: {
   cargaId: number;
   cargaCodigo: string;
@@ -64,6 +67,9 @@ export default function EntregaForm({
 
   clienteSelecionado:
     Cliente | null;
+
+  habilitarFinanceiro:
+    boolean;
 }) {
   const [
     state,
@@ -403,15 +409,21 @@ export default function EntregaForm({
               {state.success ? (
                 <Link
                   href={
-                    rotaClienteId
-                      ? "/mobile/rota"
-                      : "/mobile/carga"
+                    habilitarFinanceiro &&
+                    state.entregaId
+                      ? `/mobile/vendas/nova?entregaId=${state.entregaId}`
+                      : rotaClienteId
+                        ? "/mobile/rota"
+                        : "/mobile/carga"
                   }
                   className="mt-6 flex h-[50px] items-center justify-center rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
                 >
-                  {rotaClienteId
-                    ? "Continuar rota"
-                    : "Ver Minha Carga"}
+                  {habilitarFinanceiro &&
+                  state.entregaId
+                    ? "Registrar venda / pagamento"
+                    : rotaClienteId
+                      ? "Continuar rota"
+                      : "Ver Minha Carga"}
                 </Link>
               ) : (
                 <button

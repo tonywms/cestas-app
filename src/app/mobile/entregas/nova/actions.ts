@@ -27,6 +27,7 @@ type ActionState = {
   message: string;
   saldoAnterior: number | null;
   saldoAtual: number | null;
+  entregaId?: number | null;
 };
 
 type RpcResult = {
@@ -285,5 +286,10 @@ export async function registrarEntrega(
     saldoAtual:
       resultado?.saldo_atual ??
       null,
+    entregaId:
+      Number(
+        resultado?.entrega_id ??
+          0,
+      ) || null,
   };
 }

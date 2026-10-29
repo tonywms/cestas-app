@@ -745,6 +745,17 @@ export default async function EntregaVolumePage({
                 usuario.configuracao
                   .exigirBipagemEntrega
               }
+              habilitarFinanceiro={
+                usuario.configuracao
+                  .permitirPagamentoMobile &&
+                (
+                  usuario.isPlatformAdmin ||
+                  temPermissao(
+                    usuario.permissoes,
+                    PERMISSOES.PAGAMENTO_REGISTRAR,
+                  )
+                )
+              }
             />
           )}
 

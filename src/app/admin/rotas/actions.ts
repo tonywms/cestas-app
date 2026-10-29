@@ -223,6 +223,9 @@ export async function criarRota(
       data_rota: dataRota,
       status: "PLANEJADA",
       observacao: observacao || null,
+      origem: "ADMIN",
+      carga_id: null,
+      criada_por: usuario.id,
     })
     .select(`
       id,

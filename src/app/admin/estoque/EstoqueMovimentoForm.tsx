@@ -41,9 +41,11 @@ const initialState:
 export default function EstoqueMovimentoForm({
   tipos,
   podeAjustar,
+  onSuccess,
 }: {
   tipos: TipoEstoque[];
   podeAjustar: boolean;
+  onSuccess?: () => void;
 }) {
   const [
     state,
@@ -424,11 +426,17 @@ export default function EstoqueMovimentoForm({
 
             <button
               type="button"
-              onClick={() =>
+              onClick={() => {
                 setModal(
                   false,
-                )
-              }
+                );
+
+                if (
+                  state.success
+                ) {
+                  onSuccess?.();
+                }
+              }}
               className="mt-6 h-[50px] w-full rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
             >
               Entendi

@@ -24,6 +24,7 @@ const initialState: EntregaVolumeState = {
   saldoAnterior: null,
   saldoAtual: null,
   rotaClienteId: null,
+  entregaId: null,
 };
 
 export default function EntregaVolumeForm({
@@ -34,6 +35,7 @@ export default function EntregaVolumeForm({
   rotaClienteId,
   tipos,
   exigirBipagem,
+  habilitarFinanceiro,
 }: {
   cargaId: number;
   cargaCodigo: string;
@@ -42,6 +44,7 @@ export default function EntregaVolumeForm({
   rotaClienteId: number | null;
   tipos: TipoCesta[];
   exigirBipagem: boolean;
+  habilitarFinanceiro: boolean;
 }) {
   const [state, formAction, pending] = useActionState(registrarEntregaVolume, initialState);
   const [modal, setModal] = useState(false);
@@ -243,7 +246,22 @@ export default function EntregaVolumeForm({
               </div>
             )}
             {state.success ? (
-              <Link href={rotaClienteId ? "/mobile/rota" : "/mobile/carga"} className="mt-6 flex h-[50px] w-full items-center justify-center rounded-[16px] bg-[#176f3c] text-[10px] font-black text-white">{rotaClienteId ? "Continuar rota" : "Ver Minha Carga"}</Link>
+              <Link
+                href={
+                  habilitarFinanceiro && state.entregaId
+                    ? `/mobile/vendas/nova?entregaId=${state.entregaId}`
+                    : rotaClienteId
+                      ? "/mobile/rota"
+                      : "/mobile/carga"
+                }
+                className="mt-6 flex h-[50px] w-full items-center justify-center rounded-[16px] bg-[#176f3c] text-[10px] font-black text-white"
+              >
+                {habilitarFinanceiro && state.entregaId
+                  ? "Registrar venda / pagamento"
+                  : rotaClienteId
+                    ? "Continuar rota"
+                    : "Ver Minha Carga"}
+              </Link>
             ) : (
               <button type="button" onClick={() => setModal(false)} className="mt-6 h-[50px] w-full rounded-[16px] bg-[#176f3c] text-[10px] font-black text-white">Entendi</button>
             )}

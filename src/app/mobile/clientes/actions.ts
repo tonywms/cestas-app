@@ -443,7 +443,17 @@ export async function iniciarVendaCampo(
       PERMISSOES.ENTREGA_REALIZAR,
     );
 
-  if (!podeEntregar) {
+  const podeGerenciarRotaPropria =
+    usuario.isPlatformAdmin ||
+    temPermissao(
+      usuario.permissoes,
+      PERMISSOES.ROTA_MOBILE_GERENCIAR_PROPRIA,
+    );
+
+  if (
+    !podeEntregar ||
+    !podeGerenciarRotaPropria
+  ) {
     redirect(
       "/mobile/sem-acesso",
     );
@@ -496,7 +506,92 @@ export async function iniciarVendaCampo(
     );
   }
 
+  const {
+    error:
+      iniciarRotaError,
+  } =
+    await supabase.rpc(
+      "mobile_iniciar_rota_propria",
+      {
+        p_empresa_id:
+          usuario.empresa.id,
+      },
+    );
+
+  if (iniciarRotaError) {
+    redirect(
+      `/mobile/rota?erro=${encodeURIComponent(
+        iniciarRotaError.message ||
+          "Não foi possível iniciar sua rota.",
+      )}`,
+    );
+  }
+
+  const {
+    data: paradaData,
+    error:
+      paradaError,
+  } =
+    await supabase.rpc(
+      "mobile_adicionar_cliente_rota_propria",
+      {
+        p_empresa_id:
+          usuario.empresa.id,
+
+        p_cliente_id:
+          clienteId,
+      },
+    );
+
+  if (paradaError) {
+    redirect(
+      `/mobile/rota?erro=${encodeURIComponent(
+        paradaError.message ||
+          "Não foi possível adicionar o cliente à sua rota.",
+      )}`,
+    );
+  }
+
+  const parada =
+    (
+      paradaData ??
+      {}
+    ) as {
+      rota_cliente_id?:
+        number;
+  };
+
+  const rotaClienteId =
+    Number(
+      parada.rota_cliente_id ??
+      0,
+    );
+
+  if (
+    !Number.isInteger(
+      rotaClienteId,
+    ) ||
+    rotaClienteId <=
+      0
+  ) {
+    redirect(
+      "/mobile/rota?erro=Parada%20da%20rota%20n%C3%A3o%20foi%20criada.",
+    );
+  }
+
+  revalidatePath(
+    "/mobile",
+  );
+
+  revalidatePath(
+    "/mobile/rota",
+  );
+
+  revalidatePath(
+    "/admin/rotas",
+  );
+
   redirect(
-    `/mobile/entregas/nova?clienteId=${clienteId}`,
+    `/mobile/entregas/nova?rotaClienteId=${rotaClienteId}`,
   );
 }

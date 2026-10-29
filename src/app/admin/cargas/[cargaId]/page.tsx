@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   PackageCheck,
+  Printer,
   ScanLine,
   Truck,
   UserRound,
@@ -99,6 +100,7 @@ export default async function CargaDetalhePage({
     entregadorResult,
     itensResult,
     bipagensResult,
+    volumesGeradosResult,
   ] = await Promise.all([
     supabase
       .from("usuarios")
@@ -128,9 +130,26 @@ export default async function CargaDetalhePage({
       .eq("empresa_id", usuario.empresa.id)
       .eq("carga_id", cargaId)
       .order("bipado_at", { ascending: true }),
+
+    supabase
+      .from("cesta_volumes")
+      .select(`
+        id,
+        codigo_volume,
+        status,
+        carga_id,
+        entrega_id,
+        entregue_at,
+        created_at
+      `)
+      .eq("empresa_id", usuario.empresa.id)
+      .eq("carga_id", cargaId)
+      .order("created_at", { ascending: true }),
   ]);
 
   const bipagens = bipagensResult.data ?? [];
+  const volumesGerados = volumesGeradosResult.data ?? [];
+
   const volumeIds = Array.from(
     new Set(
       bipagens
@@ -284,6 +303,96 @@ export default async function CargaDetalhePage({
           <Resumo label="Retorno" valor={totais.retornado} />
           <Resumo label="Avaria" valor={totais.avariado} alerta={totais.avariado > 0} />
           <Resumo label="Saldo" valor={saldo} destaque />
+        </section>
+
+        <section className="mt-6 rounded-[30px] border border-emerald-100 bg-white p-5 shadow-[0_18px_48px_rgba(17,63,33,0.06)]">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-[0.16em] text-[#b28735]">
+                Preparação da carga
+              </p>
+              <h3 className="mt-1 text-[20px] font-black tracking-[-0.03em]">
+                Volumes gerados
+              </h3>
+              <p className="mt-1 text-[9px] leading-5 text-slate-400">
+                Os QR Codes desta carga já estão prontos para impressão antes da conferência do entregador.
+              </p>
+            </div>
+
+            {volumesGerados.length > 0 && (
+              <Link
+                href={`/admin/volumes/etiquetas?carga=${cargaId}`}
+                className="flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#176f3c] px-5 text-[9px] font-black text-white shadow-[0_10px_24px_rgba(23,111,60,0.18)]"
+              >
+                <Printer size={15} />
+                Imprimir etiquetas desta carga
+              </Link>
+            )}
+          </div>
+
+          {volumesGerados.length === 0 ? (
+            <div className="mt-5 rounded-[20px] bg-[#f5f8f5] p-7 text-center">
+              <Barcode size={28} className="mx-auto text-slate-300" />
+              <p className="mt-3 text-[11px] font-black">
+                Nenhum volume gerado para esta carga
+              </p>
+              <p className="mt-1 text-[9px] text-slate-400">
+                Se a empresa estiver em controle por quantidade, isso é esperado.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {volumesGerados.map((volume) => {
+                const status = String(volume.status ?? "");
+
+                return (
+                  <div
+                    key={String(volume.id)}
+                    className="rounded-[18px] border border-slate-100 bg-[#fbfdfb] p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-emerald-50 text-emerald-700">
+                        <Barcode size={18} />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="break-all font-mono text-[10px] font-black text-[#142018]">
+                          {String(volume.codigo_volume)}
+                        </p>
+                        <p className="mt-1 text-[8px] text-slate-400">
+                          Gerado em {formatarDataHora(String(volume.created_at))}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full border px-2.5 py-1 text-[7px] font-black uppercase ${classeStatusVolume(
+                          status,
+                        )}`}
+                      >
+                        {status.replaceAll("_", " ")}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {volumesGerados.length > 0 && (
+            <div className="mt-4 flex items-center justify-between rounded-[16px] bg-emerald-50 px-4 py-3">
+              <div className="flex items-center gap-2 text-[8px] font-black text-emerald-800">
+                <PackageCheck size={14} />
+                {volumesGerados.length} volume(s) vinculado(s) à carga #{cargaId}
+              </div>
+
+              <Link
+                href={`/admin/volumes/etiquetas?carga=${cargaId}`}
+                className="text-[8px] font-black text-emerald-800 underline underline-offset-2"
+              >
+                Abrir impressão
+              </Link>
+            </div>
+          )}
         </section>
 
         <section className="mt-6 rounded-[30px] border border-black/[0.04] bg-white p-5 shadow-[0_18px_48px_rgba(17,63,33,0.06)]">

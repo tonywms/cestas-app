@@ -5,7 +5,13 @@ import { redirect } from "next/navigation";
 import { ArrowRight, Boxes, PackageCheck } from "lucide-react";
 
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
+import {
+  PERMISSOES,
+  temPermissao,
+} from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
+
+import EstoqueEntradaModalTrigger from "./EstoqueEntradaModalTrigger";
 
 import {
   ApplyButton,
@@ -570,6 +576,20 @@ export default async function EstoquePage({ searchParams }: PageProps) {
   const filtros = await searchParams;
   const supabase = await createClient();
 
+  const podeMovimentar =
+    usuario.isPlatformAdmin ||
+    temPermissao(
+      usuario.permissoes,
+      PERMISSOES.ESTOQUE_MOVIMENTAR,
+    );
+
+  const podeAjustar =
+    usuario.isPlatformAdmin ||
+    temPermissao(
+      usuario.permissoes,
+      PERMISSOES.ESTOQUE_AJUSTAR,
+    );
+
   const [saldosResult, tiposResult, movimentosResult] = await Promise.all([
     supabase
       .from("estoque_central_saldos")
@@ -619,6 +639,56 @@ export default async function EstoquePage({ searchParams }: PageProps) {
       },
     ]),
   );
+
+  const saldoPorTipo = new Map(
+    (saldosResult.data ?? []).map(
+      (item) => [
+        Number(item.tipo_cesta_id),
+        {
+          saldo: Number(
+            item.quantidade ?? 0,
+          ),
+          estoqueMinimo: Number(
+            item.estoque_minimo ?? 0,
+          ),
+        },
+      ],
+    ),
+  );
+
+  const tiposEstoque =
+    (tiposResult.data ?? [])
+      .filter(
+        (item) =>
+          Boolean(item.ativo),
+      )
+      .map((item) => {
+        const saldo =
+          saldoPorTipo.get(
+            Number(item.id),
+          );
+
+        return {
+          id: Number(item.id),
+          codigo: String(
+            item.codigo,
+          ),
+          nome: String(
+            item.nome,
+          ),
+          saldo:
+            saldo?.saldo ?? 0,
+          estoqueMinimo:
+            saldo?.estoqueMinimo ??
+            0,
+        };
+      })
+      .sort((a, b) =>
+        a.nome.localeCompare(
+          b.nome,
+          "pt-BR",
+        ),
+      );
 
   const movimentosBase = movimentosResult.data ?? [];
 
@@ -921,6 +991,17 @@ export default async function EstoquePage({ searchParams }: PageProps) {
           title="Estoque central"
           actions={
             <>
+              {podeMovimentar && (
+                <EstoqueEntradaModalTrigger
+                  tipos={
+                    tiposEstoque
+                  }
+                  podeAjustar={
+                    podeAjustar
+                  }
+                />
+              )}
+
               <Link
                 href="/admin/cargas"
                 className="inline-flex h-11 items-center rounded-[14px] border border-[#cfe6d6] bg-white px-5 text-[13px] font-extrabold text-[#14743d] transition hover:-translate-y-0.5 hover:bg-[#f4faf6]"

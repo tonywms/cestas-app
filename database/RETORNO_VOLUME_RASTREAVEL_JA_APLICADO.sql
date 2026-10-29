@@ -1,0 +1,10 @@
+-- CESTAS APP - RETORNO DE VOLUME RASTREAVEL V1
+-- Migracao aplicada no Supabase pwnaldrxjnyovlhudxan em 29/10/2026.
+--
+-- Regra corrigida:
+-- - Ao fechar uma carga em modo VOLUME, a quantidade retornada volta ao estoque central.
+-- - O volume fisico deixa EM_CARGA e passa para RETORNADO.
+-- - O carga_id original e preservado para manter a rastreabilidade historica.
+-- - Avarias continuam como AVARIADO.
+--
+-- NAO EXECUTAR NOVAMENTE.

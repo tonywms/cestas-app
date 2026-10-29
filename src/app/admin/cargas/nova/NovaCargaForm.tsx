@@ -15,6 +15,7 @@ import {
   useActionState,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -72,16 +73,26 @@ export default function NovaCargaForm({
   ] =
     useState("");
 
+  const ultimaMensagemRef =
+    useRef(
+      state.message,
+    );
+
   useEffect(
     () => {
       if (
-        state.message
+        state.message &&
+        state.message !==
+          ultimaMensagemRef.current
       ) {
         setModal(true);
       }
+
+      ultimaMensagemRef.current =
+        state.message;
     },
     [
-      state,
+      state.message,
     ],
   );
 
@@ -410,19 +421,36 @@ export default function NovaCargaForm({
               {state.success ? (
                 <div className="mt-6 space-y-2">
 
-                  <Link
-                    href="/admin/cargas"
-                    className="flex h-[50px] items-center justify-center rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
-                  >
-                    Ver cargas
-                  </Link>
+                  {state.cargaId ? (
+                    <Link
+                      href={`/admin/cargas/${state.cargaId}`}
+                      className="flex h-[50px] items-center justify-center rounded-[16px] bg-[#176f3c] text-xs font-black text-white shadow-[0_12px_24px_rgba(23,111,60,0.18)]"
+                    >
+                      Abrir carga criada
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/admin/cargas"
+                      className="flex h-[50px] items-center justify-center rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
+                    >
+                      Ver cargas
+                    </Link>
+                  )}
 
                   <Link
-                    href="/admin/estoque"
-                    className="flex h-[50px] items-center justify-center rounded-[16px] border border-slate-200 text-xs font-black"
+                    href="/admin/cargas"
+                    className="flex h-[50px] items-center justify-center rounded-[16px] border border-[#dbe7de] bg-white text-xs font-black text-[#176f3c]"
                   >
-                    Ver estoque central
+                    Ver todas as cargas
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => setModal(false)}
+                    className="flex h-[46px] w-full items-center justify-center rounded-[15px] text-[11px] font-black text-slate-500 transition hover:bg-slate-50"
+                  >
+                    Criar outra carga
+                  </button>
 
                 </div>
               ) : (

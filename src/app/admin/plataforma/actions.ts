@@ -298,6 +298,7 @@ async function criarMatrizInicial({
         "CARGA_VISUALIZAR",
         "ENTREGA_REALIZAR",
         "ROTA_VISUALIZAR",
+        "ROTA_MOBILE_GERENCIAR_PROPRIA",
         "CLIENTE_MOBILE_CADASTRAR",
         "CLIENTE_MOBILE_EDITAR",
       ]),

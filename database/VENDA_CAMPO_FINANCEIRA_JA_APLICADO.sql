@@ -1,0 +1,22 @@
+-- CESTAS APP
+-- VENDA EM CAMPO FINANCEIRA V1
+--
+-- MIGRACAO JA APLICADA NO SUPABASE:
+-- pwnaldrxjnyovlhudxan
+--
+-- Criado em 29/10/2026:
+--   public.vendas
+--   public.venda_recebimentos
+--   public.mobile_registrar_venda_entrega(...)
+--
+-- Regras:
+-- 1. A venda e vinculada a uma entrega real.
+-- 2. O valor e calculado pelo valor_venda do tipo de cesta.
+-- 3. AVISTA registra PIX/DINHEIRO/CARTAO/TRANSFERENCIA/OUTRO.
+-- 4. CREDIARIO permite entrada e gera contrato + parcelas.
+-- 5. Politica de atraso/bloqueio de credito e validada no banco.
+-- 6. O entregador so registra venda de entrega feita por ele.
+-- 7. RLS mantem isolamento por empresa.
+-- 8. Uma entrega so pode possuir uma venda.
+--
+-- NAO EXECUTAR NOVAMENTE.

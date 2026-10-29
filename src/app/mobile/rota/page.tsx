@@ -10,14 +10,18 @@ import {
   MapPinned,
   Navigation,
   PackageCheck,
+  Play,
+  Plus,
   Route,
   Sparkles,
+  Square,
 } from "lucide-react";
 
 import Link from "next/link";
 
 import {
   PERMISSOES,
+  temPermissao,
 } from "@/lib/auth/permissions";
 
 import {
@@ -27,6 +31,11 @@ import {
 import {
   createClient,
 } from "@/lib/supabase/server";
+
+import {
+  encerrarMinhaRota,
+  iniciarMinhaRota,
+} from "./actions";
 
 /* =========================================================
    DATA LOCAL
@@ -76,7 +85,11 @@ function rotuloStatus(
     EM_ROTA: "Em rota",
     FINALIZADA: "Finalizada",
     PENDENTE: "Pendente",
+    EM_ATENDIMENTO: "Em atendimento",
     ENTREGUE: "Entregue",
+    AUSENTE: "Cliente ausente",
+    RECUSADO: "Recusado",
+    CANCELADO: "Cancelado",
   };
 
   return (
@@ -94,7 +107,17 @@ function rotuloStatus(
    PÁGINA
 ========================================================= */
 
-export default async function MinhaRotaPage() {
+type Props = {
+  searchParams:
+    Promise<{
+      erro?: string;
+      ok?: string;
+    }>;
+};
+
+export default async function MinhaRotaPage({
+  searchParams,
+}: Props) {
   /* PERMISSÃO */
 
   const usuario =
@@ -102,8 +125,78 @@ export default async function MinhaRotaPage() {
       PERMISSOES.ROTA_VISUALIZAR,
     );
 
+  const params =
+    await searchParams;
+
+  const mensagemErro =
+    params.erro?.trim() ||
+    null;
+
+  const mensagemOk =
+    params.ok?.trim() ||
+    null;
+
+  const podeGerenciarRotaPropria =
+    usuario.isPlatformAdmin ||
+    temPermissao(
+      usuario.permissoes,
+      PERMISSOES.ROTA_MOBILE_GERENCIAR_PROPRIA,
+    );
+
   const supabase =
     await createClient();
+
+  const {
+    data: cargaAtiva,
+    error: cargaAtivaError,
+  } =
+    await supabase
+      .from("cargas")
+      .select(`
+        id,
+        codigo,
+        status,
+        recebida_at
+      `)
+      .eq(
+        "empresa_id",
+        usuario.empresa.id,
+      )
+      .eq(
+        "entregador_id",
+        usuario.id,
+      )
+      .in(
+        "status",
+        [
+          "ABERTA",
+          "EM_ROTA",
+        ],
+      )
+      .order(
+        "created_at",
+        {
+          ascending:
+            false,
+        },
+      )
+      .limit(1)
+      .maybeSingle();
+
+  if (cargaAtivaError) {
+    console.error(
+      "Erro ao consultar carga ativa:",
+      cargaAtivaError,
+    );
+  }
+
+  const cargaPronta =
+    !!cargaAtiva &&
+    (
+      !usuario.configuracao
+        .exigirBipagemCarga ||
+      !!cargaAtiva.recebida_at
+    );
 
   /* PROCURA ROTA ATIVA */
 
@@ -117,7 +210,9 @@ export default async function MinhaRotaPage() {
       codigo,
       data_rota,
       status,
-      observacao
+      observacao,
+      origem,
+      carga_id
     `)
     .eq(
       "empresa_id",
@@ -144,55 +239,54 @@ export default async function MinhaRotaPage() {
     );
   }
 
-  /* SE ACABOU DE FINALIZAR, MOSTRA A ROTA FINALIZADA DO DIA */
+    /* =========================================================
+     ROTA ATUAL = SOMENTE ROTA ATIVA
+     ---------------------------------------------------------
+     Uma rota FINALIZADA e historico, nao operacao atual.
+     Sem PLANEJADA/EM_ROTA, a tela deve decidir pelo estado
+     da carga: abastecer, receber/conferir ou iniciar rota.
+  ========================================================= */
 
-  let rota = rotaAtiva;
-
-  if (!rota) {
-    const {
-      data: rotaFinalizada,
-      error: rotaFinalizadaError,
-    } = await supabase
-      .from("rotas")
-      .select(`
-        id,
-        codigo,
-        data_rota,
-        status,
-        observacao
-      `)
-      .eq(
-        "empresa_id",
-        usuario.empresa.id,
-      )
-      .eq(
-        "entregador_id",
-        usuario.id,
-      )
-      .eq("status", "FINALIZADA")
-      .eq(
-        "data_rota",
-        dataFortaleza(),
-      )
-      .order("finalizada_at", {
-        ascending: false,
-      })
-      .limit(1)
-      .maybeSingle();
-
-    if (rotaFinalizadaError) {
-      console.error(
-        "Erro ao consultar rota finalizada:",
-        rotaFinalizadaError,
-      );
-    }
-
-    rota = rotaFinalizada;
-  }
+  const rota =
+    rotaAtiva;
 
   /* SEM ROTA */
 
   if (!rota) {
+    const precisaReceberCarga =
+      !!cargaAtiva &&
+      usuario.configuracao
+        .exigirBipagemCarga &&
+      !cargaAtiva.recebida_at;
+
+    /*
+     * Se a carga já está EM_ROTA, significa que uma jornada
+     * foi iniciada com ela. Sem rota ativa neste momento,
+     * a jornada foi encerrada e o próximo passo é fechar
+     * a carga, informando eventual retorno/avaria.
+     */
+    const jornadaEncerrada =
+      !!cargaAtiva &&
+      cargaAtiva.status === "EM_ROTA";
+
+    const titulo =
+      !cargaAtiva
+        ? "Abasteça o carro primeiro"
+        : jornadaEncerrada
+          ? "Jornada encerrada"
+          : precisaReceberCarga
+            ? "Receba sua carga"
+            : "Pronto para sair?";
+
+    const texto =
+      !cargaAtiva
+        ? "Sua rota nasce a partir do estoque móvel. Receba uma carga antes de iniciar a jornada."
+        : jornadaEncerrada
+          ? "Sua rota foi encerrada. Agora finalize a carga e informe qualquer retorno ou avaria antes de iniciar uma nova jornada."
+          : precisaReceberCarga
+            ? "A carga já está vinculada ao seu usuário, mas a conferência física precisa ser concluída."
+            : "Sua carga está pronta. Inicie a jornada e adicione os clientes conforme for atendendo em campo.";
+
     return (
       <main className="app-premium min-h-dvh text-[#142018]">
         <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-[#f7faf7]/90 shadow-[0_0_70px_rgba(17,63,33,0.14)]">
@@ -239,24 +333,127 @@ export default async function MinhaRotaPage() {
               </div>
 
               <p className="mt-6 text-[10px] font-black uppercase tracking-[0.22em] text-[#b07a12]">
-                Operação
+                Jornada do entregador
               </p>
 
               <h2 className="mt-2 text-[24px] font-black tracking-[-0.04em]">
-                Nenhuma rota ativa
+                {titulo}
               </h2>
 
-              <p className="mx-auto mt-3 max-w-[300px] text-[13px] leading-6 text-slate-500">
-                Quando uma rota for atribuída ao seu usuário,
-                os clientes e a sequência de atendimento
-                aparecerão aqui automaticamente.
+              <p className="mx-auto mt-3 max-w-[320px] text-[13px] leading-6 text-slate-500">
+                {texto}
               </p>
+
+              {mensagemErro && (
+                <div className="mt-5 rounded-[18px] border border-red-100 bg-red-50 px-4 py-3 text-left text-[11px] font-bold leading-5 text-red-700">
+                  {mensagemErro}
+                </div>
+              )}
+
+              {mensagemOk && (
+                <div className="mt-5 rounded-[18px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-left text-[11px] font-bold leading-5 text-emerald-700">
+                  {mensagemOk}
+                </div>
+              )}
+
+              {cargaAtiva && (
+                <div className="mt-6 rounded-[20px] border border-emerald-100 bg-[#f3faf5] p-4 text-left">
+                  <p className="text-[8px] font-black uppercase tracking-[0.16em] text-[#b07a12]">
+                    Carga vinculada
+                  </p>
+
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[15px] font-black">
+                        {cargaAtiva.codigo}
+                      </p>
+
+                      <p className="mt-1 text-[10px] font-semibold text-slate-400">
+                        Estoque móvel do entregador
+                      </p>
+                    </div>
+
+                    <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[9px] font-black uppercase text-emerald-700">
+                      {cargaAtiva.status.replaceAll("_", " ")}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {!cargaAtiva && (
+                <Link
+                  href="/mobile/carga"
+                  className="mt-7 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.28)] transition active:scale-[0.985]"
+                >
+                  <PackageCheck size={17} />
+                  Ir para Minha carga
+                </Link>
+              )}
+
+              {precisaReceberCarga && (
+                <Link
+                  href="/mobile/carga/receber"
+                  className="mt-7 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.28)] transition active:scale-[0.985]"
+                >
+                  <PackageCheck size={17} />
+                  Receber e conferir carga
+                </Link>
+              )}
+
+              {jornadaEncerrada && (
+                <div className="mt-7 space-y-3">
+                  <Link
+                    href="/mobile/carga/fechar"
+                    className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_32px_rgba(23,111,60,0.30)] transition active:scale-[0.985]"
+                  >
+                    <PackageCheck size={18} />
+                    Finalizar carga / Informar retorno
+                  </Link>
+
+                  <Link
+                    href="/mobile/carga"
+                    className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[16px] border border-emerald-100 bg-white text-[11px] font-black text-[#176f3c]"
+                  >
+                    Ver Minha Carga
+                  </Link>
+                </div>
+              )}
+
+              {cargaPronta &&
+                !jornadaEncerrada &&
+                podeGerenciarRotaPropria && (
+                  <form
+                    action={
+                      iniciarMinhaRota
+                    }
+                    className="mt-7"
+                  >
+                    <button
+                      type="submit"
+                      className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_32px_rgba(23,111,60,0.30)] transition active:scale-[0.985]"
+                    >
+                      <Play
+                        size={18}
+                        fill="currentColor"
+                      />
+                      Iniciar minha rota
+                    </button>
+                  </form>
+                )}
+
+              {cargaPronta &&
+                !jornadaEncerrada &&
+                !podeGerenciarRotaPropria && (
+                  <div className="mt-7 rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-bold leading-5 text-amber-800">
+                    Seu perfil ainda não possui permissão para iniciar a própria rota.
+                  </div>
+                )}
 
               <Link
                 href="/mobile"
-                className="mt-7 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.28)] transition active:scale-[0.985]"
+                className="mt-3 flex h-[50px] w-full items-center justify-center gap-2 rounded-[16px] border border-emerald-100 bg-white text-[11px] font-black text-[#176f3c]"
               >
-                <ArrowLeft size={17} />
+                <ArrowLeft size={16} />
                 Voltar ao início
               </Link>
 
@@ -372,20 +569,35 @@ export default async function MinhaRotaPage() {
         item.status === "ENTREGUE",
     ).length;
 
-  const restantes = Math.max(
-    0,
-    total - entregues,
-  );
+  const pendentes =
+    listaItens.filter(
+      (item) =>
+        item.status === "PENDENTE" ||
+        item.status === "EM_ATENDIMENTO",
+    ).length;
+
+  const processados =
+    Math.max(
+      0,
+      total - pendentes,
+    );
+
+  const restantes =
+    pendentes;
 
   const percentual =
     total > 0
       ? Math.round(
-          (entregues / total) * 100,
+          (processados / total) * 100,
         )
       : 0;
 
   const finalizada =
     rota.status === "FINALIZADA";
+
+  const rotaMobile =
+    rota.origem ===
+    "MOBILE";
 
   /* TELA */
 
@@ -506,7 +718,7 @@ export default async function MinhaRotaPage() {
                   </p>
 
                   <p className="mt-1 text-[14px] font-bold text-white">
-                    {entregues} de {total}{" "}
+                    {processados} de {total}{" "}
                     concluído
                     {total === 1 ? "" : "s"}
                   </p>
@@ -547,7 +759,7 @@ export default async function MinhaRotaPage() {
               />
 
               <HeroKpi
-                label="Restantes"
+                label="Pendentes"
                 valor={restantes}
               />
 
@@ -607,6 +819,63 @@ export default async function MinhaRotaPage() {
             </div>
           )}
 
+          {mensagemErro && (
+            <div className="mb-5 rounded-[20px] border border-red-100 bg-red-50 px-4 py-3 text-[11px] font-bold leading-5 text-red-700">
+              {mensagemErro}
+            </div>
+          )}
+
+          {mensagemOk && (
+            <div className="mb-5 rounded-[20px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-[11px] font-bold leading-5 text-emerald-700">
+              {mensagemOk}
+            </div>
+          )}
+
+          {!finalizada && (
+            <section className="mb-6 space-y-3">
+              <Link
+                href="/mobile/clientes?modo=venda"
+                className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_30px_rgba(23,111,60,0.26)] transition active:scale-[0.985]"
+              >
+                <Plus size={18} />
+                Novo atendimento
+              </Link>
+
+              {rotaMobile && (
+                <form
+                  action={
+                    encerrarMinhaRota
+                  }
+                >
+                  <input
+                    type="hidden"
+                    name="rota_id"
+                    value={rota.id}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={
+                      pendentes > 0
+                    }
+                    className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] border border-slate-200 bg-white text-[12px] font-black text-slate-600 transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    <Square size={16} />
+                    {pendentes > 0
+                      ? `${pendentes} atendimento(s) pendente(s)`
+                      : "Encerrar minha rota"}
+                  </button>
+
+                  {pendentes > 0 && (
+                    <p className="mt-2 text-center text-[9px] font-semibold leading-4 text-slate-400">
+                      Conclua ou registre ocorrência nos atendimentos pendentes antes de encerrar.
+                    </p>
+                  )}
+                </form>
+              )}
+            </section>
+          )}
+
           {/* TÍTULO LISTA */}
 
           <div className="mb-5 flex items-end justify-between">
@@ -632,6 +901,22 @@ export default async function MinhaRotaPage() {
 
           {/* CLIENTES (com linha de itinerário) */}
 
+          {listaItens.length === 0 ? (
+            <section className="rounded-[26px] border border-dashed border-emerald-200 bg-emerald-50/40 p-7 text-center">
+              <MapPinned
+                size={28}
+                className="mx-auto text-[#176f3c]"
+              />
+
+              <h4 className="mt-3 text-[16px] font-black">
+                Rota iniciada
+              </h4>
+
+              <p className="mt-2 text-[11px] leading-5 text-slate-500">
+                Nenhum cliente foi adicionado ainda. Use “Novo atendimento” conforme encontrar clientes em campo.
+              </p>
+            </section>
+          ) : (
           <section className="relative space-y-4 before:absolute before:bottom-8 before:left-[46px] before:top-8 before:border-l-2 before:border-dashed before:border-emerald-300/70 before:content-['']">
 
             {listaItens.map(
@@ -645,9 +930,11 @@ export default async function MinhaRotaPage() {
                   return null;
                 }
 
-                const concluido =
-                  item.status ===
-                  "ENTREGUE";
+                const processado =
+                  item.status !==
+                    "PENDENTE" &&
+                  item.status !==
+                    "EM_ATENDIMENTO";
 
                 /*
                  * ENDEREÇO CONGELADO DA ROTA
@@ -714,7 +1001,7 @@ export default async function MinhaRotaPage() {
                       }ms`,
                     }}
                     className={`animate-fade-up relative overflow-hidden rounded-[28px] p-5 ${
-                      concluido
+                      processado
                         ? "border border-emerald-200 bg-[linear-gradient(145deg,#f0fbf4,#ffffff)] shadow-[0_18px_40px_-28px_rgba(16,185,129,0.55)]"
                         : "card-premium"
                     }`}
@@ -722,7 +1009,7 @@ export default async function MinhaRotaPage() {
 
                     <div
                       className={`absolute inset-x-0 top-0 h-[3px] ${
-                        concluido
+                        processado
                           ? "bg-[linear-gradient(90deg,#16a05d,#8ee9b2)]"
                           : "bg-[linear-gradient(90deg,#f4b13f,#176f3c)]"
                       }`}
@@ -734,12 +1021,12 @@ export default async function MinhaRotaPage() {
 
                       <div
                         className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[18px] ${
-                          concluido
+                          processado
                             ? "icon-emerald"
                             : "border border-[#f4b13f]/40 bg-[#fff8e8] text-[#b07a12] shadow-[0_8px_18px_rgba(244,177,63,0.2)]"
                         }`}
                       >
-                        {concluido ? (
+                        {processado ? (
                           <CheckCircle2 size={24} />
                         ) : (
                           <span className="text-[20px] font-black">
@@ -762,13 +1049,15 @@ export default async function MinhaRotaPage() {
 
                       <span
                         className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] ${
-                          concluido
+                          processado
                             ? "bg-emerald-100 text-emerald-700"
                             : "bg-amber-50 text-amber-700"
                         }`}
                       >
-                        {concluido
-                          ? "Entregue"
+                        {processado
+                          ? rotuloStatus(
+                              item.status,
+                            )
                           : "Aguardando"}
                       </span>
 
@@ -794,7 +1083,7 @@ export default async function MinhaRotaPage() {
 
                       </div>
 
-                      {!concluido &&
+                      {!processado &&
                         !finalizada && (
                           <a
                             href={`https://www.google.com/maps/search/?api=1&query=${queryMapa}`}
@@ -833,13 +1122,15 @@ export default async function MinhaRotaPage() {
 
                         <p
                           className={`mt-1 text-[14px] font-black ${
-                            concluido
+                            processado
                               ? "text-emerald-700"
                               : "text-amber-700"
                           }`}
                         >
-                          {concluido
-                            ? "Concluído"
+                          {processado
+                            ? rotuloStatus(
+                                item.status,
+                              )
                             : "Aguardando"}
                         </p>
 
@@ -849,7 +1140,7 @@ export default async function MinhaRotaPage() {
 
                     {/* AÇÃO */}
 
-                    {!concluido &&
+                    {!processado &&
                       !finalizada && (
                         <Link
                           href={`/mobile/entregas/nova?rotaClienteId=${item.id}`}
@@ -863,12 +1154,12 @@ export default async function MinhaRotaPage() {
                         </Link>
                       )}
 
-                    {concluido && (
+                    {processado && (
                       <div className="mt-5 flex h-[50px] items-center justify-center gap-2 rounded-[16px] border border-emerald-100 bg-emerald-50 text-[12px] font-black text-emerald-700">
 
                         <CheckCircle2 size={17} />
 
-                        Atendimento concluído
+                        Atendimento processado
 
                       </div>
                     )}
@@ -879,6 +1170,7 @@ export default async function MinhaRotaPage() {
             )}
 
           </section>
+          )}
 
           {/* VOLTAR */}
 

@@ -1,0 +1,16 @@
+-- CESTAS APP - ROTA MOBILE PROPRIA V1
+-- MIGRACOES JA APLICADAS NO SUPABASE pwnaldrxjnyovlhudxan EM 29/10/2026.
+--
+-- Banco validado:
+--   rotas.origem              ADMIN | MOBILE
+--   rotas.carga_id            vinculo com a carga/estoque movel
+--   rotas.criada_por          usuario que iniciou/criou
+--   permissao                 ROTA_MOBILE_GERENCIAR_PROPRIA
+--   RPC                       mobile_iniciar_rota_propria(uuid)
+--   RPC                       mobile_adicionar_cliente_rota_propria(uuid,bigint)
+--   RPC                       mobile_finalizar_rota_propria(uuid,bigint)
+--   trigger                   protege rota MOBILE de finalizacao automatica
+--   indice unico parcial      uma rota ativa por entregador
+--
+-- NAO EXECUTAR ESTE ARQUIVO.
+-- Ele existe somente como registro de governanca da migracao ja aplicada.

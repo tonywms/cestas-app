@@ -340,6 +340,9 @@ export default async function ReceberCargaPage() {
             />
           ) : (
             <ReceberCargaForm
+              key={
+                carga.id
+              }
               cargaId={
                 carga.id
               }

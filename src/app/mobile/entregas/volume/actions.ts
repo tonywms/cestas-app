@@ -16,6 +16,7 @@ export type EntregaVolumeState = {
   saldoAnterior: number | null;
   saldoAtual: number | null;
   rotaClienteId: number | null;
+  entregaId: number | null;
 };
 
 const estado = (
@@ -29,6 +30,7 @@ const estado = (
   saldoAnterior: null,
   saldoAtual: null,
   rotaClienteId: null,
+  entregaId: null,
   ...extras,
 });
 
@@ -147,6 +149,7 @@ export async function registrarEntregaVolume(
   }
 
   const resultado = (data ?? {}) as {
+    entrega_id?: number;
     quantidade?: number;
     saldo_anterior?: number;
     saldo_atual?: number;
@@ -178,6 +181,7 @@ export async function registrarEntregaVolume(
       saldoAnterior: resultado.saldo_anterior ?? null,
       saldoAtual: resultado.saldo_atual ?? null,
       rotaClienteId: resultado.rota_cliente_id ?? rotaClienteId,
+      entregaId: Number(resultado.entrega_id ?? 0) || null,
     },
   );
 }

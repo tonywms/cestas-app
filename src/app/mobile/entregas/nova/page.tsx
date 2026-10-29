@@ -17,6 +17,7 @@ import {
 
 import {
   PERMISSOES,
+  temPermissao,
 } from "@/lib/auth/permissions";
 
 import {
@@ -776,6 +777,17 @@ export default async function NovaEntregaPage({
               }
               clienteSelecionado={
                 clienteSelecionado
+              }
+              habilitarFinanceiro={
+                usuario.configuracao
+                  .permitirPagamentoMobile &&
+                (
+                  usuario.isPlatformAdmin ||
+                  temPermissao(
+                    usuario.permissoes,
+                    PERMISSOES.PAGAMENTO_REGISTRAR,
+                  )
+                )
               }
             />
           )}
