@@ -6,9 +6,11 @@ import {
   BarChart3,
   Boxes,
   CircleDollarSign,
+  History,
   PackageCheck,
   Route,
   ShoppingBag,
+  UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -18,8 +20,7 @@ import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 type RelatorioCard = {
   titulo: string;
   descricao: string;
-  href?: string;
-  status: "DISPONIVEL" | "EM_BREVE";
+  href: string;
   icone: React.ReactNode;
 };
 
@@ -40,29 +41,42 @@ export default async function RelatoriosPage() {
       descricao:
         "Analise vendas por período, cliente, entregador, tipo de venda, forma de pagamento e valor.",
       href: "/admin/relatorios/vendas",
-      status: "DISPONIVEL",
       icone: <ShoppingBag size={22} />,
     },
     {
       titulo: "Estoque e movimentações",
       descricao:
         "Entradas, saídas, carga, retorno, avaria e evolução do estoque central.",
-      status: "EM_BREVE",
+      href: "/admin/relatorios/estoque",
       icone: <Boxes size={22} />,
     },
     {
       titulo: "Rotas e produtividade",
       descricao:
-        "Execução das rotas, entregas realizadas, ocorrências e desempenho dos entregadores.",
-      status: "EM_BREVE",
+        "Execução das rotas, paradas atendidas, ausências e desempenho dos entregadores.",
+      href: "/admin/relatorios/rotas",
       icone: <Route size={22} />,
     },
     {
       titulo: "Financeiro e inadimplência",
       descricao:
         "Recebimentos, crediário, parcelas vencidas, carteira em aberto e recuperação.",
-      status: "EM_BREVE",
+      href: "/admin/relatorios/financeiro",
       icone: <CircleDollarSign size={22} />,
+    },
+    {
+      titulo: "Clientes — visão 360º",
+      descricao:
+        "Base ativa, compras, entregas, crediário, inadimplência e histórico consolidado por cliente.",
+      href: "/admin/relatorios/clientes",
+      icone: <UsersRound size={22} />,
+    },
+    {
+      titulo: "Auditoria operacional",
+      descricao:
+        "Quem fez o quê, quando e em qual rotina. Histórico rastreável das ações críticas da empresa.",
+      href: "/admin/relatorios/auditoria",
+      icone: <History size={22} />,
     },
   ];
 
@@ -116,8 +130,12 @@ export default async function RelatoriosPage() {
 
         <section className="mt-6">
           <div className="grid gap-4 md:grid-cols-2">
-            {relatorios.map((relatorio) => {
-              const conteudo = (
+            {relatorios.map((relatorio) => (
+              <Link
+                key={relatorio.titulo}
+                href={relatorio.href}
+                className="card-premium min-h-[230px] rounded-[28px] p-6"
+              >
                 <div className="flex h-full flex-col justify-between">
                   <div>
                     <div className="flex items-start justify-between gap-4">
@@ -125,14 +143,8 @@ export default async function RelatoriosPage() {
                         {relatorio.icone}
                       </div>
 
-                      <span
-                        className={
-                          relatorio.status === "DISPONIVEL"
-                            ? "rounded-full bg-emerald-50 px-3 py-2 text-[8px] font-black uppercase text-emerald-700"
-                            : "rounded-full bg-slate-100 px-3 py-2 text-[8px] font-black uppercase text-slate-400"
-                        }
-                      >
-                        {relatorio.status === "DISPONIVEL" ? "Disponível" : "Em breve"}
+                      <span className="rounded-full bg-emerald-50 px-3 py-2 text-[8px] font-black uppercase text-emerald-700">
+                        Disponível
                       </span>
                     </div>
 
@@ -147,37 +159,13 @@ export default async function RelatoriosPage() {
 
                   <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
                     <span className="text-[9px] font-black text-[#176f3c]">
-                      {relatorio.status === "DISPONIVEL" ? "Abrir relatório" : "Planejado"}
+                      Abrir relatório
                     </span>
-
-                    {relatorio.status === "DISPONIVEL" && (
-                      <ArrowUpRight size={17} className="text-[#176f3c]" />
-                    )}
+                    <ArrowUpRight size={17} className="text-[#176f3c]" />
                   </div>
                 </div>
-              );
-
-              if (relatorio.href) {
-                return (
-                  <Link
-                    key={relatorio.titulo}
-                    href={relatorio.href}
-                    className="card-premium min-h-[230px] rounded-[28px] p-6"
-                  >
-                    {conteudo}
-                  </Link>
-                );
-              }
-
-              return (
-                <article
-                  key={relatorio.titulo}
-                  className="min-h-[230px] rounded-[28px] border border-slate-200 bg-white/70 p-6 opacity-75 shadow-sm"
-                >
-                  {conteudo}
-                </article>
-              );
-            })}
+              </Link>
+            ))}
           </div>
         </section>
       </div>

@@ -1,0 +1,8 @@
+-- CESTAS APP - V31
+-- MIGRACAO JA APLICADA NO SUPABASE.
+--
+-- Tabela: public.fechamentos_entregador
+-- UNIQUE: empresa_id + entregador_id + data_inicio + data_fim
+-- RLS: ADMINISTRADOR / GESTOR / FINANCEIRO da empresa ou Platform Admin
+--
+-- O pacote NÃO executa DDL novamente.

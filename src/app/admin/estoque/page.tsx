@@ -2,7 +2,7 @@ export const instant = false;
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Boxes, PackageCheck } from "lucide-react";
+import { Boxes, PackageCheck } from "lucide-react";
 
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import {
@@ -12,6 +12,8 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 import EstoqueEntradaModalTrigger from "./EstoqueEntradaModalTrigger";
+import AuditoriaOperacaoCard from "./AuditoriaOperacaoCard";
+import AuditoriaOperacoesLista from "./AuditoriaOperacoesLista";
 
 import {
   ApplyButton,
@@ -368,126 +370,7 @@ function Ponto({
 }
 
 function OperacaoCard({ item }: { item: MovimentoVisual }) {
-  const estilo = estiloNatureza[item.natureza];
-  const temAuditoria = Boolean(item.registrosTecnicos?.length);
-
-  return (
-    <article className="relative overflow-hidden rounded-[28px] border border-white bg-white shadow-[0_0_0_1px_rgba(17,63,33,0.05),0_18px_40px_-26px_rgba(12,77,39,0.35)]">
-      <span
-        className={`absolute inset-y-0 left-0 w-1.5 ${estilo.faixa}`}
-        aria-hidden
-      />
-
-      {/* Topo: o que aconteceu, quando e quanto */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#eef2ee] px-6 py-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <StatusBadge tone={estilo.tone}>{rotuloOperacao(item)}</StatusBadge>
-          <span className="text-[13px] font-semibold text-[#6b786c]">
-            {formatarDataHora(item.createdAt)}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-[#f3f7f4] px-3 py-1.5 text-[12px] font-bold text-[#44524a]">
-            {item.cestaNome}
-            <span className="ml-1.5 text-[#8a968b]">· {item.cestaCodigo}</span>
-          </span>
-
-          <div className="rounded-[16px] bg-[#f3f9f5] px-4 py-2 text-right">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#8a968b]">
-              Quantidade
-            </p>
-            <p
-              className={`text-[24px] font-extrabold leading-tight tabular-nums ${estilo.cor}`}
-            >
-              {estilo.sinal}
-              {item.quantidade}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Corpo */}
-      <div className="grid gap-6 px-6 py-5 lg:grid-cols-[1.25fr_1fr]">
-        {/* Esquerda: título, trajeto e cliente */}
-        <div className="min-w-0">
-          <h4 className="text-[19px] font-extrabold leading-tight tracking-[-0.02em] text-[#0f1d13]">
-            {item.titulo}
-          </h4>
-
-          <div className="mt-4 grid items-center gap-3 md:grid-cols-[1fr_auto_1fr]">
-            <Ponto label="De" valor={item.origem} />
-
-            <div className="hidden md:flex">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e3f5e9] text-[#14743d]">
-                <ArrowRight size={16} />
-              </span>
-            </div>
-
-            <Ponto label="Para" valor={item.destino} destaque />
-          </div>
-
-          {item.clienteNome ? (
-            <p className="mt-3 text-[13px] text-[#6b786c]">
-              Cliente:{" "}
-              <span className="font-bold text-[#1c2a20]">
-                {item.clienteNome}
-              </span>{" "}
-              <span className="text-[#8a968b]">({item.clienteCodigo})</span>
-            </p>
-          ) : null}
-        </div>
-
-        {/* Direita: detalhes */}
-        <div className="grid grid-cols-2 gap-3">
-          <Ponto label="Responsável" valor={item.responsavelNome} />
-          <Ponto
-            label="Entregador"
-            valor={item.entregadorNome ?? "Não se aplica"}
-          />
-          <Ponto label="Carga" valor={item.cargaCodigo ?? "Não se aplica"} />
-          <Ponto label="Referência" valor={item.referencia ?? "—"} />
-        </div>
-      </div>
-
-      {/* Rodapé: observação e auditoria técnica */}
-      <div className="flex flex-col gap-3 border-t border-[#eef2ee] bg-[#fbfdfb] px-6 py-4 md:flex-row md:items-center md:justify-between">
-        <p className="text-[13px] leading-5 text-[#44524a]">
-          <span className="font-extrabold text-[#0f1d13]">Detalhe: </span>
-          {item.observacao ?? item.titulo}
-        </p>
-
-        {temAuditoria ? (
-          <details className="group shrink-0">
-            <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] font-extrabold text-[#14743d] [&::-webkit-details-marker]:hidden">
-              Ver auditoria técnica
-              <span className="text-[#8a968b] transition group-open:rotate-180">
-                ▾
-              </span>
-            </summary>
-
-            <div className="mt-3 space-y-2 md:absolute md:right-6 md:z-10 md:w-[320px] md:rounded-[16px] md:bg-white md:p-3 md:shadow-xl md:ring-1 md:ring-[#dfe6df]">
-              {item.registrosTecnicos?.map((registro, index) => (
-                <div
-                  key={`${registro}-${index}`}
-                  className="flex items-center justify-between gap-3 rounded-[12px] bg-[#f3f7f4] px-3 py-2"
-                >
-                  <span className="text-[12px] font-bold text-[#44524a]">
-                    {formatarTipoMovimento(registro)}
-                  </span>
-                  {item.registrosTecnicosIds?.[index] ? (
-                    <span className="text-[11px] font-semibold text-[#8a968b]">
-                      #{item.registrosTecnicosIds[index]}
-                    </span>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </details>
-        ) : null}
-      </div>
-    </article>
-  );
+  return <AuditoriaOperacaoCard item={item} />;
 }
 
 function SaldoCard({
@@ -1245,17 +1128,7 @@ export default async function EstoquePage({ searchParams }: PageProps) {
               text="Ajuste os filtros de período, responsável ou destino para ver outras operações."
             />
           ) : (
-            <div className="space-y-5">
-              {movimentos.slice(0, 100).map((item) => (
-                <OperacaoCard key={item.id} item={item} />
-              ))}
-
-              {movimentos.length > 100 ? (
-                <p className="pt-2 text-center text-[13px] font-semibold text-[#6b786c]">
-                  Mostrando as 100 operações mais recentes. Use os filtros para refinar a busca.
-                </p>
-              ) : null}
-            </div>
+            <AuditoriaOperacoesLista movimentos={movimentos} />
           )}
         </section>
       </div>

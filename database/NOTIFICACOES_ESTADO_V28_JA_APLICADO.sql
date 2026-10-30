@@ -1,0 +1,5 @@
+-- CESTAS APP - NOTIFICACOES V28
+-- BANCO JA APLICADO NO SUPABASE.
+-- Tabela: public.notification_user_state
+-- RLS habilitado.
+-- Este arquivo e apenas documental.

@@ -6,8 +6,10 @@ import { redirect } from "next/navigation";
 import {
   ArrowUpRight,
   BarChart3,
+  BellRing,
   Boxes,
   CircleDollarSign,
+  ClipboardCheck,
   CreditCard,
   LayoutDashboard,
   Route,
@@ -22,6 +24,7 @@ import {
 } from "lucide-react";
 
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
+import AdminNotificationBell from "@/components/admin/AdminNotificationBell";
 import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
 
 type Modulo = {
@@ -109,6 +112,16 @@ export default async function AdminPage() {
             icone:
               <CreditCard size={22} />,
           },
+          {
+            titulo:
+              "Notificações",
+            descricao:
+              "Alertas financeiros e pendências que exigem atenção.",
+            href:
+              "/admin/notificacoes",
+            icone:
+              <BellRing size={22} />,
+          },
         ]
       : [
           {
@@ -170,6 +183,16 @@ export default async function AdminPage() {
               "/admin/financeiro",
             icone:
               <CircleDollarSign size={22} />,
+          },
+          {
+            titulo:
+              "Notificações",
+            descricao:
+              "Alertas operacionais, pendências e pontos que exigem atenção.",
+            href:
+              "/admin/notificacoes",
+            icone:
+              <BellRing size={22} />,
           },
           {
             titulo:
@@ -253,7 +276,23 @@ export default async function AdminPage() {
     temPermissao(usuario.permissoes, PERMISSOES.ESTOQUE_MOVIMENTAR) ||
     temPermissao(usuario.permissoes, PERMISSOES.ESTOQUE_AJUSTAR);
 
+  const podeVerFechamento =
+    usuario.isPlatformAdmin ||
+    usuario.perfilCodigo === "ADMINISTRADOR" ||
+    usuario.perfilCodigo === "GESTOR" ||
+    usuario.perfilCodigo === "FINANCEIRO";
+
   const atalhosRapidos = [
+    ...(podeVerFechamento
+      ? [{
+          titulo: "Fechamento diário",
+          descricao: "Conferir carga, vendas e recebimentos.",
+          href: "/admin/financeiro/fechamento",
+          icone: <ClipboardCheck size={19} />,
+          destaque: true,
+        }]
+      : []),
+
     ...(podeCriarCarga
       ? [{
           titulo: "Nova carga",
@@ -334,15 +373,22 @@ export default async function AdminPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-full border border-[#f4b13f]/30 bg-white/70 py-2 pl-2 pr-4">
-            <div className="icon-emerald flex h-9 w-9 items-center justify-center rounded-full">
-              <UsersRound size={17} />
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-[12px] font-black leading-none">{usuario.nome}</p>
-              <p className="mt-1 text-[8px] font-black uppercase tracking-[0.16em] text-[#b07a12]">
-                {usuario.perfilNome}
-              </p>
+          <div className="flex items-center gap-2">
+            <AdminNotificationBell
+              empresaId={usuario.empresa.id}
+              usuarioId={usuario.id}
+            />
+
+            <div className="flex items-center gap-3 rounded-full border border-[#f4b13f]/30 bg-white/70 py-2 pl-2 pr-4">
+              <div className="icon-emerald flex h-9 w-9 items-center justify-center rounded-full">
+                <UsersRound size={17} />
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-[12px] font-black leading-none">{usuario.nome}</p>
+                <p className="mt-1 text-[8px] font-black uppercase tracking-[0.16em] text-[#b07a12]">
+                  {usuario.perfilNome}
+                </p>
+              </div>
             </div>
           </div>
         </header>
