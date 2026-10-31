@@ -65,6 +65,11 @@ function moeda(valor: number) {
   }).format(valor || 0);
 }
 
+function dataCurta(valor: string) {
+  const [ano, mes, dia] = String(valor ?? "").split("-");
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : valor;
+}
+
 function diasAtraso(vencimento: string, hoje: string) {
   const a = new Date(`${vencimento}T12:00:00`);
   const b = new Date(`${hoje}T12:00:00`);
@@ -149,6 +154,7 @@ export default async function NotificacoesPage({ searchParams }: PageProps) {
   const [
     estoqueResult,
     parcelasResult,
+    fechamentosResult,
     clientesResult,
     cargasResult,
     ocorrenciasResult,
@@ -176,6 +182,15 @@ export default async function NotificacoesPage({ searchParams }: PageProps) {
       .eq("status", "ABERTA")
       .lt("vencimento", hojeIso)
       .order("vencimento"),
+
+    supabase
+      .from("fechamentos_entregador")
+      .select(
+        "id, entregador_id, data_inicio, data_fim, status, bloqueado, diferenca_total, motivo_reabertura, reaberto_at, conferido_at, updated_at, created_at",
+      )
+      .eq("empresa_id", usuario.empresa.id)
+      .or("bloqueado.eq.false,status.eq.COM_DIVERGENCIA")
+      .order("updated_at", { ascending: false }),
 
     supabase
       .from("clientes")
@@ -233,6 +248,30 @@ export default async function NotificacoesPage({ searchParams }: PageProps) {
       },
     ]),
   );
+
+  const entregadorIds = Array.from(
+    new Set(
+      (fechamentosResult.data ?? [])
+        .map((item) => String(item.entregador_id ?? ""))
+        .filter(Boolean),
+    ),
+  );
+
+  let entregadoresMap = new Map<string, string>();
+
+  if (entregadorIds.length > 0) {
+    const usuariosResult = await supabase
+      .from("usuarios")
+      .select("id, nome")
+      .in("id", entregadorIds);
+
+    entregadoresMap = new Map(
+      (usuariosResult.data ?? []).map((item) => [
+        String(item.id),
+        String(item.nome ?? "Entregador"),
+      ]),
+    );
+  }
 
   const alertas: Alerta[] = [];
 
@@ -297,6 +336,62 @@ export default async function NotificacoesPage({ searchParams }: PageProps) {
       dataIso: `${parcela.vencimento}T12:00:00-03:00`,
       href: "/admin/financeiro?faixa=vencidas",
     });
+  }
+
+  for (const fechamento of fechamentosResult.data ?? []) {
+    const id = Number(fechamento.id);
+    const entregadorId = String(fechamento.entregador_id ?? "");
+    const entregadorNome =
+      entregadoresMap.get(entregadorId) ?? "Entregador";
+    const dataInicio = String(fechamento.data_inicio ?? "");
+    const dataFim = String(fechamento.data_fim ?? "");
+    const periodo = `${dataCurta(dataInicio)} a ${dataCurta(dataFim)}`;
+    const diferenca = Number(fechamento.diferenca_total ?? 0);
+    const reaberto = fechamento.bloqueado === false;
+
+    if (reaberto) {
+      const motivo = String(fechamento.motivo_reabertura ?? "").trim();
+
+      alertas.push({
+        id: `FECHAMENTO-REABERTO-${id}`,
+        categoria: "FINANCEIRO",
+        severidade: "ATENCAO",
+        titulo: `Fechamento de ${entregadorNome} foi reaberto`,
+        descricao:
+          "A prestação está desbloqueada e aguarda reconferência para voltar a ficar protegida.",
+        detalhe: motivo
+          ? `${periodo} • diferença ${moeda(diferenca)} • motivo: ${motivo}`
+          : `${periodo} • diferença ${moeda(diferenca)}`,
+        dataIso: String(
+          fechamento.reaberto_at ??
+            fechamento.updated_at ??
+            fechamento.created_at ??
+            hoje.toISOString(),
+        ),
+        href: `/admin/financeiro/fechamento/${entregadorId}?inicio=${dataInicio}&fim=${dataFim}`,
+      });
+
+      continue;
+    }
+
+    if (String(fechamento.status) === "COM_DIVERGENCIA") {
+      alertas.push({
+        id: `FECHAMENTO-DIVERGENCIA-${id}`,
+        categoria: "FINANCEIRO",
+        severidade: "CRITICO",
+        titulo: `Fechamento de ${entregadorNome} possui divergência`,
+        descricao:
+          "A prestação foi salva com diferença entre o valor esperado e o valor conferido e precisa de tratamento financeiro.",
+        detalhe: `${periodo} • diferença ${moeda(diferenca)}`,
+        dataIso: String(
+          fechamento.conferido_at ??
+            fechamento.updated_at ??
+            fechamento.created_at ??
+            hoje.toISOString(),
+        ),
+        href: `/admin/financeiro/fechamento/${entregadorId}?inicio=${dataInicio}&fim=${dataFim}`,
+      });
+    }
   }
 
   for (const carga of cargasResult.data ?? []) {

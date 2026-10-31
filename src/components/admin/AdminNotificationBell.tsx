@@ -63,6 +63,7 @@ export default async function AdminNotificationBell({
   const [
     estoqueResult,
     parcelasResult,
+    fechamentosResult,
     cargasResult,
     ocorrenciasResult,
     empresaResult,
@@ -99,6 +100,21 @@ export default async function AdminNotificationBell({
         .lt(
           "vencimento",
           hoje,
+        ),
+
+      supabase
+        .from(
+          "fechamentos_entregador",
+        )
+        .select(
+          "id, status, bloqueado",
+        )
+        .eq(
+          "empresa_id",
+          empresaId,
+        )
+        .or(
+          "bloqueado.eq.false,status.eq.COM_DIVERGENCIA",
         ),
 
       supabase
@@ -227,6 +243,31 @@ export default async function AdminNotificationBell({
     ) {
       chaves.push(
         `PARCELA-${parcela.id}`,
+      );
+    }
+  }
+
+  for (
+    const fechamento
+    of fechamentosResult.data ?? []
+  ) {
+    if (
+      fechamento.bloqueado ===
+      false
+    ) {
+      chaves.push(
+        `FECHAMENTO-REABERTO-${fechamento.id}`,
+      );
+
+      continue;
+    }
+
+    if (
+      fechamento.status ===
+      "COM_DIVERGENCIA"
+    ) {
+      chaves.push(
+        `FECHAMENTO-DIVERGENCIA-${fechamento.id}`,
       );
     }
   }

@@ -416,7 +416,7 @@ export default async function FechamentoDiarioPage({
       ? await supabase
           .from("fechamentos_entregador")
           .select(
-            "id, entregador_id, status, diferenca_total, conferido_at",
+            "id, entregador_id, status, diferenca_total, conferido_at, bloqueado",
           )
           .eq("empresa_id", usuario.empresa.id)
           .eq("data_inicio", dataInicio)
@@ -429,6 +429,7 @@ export default async function FechamentoDiarioPage({
             status: string;
             diferenca_total: number | null;
             conferido_at: string | null;
+            bloqueado: boolean;
           }>,
         };
 
@@ -833,6 +834,14 @@ export default async function FechamentoDiarioPage({
                             );
                           }
 
+                          if (fechamento.bloqueado === false) {
+                            return (
+                              <span className="inline-flex h-9 w-[96px] items-center justify-center rounded-[12px] bg-amber-100 px-3 text-center text-[7px] font-black uppercase text-amber-700">
+                                Reaberto
+                              </span>
+                            );
+                          }
+
                           if (fechamento.status === "CONFERIDO") {
                             return (
                               <span className="inline-flex h-9 w-[96px] items-center justify-center rounded-[12px] bg-emerald-100 px-3 text-center text-[7px] font-black uppercase text-emerald-700">
@@ -853,7 +862,11 @@ export default async function FechamentoDiarioPage({
                           href={`/admin/financeiro/fechamento/${item.id}?inicio=${dataInicio}&fim=${dataFim}`}
                           className="inline-flex h-9 w-[96px] items-center justify-center rounded-[12px] bg-[#176f3c] px-3 text-center text-[7px] font-black text-white"
                         >
-                          {fechamentoMap.has(item.id) ? "Revisar" : "Conferir"}
+                          {!fechamentoMap.has(item.id)
+                            ? "Conferir"
+                            : fechamentoMap.get(item.id)?.bloqueado === false
+                              ? "Continuar"
+                              : "Abrir"}
                         </Link>
                       </td>
                     </tr>

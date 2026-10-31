@@ -1,0 +1,23 @@
+-- CESTAS APP - V33
+-- MIGRACOES JA APLICADAS NO SUPABASE:
+--   v33_fechamento_lock_version_history
+--   v33_backfill_initial_closure_versions
+--
+-- Adicionado em fechamentos_entregador:
+--   bloqueado
+--   reaberto_por
+--   reaberto_at
+--   motivo_reabertura
+--
+-- Criada:
+--   public.fechamentos_entregador_versoes
+--
+-- Regras:
+-- - fechamento salvo fica bloqueado
+-- - alteracao de valores em fechamento bloqueado e impedida no banco
+-- - reabertura exige motivo
+-- - cada criacao/reabertura/reconferencia gera versao automatica
+-- - versoes sao somente leitura para authenticated
+-- - RLS preserva isolamento por empresa
+--
+-- Este arquivo e apenas documental. NAO executar novamente.

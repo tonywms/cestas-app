@@ -34,6 +34,7 @@ type FechamentoRow = {
   data_inicio: string;
   data_fim: string;
   status: string;
+  bloqueado: boolean;
   recebido_esperado: number | null;
   dinheiro_conferido: number | null;
   pix_conferido: number | null;
@@ -136,7 +137,8 @@ export default async function HistoricoPrestacoesPage({
 
   const statusFiltro =
     params.status === "CONFERIDO" ||
-    params.status === "COM_DIVERGENCIA"
+    params.status === "COM_DIVERGENCIA" ||
+    params.status === "REABERTO"
       ? params.status
       : "TODOS";
 
@@ -145,7 +147,7 @@ export default async function HistoricoPrestacoesPage({
   let fechamentosQuery = supabase
     .from("fechamentos_entregador")
     .select(
-      "id, entregador_id, data_inicio, data_fim, status, recebido_esperado, dinheiro_conferido, pix_conferido, cartao_conferido, transferencia_conferida, outro_conferido, diferenca_total, observacao, conferido_por, conferido_at, created_at",
+      "id, entregador_id, data_inicio, data_fim, status, bloqueado, recebido_esperado, dinheiro_conferido, pix_conferido, cartao_conferido, transferencia_conferida, outro_conferido, diferenca_total, observacao, conferido_por, conferido_at, created_at",
     )
     .eq("empresa_id", usuario.empresa.id)
     .lte("data_inicio", dataFim)
@@ -153,8 +155,13 @@ export default async function HistoricoPrestacoesPage({
     .order("conferido_at", { ascending: false })
     .limit(1000);
 
-  if (statusFiltro !== "TODOS") {
-    fechamentosQuery = fechamentosQuery.eq("status", statusFiltro);
+  if (
+    statusFiltro !== "TODOS" &&
+    statusFiltro !== "REABERTO"
+  ) {
+    fechamentosQuery = fechamentosQuery
+      .eq("status", statusFiltro)
+      .eq("bloqueado", true);
   }
 
   const fechamentosResult = await fechamentosQuery;
@@ -208,6 +215,12 @@ export default async function HistoricoPrestacoesPage({
     );
   }
 
+  if (statusFiltro === "REABERTO") {
+    fechamentos = fechamentos.filter(
+      (item) => item.bloqueado === false,
+    );
+  }
+
   const linhas = fechamentos.map((item) => {
     const totalConferido =
       numero(item.dinheiro_conferido) +
@@ -244,11 +257,19 @@ export default async function HistoricoPrestacoesPage({
   );
 
   const conferidos = linhas.filter(
-    (item) => item.status === "CONFERIDO",
+    (item) =>
+      item.bloqueado !== false &&
+      item.status === "CONFERIDO",
   ).length;
 
   const divergentes = linhas.filter(
-    (item) => item.status === "COM_DIVERGENCIA",
+    (item) =>
+      item.bloqueado !== false &&
+      item.status === "COM_DIVERGENCIA",
+  ).length;
+
+  const reabertos = linhas.filter(
+    (item) => item.bloqueado === false,
   ).length;
 
   const periodoFiltro = periodoBR(dataInicio, dataFim);
@@ -332,13 +353,18 @@ export default async function HistoricoPrestacoesPage({
               Consulte prestações antigas, identifique divergências, veja quem realizou a conferência e abra qualquer período para revisão.
             </p>
 
-            <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-5">
               <Kpi label="Prestações" valor={String(linhas.length)} />
               <Kpi label="Conferidas" valor={String(conferidos)} />
               <Kpi
                 label="Divergências"
                 valor={String(divergentes)}
                 alerta={divergentes > 0}
+              />
+              <Kpi
+                label="Reabertos"
+                valor={String(reabertos)}
+                warning={reabertos > 0}
               />
               <Kpi label="Esperado" valor={moeda(totalEsperado)} />
             </div>
@@ -406,6 +432,7 @@ export default async function HistoricoPrestacoesPage({
                 <option value="TODOS">Todos</option>
                 <option value="CONFERIDO">Conferidos</option>
                 <option value="COM_DIVERGENCIA">Com divergência</option>
+                <option value="REABERTO">Reabertos</option>
               </select>
             </label>
 
@@ -443,8 +470,9 @@ export default async function HistoricoPrestacoesPage({
           />
           <MiniCard
             icon={<CalendarRange size={17} />}
-            label="Total conferido"
-            valor={moeda(totalConferido)}
+            label="Reabertos"
+            valor={String(reabertos)}
+            warning={reabertos > 0}
           />
           <MiniCard
             icon={<History size={17} />}
@@ -520,12 +548,16 @@ export default async function HistoricoPrestacoesPage({
                         <td className="px-3 py-4">
                           <span
                             className={
-                              item.status === "CONFERIDO"
-                                ? "inline-flex h-8 min-w-[100px] items-center justify-center rounded-[11px] bg-emerald-100 px-3 text-[7px] font-black uppercase text-emerald-700"
-                                : "inline-flex h-8 min-w-[100px] items-center justify-center rounded-[11px] bg-red-100 px-3 text-[7px] font-black uppercase text-red-700"
+                              item.bloqueado === false
+                                ? "inline-flex h-8 min-w-[100px] items-center justify-center rounded-[11px] bg-amber-100 px-3 text-[7px] font-black uppercase text-amber-700"
+                                : item.status === "CONFERIDO"
+                                  ? "inline-flex h-8 min-w-[100px] items-center justify-center rounded-[11px] bg-emerald-100 px-3 text-[7px] font-black uppercase text-emerald-700"
+                                  : "inline-flex h-8 min-w-[100px] items-center justify-center rounded-[11px] bg-red-100 px-3 text-[7px] font-black uppercase text-red-700"
                             }
                           >
-                            {statusLabel(item.status)}
+                            {item.bloqueado === false
+                              ? "Reaberto"
+                              : statusLabel(item.status)}
                           </span>
                         </td>
 
@@ -588,17 +620,21 @@ function Kpi({
   label,
   valor,
   alerta = false,
+  warning = false,
 }: {
   label: string;
   valor: string;
   alerta?: boolean;
+  warning?: boolean;
 }) {
   return (
     <div
       className={
         alerta
           ? "rounded-[19px] border border-red-400/40 bg-red-400/[0.10] px-4 py-3.5"
-          : "rounded-[19px] border border-white/10 bg-white/[0.07] px-4 py-3.5"
+          : warning
+            ? "rounded-[19px] border border-amber-400/40 bg-amber-400/[0.10] px-4 py-3.5"
+            : "rounded-[19px] border border-white/10 bg-white/[0.07] px-4 py-3.5"
       }
     >
       <p className="text-[7px] font-black uppercase tracking-[0.14em] text-white/45">
@@ -608,7 +644,9 @@ function Kpi({
         className={
           alerta
             ? "mt-1.5 text-[18px] font-black text-red-200"
-            : "mt-1.5 text-[18px] font-black text-white"
+            : warning
+              ? "mt-1.5 text-[18px] font-black text-amber-200"
+              : "mt-1.5 text-[18px] font-black text-white"
         }
       >
         {valor}
@@ -622,21 +660,33 @@ function MiniCard({
   label,
   valor,
   alerta = false,
+  warning = false,
 }: {
   icon: React.ReactNode;
   label: string;
   valor: string;
   alerta?: boolean;
+  warning?: boolean;
 }) {
   return (
     <div
       className={
         alerta
           ? "rounded-[24px] border border-red-100 bg-red-50/50 p-5"
-          : "card-premium rounded-[24px] p-5"
+          : warning
+            ? "rounded-[24px] border border-amber-100 bg-amber-50/50 p-5"
+            : "card-premium rounded-[24px] p-5"
       }
     >
-      <div className={alerta ? "text-red-600" : "text-emerald-700"}>
+      <div
+        className={
+          alerta
+            ? "text-red-600"
+            : warning
+              ? "text-amber-600"
+              : "text-emerald-700"
+        }
+      >
         {icon}
       </div>
       <p className="mt-4 text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">
@@ -646,7 +696,9 @@ function MiniCard({
         className={
           alerta
             ? "mt-2 text-[18px] font-black text-red-700"
-            : "mt-2 text-[18px] font-black"
+            : warning
+              ? "mt-2 text-[18px] font-black text-amber-700"
+              : "mt-2 text-[18px] font-black"
         }
       >
         {valor}

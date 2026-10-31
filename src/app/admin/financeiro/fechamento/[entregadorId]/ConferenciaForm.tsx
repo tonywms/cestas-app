@@ -198,7 +198,9 @@ export default function ConferenciaForm({
           className="flex h-12 items-center gap-2 rounded-[15px] bg-[#176f3c] px-5 text-[9px] font-black text-white shadow-[0_10px_25px_rgba(23,111,60,0.18)]"
         >
           <Save size={15} />
-          Salvar prestação de contas
+          {inicial
+            ? "Salvar reconferência"
+            : "Salvar prestação de contas"}
         </button>
       </div>
     </form>
