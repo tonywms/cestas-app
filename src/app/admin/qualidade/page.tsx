@@ -4,6 +4,9 @@ export const instant = false;
 
 import Link from "next/link";
 import {
+  Activity,
+  BarChart3,
+  Siren,
   BadgeDollarSign,
   Boxes,
   CheckCircle2,
@@ -111,6 +114,18 @@ export default async function CentralCertificacoesPage() {
           backHref="/admin"
           actions={
             <>
+              <HeaderLink href="/admin/qualidade/estabilizacao">
+                Termo de estabilização
+              </HeaderLink>
+              <HeaderLink href="/admin/qualidade/estabilidade">
+                Estabilidade
+              </HeaderLink>
+              <HeaderLink href="/admin/qualidade/operacao-assistida">
+                Operação assistida
+              </HeaderLink>
+              <HeaderLink href="/admin/qualidade/producao">
+                Saúde da produção
+              </HeaderLink>
               <HeaderLink href="/admin/qualidade/liberacao">
                 Gate de liberação
               </HeaderLink>
@@ -172,6 +187,94 @@ export default async function CentralCertificacoesPage() {
             />
           </KpiGrid>
         </Hero>
+
+        {/* V77_SAUDE_PRODUCAO_LINK */}
+        <section className="mt-5 overflow-hidden rounded-[28px] border border-sky-200 bg-[linear-gradient(135deg,#eef8ff,#ffffff)] p-5 shadow-sm md:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-white text-sky-700 shadow-sm">
+                <Activity size={23} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-sky-700">Pós-go-live</p>
+                <h2 className="mt-1 text-[22px] font-extrabold tracking-[-0.03em] text-slate-950">Saúde da produção</h2>
+                <p className="mt-2 max-w-[880px] text-[13px] leading-6 text-slate-500">Depois da decisão executiva, valide se a versão publicada continua vinculada à homologação 7/7, ao Gate 4/4 e à trilha auditável da empresa.</p>
+              </div>
+            </div>
+            <Link
+              href="/admin/qualidade/producao"
+              className="flex min-h-[46px] shrink-0 items-center justify-center rounded-[14px] bg-sky-700 px-5 text-[11px] font-extrabold text-white transition hover:bg-sky-800"
+            >
+              Abrir saúde da produção
+            </Link>
+          </div>
+        </section>
+
+        {/* V78_OPERACAO_ASSISTIDA_LINK */}
+        <section className="mt-5 overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(135deg,#fff8e7,#ffffff)] p-5 shadow-sm md:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-white text-amber-700 shadow-sm">
+                <Siren size={23} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-amber-700">Operação assistida</p>
+                <h2 className="mt-1 text-[22px] font-extrabold tracking-[-0.03em] text-slate-950">Incidentes pós-go-live</h2>
+                <p className="mt-2 max-w-[880px] text-[13px] leading-6 text-slate-500">Registre ocorrências reais da operação, classifique severidade, acompanhe responsáveis e preserve a solução na trilha auditável.</p>
+              </div>
+            </div>
+            <Link
+              href="/admin/qualidade/operacao-assistida"
+              className="flex min-h-[46px] shrink-0 items-center justify-center rounded-[14px] bg-amber-600 px-5 text-[11px] font-extrabold text-white transition hover:bg-amber-700"
+            >
+              Abrir operação assistida
+            </Link>
+          </div>
+        </section>
+
+        {/* V79_ESTABILIDADE_LINK */}
+        <section className="mt-5 overflow-hidden rounded-[28px] border border-violet-200 bg-[linear-gradient(135deg,#f5f3ff,#ffffff)] p-5 shadow-sm md:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-white text-violet-700 shadow-sm">
+                <BarChart3 size={23} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-violet-700">Estabilidade operacional</p>
+                <h2 className="mt-1 text-[22px] font-extrabold tracking-[-0.03em] text-slate-950">Indicadores pós-go-live</h2>
+                <p className="mt-2 max-w-[880px] text-[13px] leading-6 text-slate-500">Consolide criticidade, reincidência, tempo até análise, tempo até resolução e módulos mais afetados.</p>
+              </div>
+            </div>
+            <Link
+              href="/admin/qualidade/estabilidade"
+              className="flex min-h-[46px] shrink-0 items-center justify-center rounded-[14px] bg-violet-700 px-5 text-[11px] font-extrabold text-white transition hover:bg-violet-800"
+            >
+              Abrir estabilidade
+            </Link>
+          </div>
+        </section>
+
+        {/* V80_ESTABILIZACAO_LINK */}
+        <section className="mt-5 overflow-hidden rounded-[28px] border border-emerald-200 bg-[linear-gradient(135deg,#ecfdf3,#ffffff)] p-5 shadow-sm md:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-white text-emerald-700 shadow-sm">
+                <ClipboardCheck size={23} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-emerald-700">Encerramento assistido</p>
+                <h2 className="mt-1 text-[22px] font-extrabold tracking-[-0.03em] text-slate-950">Termo de estabilização</h2>
+                <p className="mt-2 max-w-[880px] text-[13px] leading-6 text-slate-500">Formalize o encerramento da operação assistida quando não houver incidentes em aberto e preserve o snapshot dos indicadores.</p>
+              </div>
+            </div>
+            <Link
+              href="/admin/qualidade/estabilizacao"
+              className="flex min-h-[46px] shrink-0 items-center justify-center rounded-[14px] bg-emerald-700 px-5 text-[11px] font-extrabold text-white transition hover:bg-emerald-800"
+            >
+              Abrir termo de estabilização
+            </Link>
+          </div>
+        </section>
 
         <section className="mt-5 rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">

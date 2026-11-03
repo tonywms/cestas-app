@@ -105,8 +105,15 @@ export default async function FecharCargaPage({
               item.quantidade_retornada -
               item.quantidade_avariada,
           ),
+
+        tipoCestaId:
+          item.tipos_cesta?.id ?? 0,
       }),
     );
+
+  if (itens.some((item) => !Number.isInteger(item.tipoCestaId) || item.tipoCestaId <= 0)) {
+    redirect("/mobile/carga");
+  }
 
   const totalSaldo =
     itens.reduce(
@@ -234,6 +241,11 @@ export default async function FecharCargaPage({
   let volumesEsperados = 0;
   let volumesConfirmados = 0;
   let volumesEmPosse = 0;
+  let volumesEmPosseDetalhes: Array<{
+    id: string;
+    codigoVolume: string;
+    tipoCestaId: number;
+  }> = [];
   let erroConferenciaVolume = false;
 
   if (modoVolume) {
@@ -269,13 +281,7 @@ export default async function FecharCargaPage({
           "cesta_volumes",
         )
         .select(
-          "id",
-          {
-            count:
-              "exact",
-            head:
-              true,
-          },
+          "id, codigo_volume, tipo_cesta_id",
         )
         .eq(
           "empresa_id",
@@ -288,6 +294,20 @@ export default async function FecharCargaPage({
         .eq(
           "status",
           "EM_CARGA",
+        )
+        .order(
+          "created_at",
+          {
+            ascending:
+              true,
+          },
+        )
+        .order(
+          "id",
+          {
+            ascending:
+              true,
+          },
         ),
 
       exigeBipagemCarga
@@ -345,9 +365,23 @@ export default async function FecharCargaPage({
       esperadosResult.count ??
       0;
 
+    volumesEmPosseDetalhes =
+      (
+        emPosseResult.data ??
+        []
+      ).map(
+        (volume) => ({
+          id:
+            volume.id,
+          codigoVolume:
+            volume.codigo_volume,
+          tipoCestaId:
+            volume.tipo_cesta_id,
+        }),
+      );
+
     volumesEmPosse =
-      emPosseResult.count ??
-      0;
+      volumesEmPosseDetalhes.length;
 
     volumesConfirmados =
       exigeBipagemCarga
@@ -741,11 +775,19 @@ export default async function FecharCargaPage({
               </div>
 
               <FecharCargaForm
+                key={carga.id}
                 cargaId={
                   carga.id
                 }
+                cargaCodigo={carga.codigo}
                 itens={
                   itens
+                }
+                modoVolume={
+                  modoVolume
+                }
+                volumesEmPosse={
+                  volumesEmPosseDetalhes
                 }
               />
             </>

@@ -170,7 +170,7 @@ export default function ReceberCargaForm({
               </h2>
 
               <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                Todos os {esperados} volumes da carga {cargaCodigo} foram conferidos.
+                Todos os {esperados} volumes foram conferidos.
               </p>
             </div>
 
@@ -462,13 +462,17 @@ export default function ReceberCargaForm({
             <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
               Conferência concluída
             </p>
+            <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2" aria-label="Carga do recebimento">
+              <p className="text-[13px] font-black text-emerald-900">Carga nº {cargaId}</p>
+              <p className="break-all text-[9px] font-semibold text-emerald-800">{cargaCodigo}</p>
+            </div>
 
             <h3 className="mt-2 text-[21px] font-black">
               Carga recebida
             </h3>
 
             <p className="mt-3 text-[11px] leading-5 text-slate-500">
-              Os {state.esperados} volumes da carga foram confirmados.
+              Os {state.esperados} volumes da carga nº {cargaId} foram confirmados.
             </p>
 
             <Link

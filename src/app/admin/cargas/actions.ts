@@ -335,6 +335,15 @@ export async function criarCarga(
     };
   }
 
+  const operacaoSolicitada = String(formData.get("operacao_carga") ?? "").trim();
+  const cargaDestinoId = Number(formData.get("carga_destino_id") ?? 0);
+  if (operacaoSolicitada !== "CRIAR" && operacaoSolicitada !== "REABASTECER") {
+    return { success: false, cargaId: null, errorTitle: "Escolha a operação", message: "Selecione explicitamente Criar nova carga ou Reabastecer carga existente." };
+  }
+  if (operacaoSolicitada === "REABASTECER" && (!Number.isSafeInteger(cargaDestinoId) || cargaDestinoId <= 0)) {
+    return { success: false, cargaId: null, errorTitle: "Selecione a carga", message: "Escolha a carga de destino antes de confirmar o reabastecimento." };
+  }
+
   const supabase =
     await createClient();
 
@@ -388,7 +397,28 @@ export async function criarCarga(
     };
   }
 
-  if (cargaAtiva) {
+  // Criar uma nova carga nao depende da existencia de outras cargas.
+  // O destino so e selecionado para REABASTECER.
+
+  if (operacaoSolicitada === "REABASTECER") {
+    // Validação no servidor: o formulário não decide a carga por conta própria.
+    // O banco/RPC valida novamente tenant, status, permissões e estoque.
+    const { data: destino, error: destinoError } = await supabase
+      .from("cargas")
+      .select("id, codigo, status, entregador_id")
+      .eq("empresa_id", usuario.empresa.id)
+      .eq("entregador_id", entregadorId)
+      .eq("id", cargaDestinoId)
+      .in("status", ["ABERTA", "EM_ROTA"])
+      .maybeSingle();
+    if (destinoError || !destino) {
+      return {
+        success: false, cargaId: null,
+        errorTitle: "Carga de destino inválida",
+        message: "A carga selecionada não está ativa ou não pertence a este entregador/empresa. Atualize a tela antes de tentar novamente.",
+      };
+    }
+    const cargaAtiva = destino;
     const {
       data: reabastecimentoData,
       error: reabastecimentoError,

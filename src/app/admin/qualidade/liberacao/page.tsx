@@ -683,6 +683,8 @@ export default async function GateExecutivoPage() {
           backHref="/admin/qualidade"
           actions={
             <>
+              {/* V77_SAUDE_PRODUCAO_LINK */}
+              <HeaderLink href="/admin/qualidade/producao">Saúde da produção</HeaderLink>
               <HeaderLink href="/admin/qualidade">Central de certificações</HeaderLink>
               <HeaderLink href="/admin/qualidade/liberacao" variant="primary">
                 <RefreshCcw size={15} /> Atualizar gate

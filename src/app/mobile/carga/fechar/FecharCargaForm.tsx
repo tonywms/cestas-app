@@ -32,6 +32,13 @@ type Item = {
   nome: string;
   codigo: string;
   saldo: number;
+  tipoCestaId: number;
+};
+
+type VolumeEmPosse = {
+  id: string;
+  codigoVolume: string;
+  tipoCestaId: number;
 };
 
 const initialState:
@@ -45,10 +52,16 @@ const initialState:
 
 export default function FecharCargaForm({
   cargaId,
+  cargaCodigo,
   itens,
+  modoVolume,
+  volumesEmPosse,
 }: {
   cargaId: number;
+  cargaCodigo: string;
   itens: Item[];
+  modoVolume: boolean;
+  volumesEmPosse: VolumeEmPosse[];
 }) {
   const [
     state,
@@ -105,18 +118,26 @@ export default function FecharCargaForm({
   ] =
     useState("");
 
-  useEffect(
-    () => {
-      if (
-        state.message
-      ) {
-        setModal(true);
-      }
-    },
-    [
-      state,
-    ],
-  );
+  const [
+    volumesAvariados,
+    setVolumesAvariados,
+  ] =
+    useState<string[]>([]);
+
+  const [
+    codigoVolumeAvaria,
+    setCodigoVolumeAvaria,
+  ] =
+    useState("");
+
+  const [
+    erroVolumeAvaria,
+    setErroVolumeAvaria,
+  ] =
+    useState("");
+
+  // O modal somente abre apos resposta desta tentativa de fechamento.
+  // Nao reutilizar respostas de uma carga anterior ao trocar de carga.
 
   const totalEmPosse =
     useMemo(
@@ -153,6 +174,26 @@ export default function FecharCargaForm({
         avarias,
       ],
     );
+
+  const volumesAvariadosDetalhes =
+    useMemo(
+      () =>
+        volumesEmPosse.filter(
+          (volume) =>
+            volumesAvariados.includes(
+              volume.id,
+            ),
+        ),
+      [
+        volumesAvariados,
+        volumesEmPosse,
+      ],
+    );
+
+  const identificacaoVolumeValida =
+    !modoVolume ||
+    volumesAvariados.length ===
+      totalAvaria;
 
   const motivoAvariaValido =
     totalAvaria === 0 ||
@@ -193,6 +234,122 @@ export default function FecharCargaForm({
     );
   }
 
+  function aplicarVolumesAvariados(
+    proximosIds: string[],
+  ) {
+    const proximos =
+      Array.from(
+        new Set(
+          proximosIds,
+        ),
+      );
+
+    setVolumesAvariados(
+      proximos,
+    );
+
+    const proximasAvarias =
+      Object.fromEntries(
+        itens.map(
+          (item) => [
+            item.id,
+            volumesEmPosse.filter(
+              (volume) =>
+                volume.tipoCestaId ===
+                  item.tipoCestaId &&
+                proximos.includes(
+                  volume.id,
+                ),
+            ).length,
+          ],
+        ),
+      );
+
+    setAvarias(
+      proximasAvarias,
+    );
+  }
+
+  function alternarVolumeAvaria(
+    volumeId: string,
+  ) {
+    const selecionado =
+      volumesAvariados.includes(
+        volumeId,
+      );
+
+    aplicarVolumesAvariados(
+      selecionado
+        ? volumesAvariados.filter(
+            (id) =>
+              id !==
+              volumeId,
+          )
+        : [
+            ...volumesAvariados,
+            volumeId,
+          ],
+    );
+
+    setErroVolumeAvaria("");
+  }
+
+  function biparVolumeAvariado() {
+    const codigo =
+      codigoVolumeAvaria
+        .trim()
+        .toLocaleUpperCase(
+          "pt-BR",
+        );
+
+    if (!codigo) {
+      return;
+    }
+
+    const volume =
+      volumesEmPosse.find(
+        (item) =>
+          item.codigoVolume
+            .trim()
+            .toLocaleUpperCase(
+              "pt-BR",
+            ) === codigo,
+      );
+
+    if (!volume) {
+      setErroVolumeAvaria(
+        `O volume ${codigo} não está em posse da carga nº ${cargaId} (${cargaCodigo}). Confira a etiqueta. Nenhuma avaria foi registrada.`,
+      );
+      return;
+    }
+
+    if (
+      volumesAvariados.includes(
+        volume.id,
+      )
+    ) {
+      setErroVolumeAvaria(
+        "Este volume já está marcado como avariado.",
+      );
+      setCodigoVolumeAvaria(
+        "",
+      );
+      return;
+    }
+
+    aplicarVolumesAvariados([
+      ...volumesAvariados,
+      volume.id,
+    ]);
+
+    setCodigoVolumeAvaria(
+      "",
+    );
+    setErroVolumeAvaria(
+      "",
+    );
+  }
+
   function zerarAvarias() {
     setAvarias(
       Object.fromEntries(
@@ -205,13 +362,17 @@ export default function FecharCargaForm({
       ),
     );
     setMotivoAvaria("");
+    setVolumesAvariados([]);
+    setCodigoVolumeAvaria("");
+    setErroVolumeAvaria("");
   }
 
   async function executarFechamento() {
     if (
       !formRef.current ||
       pending ||
-      !motivoAvariaValido
+      !motivoAvariaValido ||
+      !identificacaoVolumeValida
     ) {
       return;
     }
@@ -233,11 +394,30 @@ export default function FecharCargaForm({
           },
         );
 
+      if (!response.ok) {
+        throw new Error("Falha de comunicacao com o servidor");
+      }
+
       const resultado =
         (await response.json()) as
           FecharCargaState;
 
-      setState(resultado);
+      // A resposta positiva precisa pertencer precisamente a esta carga.
+      // Uma resposta sem identificador ou de outra carga NUNCA vira sucesso.
+      if (
+        resultado.success &&
+        resultado.cargaId !== cargaId
+      ) {
+        setState({
+          success: false,
+          message: "Não foi possível confirmar a identidade da carga finalizada. Consulte Minha Carga antes de repetir a operação.",
+          totalEmPosse: 0,
+          totalRetornado: 0,
+          totalAvariado: 0,
+        });
+      } else {
+        setState(resultado);
+      }
       setConfirmacaoAberta(false);
       setModal(true);
     } catch (error) {
@@ -263,6 +443,11 @@ export default function FecharCargaForm({
 
   return (
     <>
+      <div className="sticky top-0 z-30 -mx-1 mb-3 rounded-[16px] border border-emerald-200 bg-white/95 px-4 py-3 shadow-[0_9px_25px_rgba(15,75,40,0.14)] backdrop-blur-md" aria-label="Identificação da carga em fechamento">
+        <p className="text-[8px] font-black uppercase tracking-[0.14em] text-emerald-700">Conferência da carga atual</p>
+        <p className="mt-1 text-[16px] font-black text-slate-900">Carga nº {cargaId}</p>
+        <p className="break-all text-[10px] font-semibold text-slate-600">{cargaCodigo}</p>
+      </div>
       <form
         ref={formRef}
         onSubmit={(event) => {
@@ -270,7 +455,8 @@ export default function FecharCargaForm({
 
           if (
             pending ||
-            !motivoAvariaValido
+            !motivoAvariaValido ||
+            !identificacaoVolumeValida
           ) {
             return;
           }
@@ -287,6 +473,16 @@ export default function FecharCargaForm({
             cargaId
           }
         />
+        <input
+          type="hidden"
+          name="volumes_avariados"
+          value={
+            JSON.stringify(
+              volumesAvariados,
+            )
+          }
+        />
+
 
         <section className="rounded-[22px] border border-black/[0.04] bg-white p-4 shadow-[0_14px_36px_rgba(17,63,33,0.06)]">
 
@@ -341,6 +537,127 @@ export default function FecharCargaForm({
           </div>
 
         </section>
+
+        {modoVolume &&
+          totalEmPosse > 0 && (
+            <section className="rounded-[20px] border border-amber-200 bg-white p-4 shadow-[0_12px_30px_rgba(120,78,12,0.06)]">
+              <div className="flex items-start gap-3">
+                <AlertTriangle
+                  size={18}
+                  className="mt-0.5 shrink-0 text-amber-700"
+                />
+                <div>
+                  <p className="text-[10px] font-black text-slate-800">
+                    Identifique somente os volumes avariados
+                  </p>
+                  <p className="mt-1 text-[9px] leading-4 text-slate-500">
+                    Bipe ou digite o código físico de cada avaria. Todo volume não marcado continuará como retorno ao estoque central.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex gap-2">
+                <input
+                  type="text"
+                  inputMode="text"
+                  autoComplete="off"
+                  value={
+                    codigoVolumeAvaria
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setCodigoVolumeAvaria(
+                      event.target.value,
+                    )
+                  }
+                  onKeyDown={(
+                    event,
+                  ) => {
+                    if (
+                      event.key ===
+                      "Enter"
+                    ) {
+                      event.preventDefault();
+                      biparVolumeAvariado();
+                    }
+                  }}
+                  placeholder="Bipe o volume avariado"
+                  className="h-11 min-w-0 flex-1 rounded-[14px] border border-slate-200 bg-slate-50 px-3 text-[10px] font-bold uppercase outline-none transition focus:border-amber-400"
+                />
+                <button
+                  type="button"
+                  onClick={
+                    biparVolumeAvariado
+                  }
+                  className="h-11 shrink-0 rounded-[14px] bg-amber-600 px-4 text-[9px] font-black text-white"
+                >
+                  Marcar
+                </button>
+              </div>
+
+              {erroVolumeAvaria && (
+                <p className="mt-2 text-[8px] font-bold text-red-600">
+                  {erroVolumeAvaria}
+                </p>
+              )}
+
+              <div className="mt-4 space-y-2">
+                {volumesEmPosse.map(
+                  (volume) => {
+                    const marcado =
+                      volumesAvariados.includes(
+                        volume.id,
+                      );
+
+                    return (
+                      <button
+                        key={
+                          volume.id
+                        }
+                        type="button"
+                        onClick={() =>
+                          alternarVolumeAvaria(
+                            volume.id,
+                          )
+                        }
+                        className={`flex w-full items-center justify-between rounded-[14px] border px-3 py-3 text-left transition ${
+                          marcado
+                            ? "border-amber-300 bg-amber-50"
+                            : "border-emerald-100 bg-emerald-50/60"
+                        }`}
+                      >
+                        <div>
+                          <p className="text-[10px] font-black text-slate-800">
+                            {volume.codigoVolume}
+                          </p>
+                          <p className={`mt-1 text-[7px] font-black uppercase tracking-[0.1em] ${
+                            marcado
+                              ? "text-amber-700"
+                              : "text-emerald-700"
+                          }`}>
+                            {marcado
+                              ? "AVARIADO — não volta ao estoque"
+                              : "RETORNO — volta ao estoque central"}
+                          </p>
+                        </div>
+
+                        <span className={`rounded-full px-2.5 py-1 text-[7px] font-black ${
+                          marcado
+                            ? "bg-amber-200 text-amber-900"
+                            : "bg-emerald-100 text-emerald-800"
+                        }`}>
+                          {marcado
+                            ? "AVARIA"
+                            : "RETORNO"}
+                        </span>
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+            </section>
+          )}
 
         {itens
           .filter(
@@ -414,69 +731,80 @@ export default function FecharCargaForm({
                         </p>
                       </div>
 
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          aria-label="Diminuir avaria"
-                          onClick={() =>
-                            alterarAvaria(
-                              item,
-                              avaria - 1,
-                            )
-                          }
-                          className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-amber-200 bg-white text-amber-700 disabled:opacity-30"
-                          disabled={
-                            avaria <= 0
-                          }
-                        >
-                          <Minus
-                            size={14}
-                          />
-                        </button>
+                      {modoVolume ? (
+                        <div className="mt-2">
+                          <p className="text-center text-[20px] font-black text-amber-800">
+                            {avaria}
+                          </p>
+                          <p className="mt-1 text-center text-[7px] font-bold leading-3 text-amber-700/70">
+                            definido pelos volumes identificados
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            aria-label="Diminuir avaria"
+                            onClick={() =>
+                              alterarAvaria(
+                                item,
+                                avaria - 1,
+                              )
+                            }
+                            className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-amber-200 bg-white text-amber-700 disabled:opacity-30"
+                            disabled={
+                              avaria <= 0
+                            }
+                          >
+                            <Minus
+                              size={14}
+                            />
+                          </button>
 
-                        <input
-                          type="number"
-                          min={0}
-                          max={
-                            item.saldo
-                          }
-                          step={1}
-                          value={
-                            avaria
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            alterarAvaria(
-                              item,
-                              Number(
-                                event.target.value,
-                              ),
-                            )
-                          }
-                          className="h-8 w-10 bg-transparent text-center text-[16px] font-black text-amber-800 outline-none"
-                        />
-
-                        <button
-                          type="button"
-                          aria-label="Aumentar avaria"
-                          onClick={() =>
-                            alterarAvaria(
-                              item,
-                              avaria + 1,
-                            )
-                          }
-                          className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-amber-200 bg-white text-amber-700 disabled:opacity-30"
-                          disabled={
-                            avaria >=
-                            item.saldo
-                          }
-                        >
-                          <Plus
-                            size={14}
+                          <input
+                            type="number"
+                            min={0}
+                            max={
+                              item.saldo
+                            }
+                            step={1}
+                            value={
+                              avaria
+                            }
+                            onChange={(
+                              event,
+                            ) =>
+                              alterarAvaria(
+                                item,
+                                Number(
+                                  event.target.value,
+                                ),
+                              )
+                            }
+                            className="h-8 w-10 bg-transparent text-center text-[16px] font-black text-amber-800 outline-none"
                           />
-                        </button>
-                      </div>
+
+                          <button
+                            type="button"
+                            aria-label="Aumentar avaria"
+                            onClick={() =>
+                              alterarAvaria(
+                                item,
+                                avaria + 1,
+                              )
+                            }
+                            className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-amber-200 bg-white text-amber-700 disabled:opacity-30"
+                            disabled={
+                              avaria >=
+                              item.saldo
+                            }
+                          >
+                            <Plus
+                              size={14}
+                            />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -564,7 +892,8 @@ export default function FecharCargaForm({
           type="submit"
           disabled={
             pending ||
-            !motivoAvariaValido
+            !motivoAvariaValido ||
+            !identificacaoVolumeValida
           }
           className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.22)] transition active:scale-[0.985] disabled:opacity-40"
         >
@@ -598,6 +927,10 @@ export default function FecharCargaForm({
             <p className="mt-5 text-center text-[9px] font-black uppercase tracking-[0.2em] text-amber-700/70">
               Confirmação operacional
             </p>
+            <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-center" aria-label="Carga que será finalizada">
+              <p className="text-[13px] font-black text-emerald-900">Carga nº {cargaId}</p>
+              <p className="break-all text-[9px] font-semibold text-emerald-800">{cargaCodigo}</p>
+            </div>
             <h3 className="mt-2 text-center text-[20px] font-black">
               Finalizar esta carga?
             </h3>
@@ -610,6 +943,30 @@ export default function FecharCargaForm({
               <ModalResumo label="Retorno" valor={totalRetorno} />
               <ModalResumo label="Avaria" valor={totalAvaria} />
             </div>
+
+            {modoVolume &&
+              volumesAvariadosDetalhes.length >
+                0 && (
+                <div className="mt-4 rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-[8px] font-black uppercase tracking-[0.12em] text-amber-700/70">
+                    Volumes avariados — não retornam ao estoque
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {volumesAvariadosDetalhes.map(
+                      (volume) => (
+                        <span
+                          key={
+                            volume.id
+                          }
+                          className="rounded-full bg-amber-200 px-2.5 py-1 text-[8px] font-black text-amber-900"
+                        >
+                          {volume.codigoVolume}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
 
             {totalAvaria > 0 && (
               <div className="mt-4 rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3">
@@ -669,6 +1026,11 @@ export default function FecharCargaForm({
                   size={31}
                 />
               )}
+            </div>
+
+            <div className="mt-4 rounded-xl bg-emerald-50 px-3 py-2" aria-label="Identificação da carga no resultado">
+              <p className="text-[13px] font-black text-emerald-900">Carga nº {cargaId}</p>
+              <p className="mt-0.5 break-all text-[9px] font-semibold text-emerald-800">{cargaCodigo}</p>
             </div>
 
             <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">

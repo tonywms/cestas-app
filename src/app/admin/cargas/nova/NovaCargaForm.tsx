@@ -40,6 +40,7 @@ type Entregador = {
     codigo: string;
     status: string;
   } | null;
+  cargasDisponiveis: { id: number; codigo: string; status: string }[];
 };
 
 type TipoCesta = {
@@ -87,8 +88,10 @@ export default function NovaCargaForm({
   const [
     quantidade,
     setQuantidade,
-  ] =
-    useState("");
+  ] = useState("");
+
+  const [operacao, setOperacao] = useState<"CRIAR" | "REABASTECER">("CRIAR");
+  const [cargaDestinoId, setCargaDestinoId] = useState("");
 
   const ultimaMensagemRef =
     useRef(
@@ -149,10 +152,10 @@ export default function NovaCargaForm({
       ],
     );
 
-  const cargaAtiva =
-    entregadorSelecionado
-      ?.cargaAtiva ??
-    null;
+  const cargaAtiva = entregadorSelecionado?.cargaAtiva ?? null;
+  const cargasDisponiveis = entregadorSelecionado?.cargasDisponiveis ?? [];
+  const destinoValido = cargasDisponiveis.some(c => String(c.id) === cargaDestinoId);
+  const operacaoValida = operacao === "CRIAR" || destinoValido;
 
   const quantidadeNumero =
     Number(
@@ -171,7 +174,8 @@ export default function NovaCargaForm({
   const formularioPronto =
     !!entregadorSelecionado &&
     !!tipoSelecionado &&
-    quantidadeValida;
+    quantidadeValida &&
+    operacaoValida;
 
   const possuiSaldo =
     tiposCesta.some(
@@ -266,9 +270,7 @@ export default function NovaCargaForm({
               onChange={(
                 event,
               ) =>
-                setEntregadorId(
-                  event.target.value,
-                )
+                (setEntregadorId(event.target.value), setCargaDestinoId(""))
               }
               className="mt-2 h-[54px] w-full rounded-[17px] border border-slate-200 bg-white px-4 text-[12px] font-bold outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
             >
@@ -345,7 +347,43 @@ export default function NovaCargaForm({
             </select>
           </div>
 
-          {cargaAtiva && (
+          <div className="md:col-span-2 space-y-3 rounded-[20px] border border-emerald-200 bg-emerald-50/60 p-4">
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-800">Operação obrigatória — escolha o destino do estoque</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button type="button" onClick={() => { setOperacao("CRIAR"); setCargaDestinoId(""); }}
+                aria-pressed={operacao === "CRIAR"}
+                className={`rounded-[16px] border p-4 text-left ${operacao === "CRIAR" ? "border-emerald-600 bg-white shadow-sm" : "border-slate-200 bg-white/60"}`}>
+                <span className="block text-[12px] font-black">Criar nova carga</span>
+                <span className="mt-1 block text-[10px] text-slate-500">Novo número e histórico independentes.</span>
+              </button>
+              <button type="button" onClick={() => { setOperacao("REABASTECER"); setCargaDestinoId(""); }}
+                aria-pressed={operacao === "REABASTECER"}
+                className={`rounded-[16px] border p-4 text-left ${operacao === "REABASTECER" ? "border-emerald-600 bg-white shadow-sm" : "border-slate-200 bg-white/60"}`}>
+                <span className="block text-[12px] font-black">Reabastecer carga existente</span>
+                <span className="mt-1 block text-[10px] text-slate-500">Escolher a carga específica antes da movimentação.</span>
+              </button>
+            </div>
+            <input type="hidden" name="operacao_carga" value={operacao} />
+            {operacao === "REABASTECER" && (
+              <div>
+                <label className="text-[9px] font-black uppercase tracking-wider text-emerald-800">Carga de destino</label>
+                <select name="carga_destino_id" value={cargaDestinoId} required
+                  onChange={e => setCargaDestinoId(e.target.value)}
+                  className="mt-2 h-[50px] w-full rounded-[15px] border border-emerald-200 bg-white px-3 text-[11px] font-bold">
+                  <option value="">Selecione a carga em aberto</option>
+                  {cargasDisponiveis.map(c => <option key={c.id} value={c.id}>{`Carga nº ${c.id} — ${c.codigo} (${c.status})`}</option>)}
+                </select>
+                {cargasDisponiveis.length === 0 && <p className="mt-2 text-[10px] text-amber-800">Este entregador não possui carga ativa para reabastecimento.</p>}
+              </div>
+            )}
+            {operacao === "CRIAR" && cargaAtiva && (
+              <div role="status" className="rounded-[15px] border border-emerald-200 bg-white p-3 text-[10px] leading-5 text-emerald-900">
+                <strong>Nova carga independente.</strong> A carga anterior {cargaAtiva.codigo} nao sera alterada. O entregador escolhera no mobile qual carga utilizar.
+              </div>
+            )}
+          </div>
+
+          {operacao === "REABASTECER" && cargaAtiva && (
             <div className="md:col-span-2 rounded-[18px] border border-sky-200 bg-sky-50 p-4">
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -360,7 +398,7 @@ export default function NovaCargaForm({
                   </p>
 
                   <p className="mt-1 text-[9px] leading-5 text-sky-800/70">
-                    A quantidade informada será adicionada à carga atual. A rota continua a mesma e o histórico permanece preservado.
+                    A quantidade informada só será adicionada à carga escolhida acima, após confirmar a operação.
                   </p>
                 </div>
 
@@ -480,12 +518,10 @@ export default function NovaCargaForm({
           />
 
           {pending
-            ? cargaAtiva
-              ? "Reabastecendo carga..."
-              : "Criando carga..."
-            : cargaAtiva
-              ? `Reabastecer ${cargaAtiva.codigo}`
-              : "Criar carga e baixar estoque"}
+            ? operacao === "REABASTECER" ? "Reabastecendo carga..." : "Criando carga..."
+            : operacao === "REABASTECER"
+              ? `Confirmar reabastecimento da carga nº ${cargasDisponiveis.find(c => String(c.id) === cargaDestinoId)?.id ?? "—"}`
+              : "Criar nova carga independente"}
         </button>
 
       </form>

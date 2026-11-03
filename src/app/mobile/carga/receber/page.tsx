@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
+import IdentificacaoCargaMobile from "@/components/mobile/IdentificacaoCargaMobile";
 import { redirect } from "next/navigation";
 
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
@@ -83,6 +84,17 @@ export default async function ReceberCargaPage() {
   const supabase =
     await createClient();
 
+  const { data: cargaEscolhida, error: escolhaError } = await supabase.rpc(
+    "mobile_obter_carga_escolhida", { p_empresa_id: usuario.empresa.id },
+  );
+  if (escolhaError) redirect("/mobile/carga/selecionar");
+  if (!cargaEscolhida) {
+    const { count } = await supabase.from("cargas").select("id", { count: "exact", head: true })
+      .eq("empresa_id", usuario.empresa.id).eq("entregador_id", usuario.id)
+      .in("status", ["ABERTA", "EM_ROTA"]);
+    if ((count ?? 0) > 1) redirect("/mobile/carga/selecionar");
+  }
+
   const {
     data: carga,
     error: cargaError,
@@ -112,6 +124,7 @@ export default async function ReceberCargaPage() {
           "EM_ROTA",
         ],
       )
+      .eq("id", Number(cargaEscolhida ?? 0))
       .order(
         "created_at",
         {
@@ -303,19 +316,12 @@ export default async function ReceberCargaPage() {
               Cada cesta reservada para sua carga deve ser fisicamente confirmada.
             </p>
 
-            {carga && (
-              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-2 text-[9px] font-black">
-                <PackageCheck
-                  size={14}
-                />
-
-                {carga.codigo}
-              </div>
-            )}
 
           </div>
 
         </header>
+
+        {carga && <IdentificacaoCargaMobile numero={carga.id} codigo={carga.codigo} status={carga.status} />}
 
         <section className="px-5 py-6">
 

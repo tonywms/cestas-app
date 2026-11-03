@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
+import IdentificacaoCargaMobile from "@/components/mobile/IdentificacaoCargaMobile";
 
 import {
   PERMISSOES,
@@ -163,6 +164,7 @@ export default async function MinhaCargaPage() {
                 </div>
               </div>
 
+              <Link href="/mobile/carga/selecionar" className="mt-4 flex h-12 items-center justify-center rounded-xl bg-emerald-700 text-xs font-bold text-white">Selecionar carga</Link>
               <Link
                 href="/mobile/carga"
                 className="mt-5 flex h-[48px] w-full items-center justify-center gap-2 rounded-[15px] bg-red-600 text-xs font-black text-white"
@@ -503,35 +505,23 @@ export default async function MinhaCargaPage() {
 
         <Header />
 
+        <IdentificacaoCargaMobile numero={carga.id} codigo={carga.codigo} status={carga.status} />
+        <div className="px-4 pt-2 text-right"><Link href="/mobile/carga/selecionar" className="text-[11px] font-bold text-emerald-700 underline">Trocar carga em operacao</Link></div>
+
         <section className="px-5 py-6">
 
           {/* RESUMO */}
           <div className="rounded-[28px] border border-black/[0.04] bg-white p-5 shadow-[0_18px_45px_rgba(17,63,33,0.07)]">
 
-            <div className="flex items-start justify-between gap-4">
-
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#18834a]">
-                  Carga atual
+                  Resumo operacional
                 </p>
-
-                <h2 className="mt-2 text-xl font-black">
-                  {carga.codigo}
-                </h2>
-
-                <p className="mt-1 text-[10px] font-semibold text-slate-400">
-                  {formatarData(
-                    carga.data_carga,
-                  )}
+                <p className="mt-1 text-[10px] font-semibold text-slate-500">
+                  {formatarData(carga.data_carga)}
                 </p>
               </div>
-
-              <StatusCarga
-                status={
-                  carga.status
-                }
-              />
-
             </div>
 
             {/* PROGRESSO */}

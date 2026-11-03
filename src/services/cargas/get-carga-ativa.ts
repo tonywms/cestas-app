@@ -84,6 +84,27 @@ export async function getCargaAtiva({
   const supabase =
     await createClient();
 
+  // A escolha e escopada ao entregador autenticado e empresa.
+  // Com varias cargas sem escolha explicita, nao escolher a mais recente.
+  const { data: cargaEscolhida, error: escolhaError } = await supabase.rpc(
+    "mobile_obter_carga_escolhida",
+    { p_empresa_id: empresaId },
+  );
+  if (escolhaError) {
+    return { carga: null, erro: "Falha ao verificar a carga selecionada. Confira a configuracao V90.2." };
+  }
+  if (!cargaEscolhida) {
+    const { count, error: contagemErro } = await supabase.from("cargas")
+      .select("id", { count: "exact", head: true })
+      .eq("empresa_id", empresaId).eq("entregador_id", entregadorId)
+      .in("status", ["ABERTA", "EM_ROTA"]);
+    if (contagemErro) return { carga: null, erro: "Falha ao identificar cargas disponiveis." };
+    if ((count ?? 0) > 0) {
+      return { carga: null, erro: "Escolha primeiro a carga em operacao na tela Selecionar carga." };
+    }
+    return { carga: null, erro: null };
+  }
+
   /*
    * =========================================================
    * 1. CARGA ATIVA
@@ -117,6 +138,7 @@ export async function getCargaAtiva({
         "EM_ROTA",
       ],
     )
+    .eq("id", Number(cargaEscolhida))
     .order(
       "data_carga",
       {

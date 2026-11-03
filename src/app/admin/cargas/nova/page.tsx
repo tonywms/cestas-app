@@ -1,4 +1,4 @@
-﻿export const instant = false;
+export const instant = false;
 
 import {
   ArrowLeft,
@@ -213,12 +213,10 @@ export default async function NovaCargaPage() {
               colaborador.email,
 
             cargaAtiva:
-              cargasAtivasMap.get(
-                String(
-                  colaborador.id,
-                ),
-              ) ??
-              null,
+              cargasAtivasMap.get(String(colaborador.id)) ?? null,
+            cargasDisponiveis: (cargasAtivasResult.data ?? [])
+              .filter(c => String(c.entregador_id) === String(colaborador.id))
+              .map(c => ({ id: Number(c.id), codigo: String(c.codigo), status: String(c.status) })),
           };
         },
       )
@@ -229,11 +227,8 @@ export default async function NovaCargaPage() {
           id: string;
           nome: string;
           email: string | null;
-          cargaAtiva: {
-            id: number;
-            codigo: string;
-            status: string;
-          } | null;
+          cargaAtiva: { id: number; codigo: string; status: string } | null;
+          cargasDisponiveis: { id: number; codigo: string; status: string }[];
         } =>
           item !==
           null,
@@ -350,7 +345,7 @@ export default async function NovaCargaPage() {
             </h2>
 
             <p className="mt-3 max-w-2xl text-[11px] leading-6 text-white/65">
-              Se o entregador já possuir uma carga ativa, o sistema adiciona o novo saldo à mesma carga. Caso contrário, cria uma nova carga.
+              Crie cargas independentes sem limite operacional fixo. Para acrescentar cestas a uma carga existente, selecione explicitamente Reabastecer carga.
             </p>
 
             <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-[9px] font-black">

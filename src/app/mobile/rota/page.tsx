@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import IdentificacaoCargaMobile from "@/components/mobile/IdentificacaoCargaMobile";
 
 import {
   PERMISSOES,
@@ -155,6 +157,17 @@ export default async function MinhaRotaPage({
   const supabase =
     await createClient();
 
+  const { data: cargaEscolhida, error: escolhaError } = await supabase.rpc(
+    "mobile_obter_carga_escolhida", { p_empresa_id: usuario.empresa.id },
+  );
+  if (escolhaError) redirect("/mobile/carga/selecionar");
+  if (!cargaEscolhida) {
+    const { count } = await supabase.from("cargas").select("id", { count: "exact", head: true })
+      .eq("empresa_id", usuario.empresa.id).eq("entregador_id", usuario.id)
+      .in("status", ["ABERTA", "EM_ROTA"]);
+    if ((count ?? 0) > 1) redirect("/mobile/carga/selecionar");
+  }
+
   const {
     data: cargaAtiva,
     error: cargaAtivaError,
@@ -182,6 +195,7 @@ export default async function MinhaRotaPage({
           "EM_ROTA",
         ],
       )
+      .eq("id", Number(cargaEscolhida ?? 0))
       .order(
         "created_at",
         {
@@ -361,6 +375,11 @@ export default async function MinhaRotaPage({
 
           </header>
 
+          {cargaAtiva && (
+            <div><IdentificacaoCargaMobile numero={cargaAtiva.id} codigo={cargaAtiva.codigo} status={cargaAtiva.status} />
+            <div className="px-4 pt-2 text-right"><Link href="/mobile/carga/selecionar" className="text-[11px] font-bold text-emerald-700 underline">Trocar carga em operacao</Link></div></div>
+          )}
+
           <section className="flex flex-1 items-start px-5 py-7">
 
             <div className="card-premium animate-pop w-full overflow-hidden rounded-[30px] p-7 text-center">
@@ -393,29 +412,6 @@ export default async function MinhaRotaPage({
                 </div>
               )}
 
-              {cargaAtiva && (
-                <div className="mt-6 rounded-[20px] border border-emerald-100 bg-[#f3faf5] p-4 text-left">
-                  <p className="text-[8px] font-black uppercase tracking-[0.16em] text-[#b07a12]">
-                    Carga vinculada
-                  </p>
-
-                  <div className="mt-2 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[15px] font-black">
-                        {cargaAtiva.codigo}
-                      </p>
-
-                      <p className="mt-1 text-[10px] font-semibold text-slate-400">
-                        Estoque móvel do entregador
-                      </p>
-                    </div>
-
-                    <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[9px] font-black uppercase text-emerald-700">
-                      {rotuloTecnico(cargaAtiva.status)}
-                    </span>
-                  </div>
-                </div>
-              )}
 
               {!cargaAtiva && (
                 <Link
@@ -1421,6 +1417,10 @@ export default async function MinhaRotaPage({
           </div>
 
         </header>
+
+        {cargaAtiva && rota.carga_id === cargaAtiva.id && (
+          <IdentificacaoCargaMobile numero={cargaAtiva.id} codigo={cargaAtiva.codigo} status={cargaAtiva.status} />
+        )}
 
         {/* =================================================
             CONTEÚDO

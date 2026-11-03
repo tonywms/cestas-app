@@ -25,6 +25,8 @@ import {
 
 export type FecharCargaState = {
   success: boolean;
+  // Resposta positiva vinculada a carga que foi efetivamente finalizada.
+  cargaId?: number;
   message: string;
   totalEmPosse: number;
   totalRetornado: number;
@@ -138,6 +140,58 @@ export async function fecharCarga(
         500,
       );
 
+  let volumesAvariadosInformados:
+    string[] = [];
+
+  try {
+    const bruto =
+      String(
+        formData.get(
+          "volumes_avariados",
+        ) ??
+          "[]",
+      );
+
+    const parsed =
+      JSON.parse(
+        bruto,
+      ) as unknown;
+
+    if (
+      Array.isArray(
+        parsed,
+      )
+    ) {
+      volumesAvariadosInformados =
+        Array.from(
+          new Set(
+            parsed
+              .filter(
+                (
+                  valor,
+                ): valor is string =>
+                  typeof valor ===
+                    "string" &&
+                  valor.length >
+                    0,
+              )
+              .map(
+                (valor) =>
+                  valor.trim(),
+              ),
+          ),
+        );
+    }
+  } catch {
+    return estadoErro(
+      "A identificação dos volumes avariados é inválida. Atualize a tela e faça a conferência novamente.",
+      {
+        reason:
+          "DADOS_INVALIDOS",
+      },
+    );
+  }
+
   if (
     !Number.isInteger(
       cargaId,
@@ -235,6 +289,8 @@ export async function fecharCarga(
         return {
           carga_item_id:
             item.id,
+          tipo_cesta_id:
+            item.tipos_cesta?.id ?? 0,
           saldo,
           quantidade_avariada:
             avaria,
@@ -270,6 +326,13 @@ export async function fecharCarga(
         },
       );
     }
+  }
+
+  if (itens.some((item) => !Number.isInteger(item.tipo_cesta_id) || item.tipo_cesta_id <= 0)) {
+    return estadoErro("Tipo de cesta indisponível em um dos itens da carga. Atualize Minha Carga antes de fechar.", {
+      totalEmPosse,
+      reason: "DADOS_INVALIDOS",
+    });
   }
 
   const totalAvariado =
@@ -524,6 +587,8 @@ export async function fecharCarga(
     usuario.configuracao
       .exigirBipagemCarga;
 
+  const volumesAvariadosValidados = new Map<string, number>();
+
   if (modoVolume) {
     const [
       volumesEmPosseResult,
@@ -535,12 +600,10 @@ export async function fecharCarga(
           "cesta_volumes",
         )
         .select(
-          "id",
+          "id, tipo_cesta_id",
           {
             count:
               "exact",
-            head:
-              true,
           },
         )
         .eq(
@@ -690,6 +753,121 @@ export async function fecharCarga(
         },
       );
     }
+
+    if (
+      volumesAvariadosInformados.length !==
+      totalAvariado
+    ) {
+      return estadoErro(
+        "A quantidade de avarias não confere com os volumes físicos identificados. Bipe novamente os volumes avariados.",
+        {
+          totalEmPosse,
+          reason:
+            "DIVERGENCIA_VOLUME",
+        },
+      );
+    }
+
+    if (
+      volumesAvariadosInformados.length >
+      0
+    ) {
+      const {
+        data:
+          volumesAvariadosBanco,
+        error:
+          volumesAvariadosError,
+      } = await supabase
+        .from(
+          "cesta_volumes",
+        )
+        .select(
+          "id, codigo_volume, tipo_cesta_id, status",
+        )
+        .eq(
+          "empresa_id",
+          usuario.empresa.id,
+        )
+        .eq(
+          "carga_id",
+          carga.id,
+        )
+        .eq(
+          "status",
+          "EM_CARGA",
+        )
+        .in(
+          "id",
+          volumesAvariadosInformados,
+        );
+
+      if (
+        volumesAvariadosError ||
+        (
+          volumesAvariadosBanco ??
+          []
+        ).length !==
+          volumesAvariadosInformados.length
+      ) {
+        console.error(
+          "Erro ao validar volumes avariados V82:",
+          volumesAvariadosError,
+        );
+
+        return estadoErro(
+          "Um ou mais volumes marcados como avariados já não pertencem ao saldo físico desta carga. Atualize a tela e confira novamente.",
+          {
+            totalEmPosse,
+            reason:
+              "DIVERGENCIA_VOLUME",
+          },
+        );
+      }
+
+      for (const volume of volumesAvariadosBanco ?? []) {
+        volumesAvariadosValidados.set(volume.id, volume.tipo_cesta_id);
+      }
+
+      for (
+        const item of itens
+      ) {
+        const quantidadeFisica =
+          (
+            volumesAvariadosBanco ??
+            []
+          ).filter(
+            (volume) =>
+              volume.tipo_cesta_id ===
+              item.tipo_cesta_id,
+          ).length;
+
+        if (
+          quantidadeFisica !==
+          item.quantidade_avariada
+        ) {
+          return estadoErro(
+            "A identificação física das avarias não corresponde ao tipo de cesta informado. Atualize e confira os volumes novamente.",
+            {
+              totalEmPosse,
+              reason:
+                "DIVERGENCIA_VOLUME",
+            },
+          );
+        }
+      }
+    }
+  } else if (
+    volumesAvariadosInformados.length >
+    0
+  ) {
+    return estadoErro(
+      "A identificação por volume só pode ser usada quando a empresa opera no modo VOLUME.",
+      {
+        totalEmPosse,
+        reason:
+          "DADOS_INVALIDOS",
+      },
+    );
   }
 
   const payload =
@@ -705,6 +883,12 @@ export async function fecharCarga(
           item.quantidade_avariada > 0
             ? item.motivo_avaria
             : null,
+        volumes_avariados:
+          modoVolume
+            ? volumesAvariadosInformados.filter(
+                (volumeId) => volumesAvariadosValidados.get(volumeId) === item.tipo_cesta_id,
+              )
+            : [],
       }),
     );
 
@@ -770,6 +954,7 @@ export async function fecharCarga(
 
   return {
     success: true,
+    cargaId: carga.id,
     message:
       "Carga finalizada. O retorno voltou ao estoque central e as avarias ficaram registradas no histórico.",
     totalEmPosse,
