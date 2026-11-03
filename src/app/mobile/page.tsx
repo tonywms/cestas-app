@@ -31,6 +31,10 @@ import {
   temPermissao,
 } from "@/lib/auth/permissions";
 
+import {
+  getCargaAtiva,
+} from "@/services/cargas/get-carga-ativa";
+
 export default async function MobileHome() {
   const usuario =
     await getCurrentUserProfile();
@@ -110,6 +114,37 @@ export default async function MobileHome() {
     podeCadastrarCliente ||
     podeEditarCliente ||
     podeVenderCampo;
+
+  const resultadoCarga =
+    podeVerCarga
+      ? await getCargaAtiva({
+          entregadorId: usuario.id,
+          empresaId: usuario.empresa.id,
+        })
+      : {
+          carga: null,
+          erro: null,
+        };
+
+  const cargaAtiva =
+    resultadoCarga.carga;
+
+  const erroCarga =
+    resultadoCarga.erro;
+
+  const saldoMovel =
+    cargaAtiva?.carga_itens.reduce(
+      (total, item) =>
+        total +
+        Math.max(
+          0,
+          item.quantidade_carregada -
+            item.quantidade_entregue -
+            item.quantidade_retornada -
+            item.quantidade_avariada,
+        ),
+      0,
+    ) ?? 0;
 
   return (
     <main className="app-premium min-h-dvh text-[#142018]">
@@ -195,14 +230,30 @@ export default async function MobileHome() {
               className="card-premium animate-pop block rounded-[28px] p-5 shadow-[0_28px_60px_rgba(17,63,33,0.16)]"
             >
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-3">
 
-                <div className="icon-emerald flex h-9 w-9 items-center justify-center rounded-[12px]">
-                  <Truck size={19} />
+                <div className="flex items-center gap-2">
+                  <div className="icon-emerald flex h-9 w-9 items-center justify-center rounded-[12px]">
+                    <Truck size={19} />
+                  </div>
+
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#176b3a]">
+                    Minha carga
+                  </span>
                 </div>
 
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#176b3a]">
-                  Minha carga
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-[9px] font-black ${
+                    erroCarga
+                      ? "bg-slate-100 text-slate-500"
+                      : saldoMovel > 0
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {erroCarga
+                    ? "Saldo --"
+                    : `Saldo ${saldoMovel}`}
                 </span>
 
               </div>

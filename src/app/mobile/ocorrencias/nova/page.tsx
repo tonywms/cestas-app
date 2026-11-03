@@ -244,7 +244,7 @@ export default async function NovaOcorrenciaPage({
             </h2>
 
             <p className="mt-3 max-w-[340px] text-[12px] leading-5 text-white/65">
-              Parada #{parada.sequencia}. Informe o que impediu a entrega ao cliente.
+              Parada nº {parada.sequencia}. Informe o que impediu a entrega ao cliente.
             </p>
           </div>
         </header>

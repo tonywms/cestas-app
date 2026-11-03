@@ -1,5 +1,7 @@
 "use server";
 
+/* V71_2_ROTULOS_PERMISSOES_PREMIUM */
+
 import { revalidatePath } from "next/cache";
 
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
@@ -19,6 +21,8 @@ const PROIBIDAS_ENTREGADOR =
     PERMISSOES.EMPRESA_CONFIGURAR,
     PERMISSOES.PERMISSOES_GERENCIAR,
     PERMISSOES.USUARIOS_GERENCIAR,
+    PERMISSOES.FINANCEIRO_AUDITAR,
+    PERMISSOES.FINANCEIRO_ESTORNAR,
   ]);
 
 export async function salvarPermissoesUsuario(

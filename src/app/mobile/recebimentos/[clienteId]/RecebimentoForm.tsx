@@ -1,5 +1,7 @@
 "use client";
 
+// V64_RECEBIMENTO_IDEMPOTENTE
+
 import {
   Banknote,
   CalendarDays,
@@ -28,12 +30,24 @@ import {
 const initialState = {
   success: false,
   message: "",
+  recebimentoId:
+    null as number | null,
+  valorRecebido:
+    null as number | null,
+  formaPagamento:
+    null as string | null,
   saldoAntes:
     null as number | null,
   saldoDepois:
     null as number | null,
-  status:
+  parcelasAfetadas: 0,
+  parcelasQuitadas: 0,
+  parcelasParciais: 0,
+  proximaVisita:
     null as string | null,
+  cobrancaRotaConcluida:
+    false,
+  idempotente: false,
 };
 
 type Parcela = {
@@ -46,6 +60,11 @@ type Parcela = {
   saldo: number;
   status: string;
   vencida: boolean;
+  modalidade:
+    "PARCELADO" |
+    "SALDO_ABERTO";
+  proximaVisita:
+    string | null;
 };
 
 function moeda(
@@ -59,103 +78,191 @@ function moeda(
       currency:
         "BRL",
     },
-  ).format(valor);
+  ).format(
+    valor,
+  );
 }
 
 function dataBR(
-  data: string,
+  data:
+    string | null,
 ) {
+  if (!data) {
+    return "—";
+  }
+
   const [
     ano,
     mes,
     dia,
-  ] = data.split("-");
+  ] =
+    data.split("-");
+
+  if (
+    !ano ||
+    !mes ||
+    !dia
+  ) {
+    return data;
+  }
 
   return `${dia}/${mes}/${ano}`;
+}
+
+function formaLabel(
+  forma:
+    string | null,
+) {
+  if (
+    forma ===
+    "DINHEIRO"
+  ) {
+    return "Dinheiro";
+  }
+
+  if (
+    forma ===
+    "CARTAO"
+  ) {
+    return "Cartão";
+  }
+
+  if (
+    forma ===
+    "TRANSFERENCIA"
+  ) {
+    return "Transferência";
+  }
+
+  if (
+    forma ===
+    "OUTRO"
+  ) {
+    return "Outro";
+  }
+
+  return "PIX";
 }
 
 export default function RecebimentoForm({
   clienteId,
   parcelas,
+  rotaClienteId = null,
+  chaveOperacaoInicial,
 }: {
   clienteId:
     number;
 
   parcelas:
     Parcela[];
+
+  rotaClienteId?:
+    number | null;
+
+  chaveOperacaoInicial:
+    string;
 }) {
   const [
     state,
     formAction,
     pending,
-  ] = useActionState(
-    registrarRecebimento,
-    initialState,
-  );
+  ] =
+    useActionState(
+      registrarRecebimento,
+      initialState,
+    );
 
-  const [
-    parcelaId,
-    setParcelaId,
-  ] = useState(
-    parcelas[0]?.id ??
-      0,
-  );
-
-  const parcela =
+  const saldoTotal =
     useMemo(
       () =>
-        parcelas.find(
+        parcelas.reduce(
           (
+            total,
             item,
           ) =>
-            item.id ===
-            parcelaId,
-        ) ??
-        parcelas[0],
+            total +
+            Math.max(
+              0,
+              item.saldo,
+            ),
+          0,
+        ),
       [
-        parcelaId,
         parcelas,
       ],
     );
 
+  const cobrancaMaisAntiga =
+    parcelas[0] ??
+    null;
+
+  const vencidas =
+    parcelas.filter(
+      (
+        item,
+      ) =>
+        item.vencida,
+    ).length;
+
   const [
     valor,
     setValor,
-  ] = useState(
-    parcela
-      ? String(
-          parcela.saldo.toFixed(
-            2,
-          ),
-        )
-      : "",
-  );
+  ] =
+    useState("");
 
   const [
     modal,
     setModal,
-  ] = useState(
-    false,
-  );
+  ] =
+    useState(
+      false,
+    );
 
-  useEffect(
-    () => {
-      if (
-        parcela
-      ) {
-        setValor(
-          String(
-            parcela.saldo.toFixed(
-              2,
-            ),
-          ),
-        );
-      }
-    },
+  const valorNumero =
+    Number(
+      String(
+        valor,
+      )
+        .replace(",", "."),
+    );
+
+  const valorValido =
+    Number.isFinite(
+      valorNumero,
+    ) &&
+    valorNumero > 0 &&
+    valorNumero <=
+      saldoTotal;
+
+  const saldoDepoisPreview =
+    valorValido
+      ? Math.max(
+          0,
+          saldoTotal -
+            valorNumero,
+        )
+      : saldoTotal;
+
+  const sugestoes =
     [
-      parcela,
-    ],
-  );
+      50,
+      100,
+      saldoTotal,
+    ]
+      .filter(
+        (
+          item,
+          index,
+          lista,
+        ) =>
+          item > 0 &&
+          item <=
+            saldoTotal &&
+          lista.indexOf(
+            item,
+          ) ===
+            index,
+      );
 
   useEffect(
     () => {
@@ -173,7 +280,8 @@ export default function RecebimentoForm({
   );
 
   if (
-    !parcela
+    parcelas.length ===
+    0
   ) {
     return null;
   }
@@ -195,9 +303,22 @@ export default function RecebimentoForm({
           }
         />
 
-        {/* =================================================
-            CARD PARCELA - ANATOMIA IGUAL AO CARD DA ROTA
-        ================================================= */}
+        <input
+          type="hidden"
+          name="rota_cliente_id"
+          value={
+            rotaClienteId ??
+            ""
+          }
+        />
+
+        <input
+          type="hidden"
+          name="chave_operacao"
+          value={
+            chaveOperacaoInicial
+          }
+        />
 
         <section className="relative overflow-hidden rounded-[28px] border border-emerald-200 bg-[linear-gradient(145deg,#f0fbf4,#ffffff)] p-5 shadow-[0_22px_55px_-32px_rgba(17,63,33,0.22)]">
 
@@ -216,74 +337,42 @@ export default function RecebimentoForm({
             <div className="min-w-0 flex-1">
 
               <p className="text-[8px] font-black uppercase tracking-[0.18em] text-emerald-600">
-                Parcela
+                Carteira do cliente
               </p>
 
               <h2 className="mt-1 text-[18px] font-black tracking-[-0.035em]">
-                Selecionar cobrança
+                {moeda(
+                  saldoTotal,
+                )} em aberto
               </h2>
 
+              <p className="mt-1 text-[9px] leading-4 text-slate-500">
+                Informe quanto o cliente pagou. O sistema aplica automaticamente nas cobranças mais antigas.
+              </p>
+
             </div>
 
           </div>
 
-          {/* SELETOR - MESMO PAPEL DO ENDEREÇO DA ROTA */}
+          <div className="mt-4 grid grid-cols-3 gap-2">
 
-          <div className="mt-4 rounded-[18px] bg-[#f7f9f7]/90 p-3.5">
-
-            <div className="flex items-center gap-2.5">
-
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-white text-[#176f3c] shadow-sm">
-
+            <MicroInfo
+              icon={
                 <ReceiptText
-                  size={13}
+                  size={12}
                 />
-
-              </div>
-
-              <select
-                name="parcela_id"
-                value={
-                  parcelaId
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setParcelaId(
-                    Number(
-                      event.target.value,
-                    ),
-                  )
-                }
-                className="min-w-0 flex-1 bg-transparent text-[10px] font-black outline-none"
-              >
-
-                {parcelas.map(
-                  (
-                    item,
-                  ) => (
-                    <option
-                      key={
-                        item.id
-                      }
-                      value={
-                        item.id
-                      }
-                    >
-                      {item.contratoCodigo} • Parcela {item.numero} • {dataBR(item.vencimento)} • {moeda(item.saldo)}
-                    </option>
-                  ),
-                )}
-
-              </select>
-
-            </div>
-
-          </div>
-
-          {/* MICRO INFO */}
-
-          <div className="mt-3 grid grid-cols-3 gap-2">
+              }
+              label="Abertas"
+              valor={
+                String(
+                  parcelas.length,
+                )
+              }
+              alerta={
+                vencidas >
+                0
+              }
+            />
 
             <MicroInfo
               icon={
@@ -291,14 +380,19 @@ export default function RecebimentoForm({
                   size={12}
                 />
               }
-              label="Vencimento"
+              label="Próxima"
               valor={
-                dataBR(
-                  parcela.vencimento,
-                )
+                cobrancaMaisAntiga
+                  ? dataBR(
+                      cobrancaMaisAntiga.vencimento,
+                    )
+                  : "—"
               }
               alerta={
-                parcela.vencida
+                Boolean(
+                  cobrancaMaisAntiga
+                    ?.vencida,
+                )
               }
             />
 
@@ -308,35 +402,38 @@ export default function RecebimentoForm({
                   size={12}
                 />
               }
-              label="Original"
-              valor={
-                moeda(
-                  parcela.valor,
-                )
-              }
-            />
-
-            <MicroInfo
-              icon={
-                <Banknote
-                  size={12}
-                />
-              }
               label="Saldo"
               valor={
                 moeda(
-                  parcela.saldo,
+                  saldoTotal,
                 )
               }
             />
 
           </div>
 
-        </section>
+          {cobrancaMaisAntiga && (
+            <div className="mt-3 rounded-[16px] border border-slate-100 bg-white/90 px-3.5 py-3">
 
-        {/* =================================================
-            PAGAMENTO
-        ================================================= */}
+              <p className="text-[7px] font-black uppercase tracking-[0.12em] text-slate-400">
+                Aplicação automática
+              </p>
+
+              <p className="mt-1 text-[10px] font-black text-slate-700">
+                {cobrancaMaisAntiga.modalidade ===
+                "SALDO_ABERTO"
+                  ? `${cobrancaMaisAntiga.contratoCodigo} • saldo flexível`
+                  : `${cobrancaMaisAntiga.contratoCodigo} • parcela ${cobrancaMaisAntiga.numero}`}
+              </p>
+
+              <p className="mt-1 text-[8px] leading-4 text-slate-400">
+                Primeiro saldo: {moeda(cobrancaMaisAntiga.saldo)}. Se o valor recebido ultrapassar este saldo, o restante será aplicado na próxima cobrança.
+              </p>
+
+            </div>
+          )}
+
+        </section>
 
         <section className="relative overflow-hidden rounded-[28px] border border-black/[0.045] bg-white p-5 shadow-[0_22px_55px_-32px_rgba(17,63,33,0.22)]">
 
@@ -355,11 +452,11 @@ export default function RecebimentoForm({
             <div>
 
               <p className="text-[8px] font-black uppercase tracking-[0.18em] text-emerald-600">
-                Pagamento
+                Recebimento
               </p>
 
               <h2 className="mt-1 text-[18px] font-black tracking-[-0.035em]">
-                Informar recebimento
+                Quanto recebeu?
               </h2>
 
             </div>
@@ -367,7 +464,7 @@ export default function RecebimentoForm({
           </div>
 
           <label className="mt-5 block text-[8px] font-black uppercase tracking-[0.14em] text-slate-500">
-            Valor recebido
+            Valor recebido nesta visita
           </label>
 
           <div className="relative mt-2">
@@ -382,7 +479,7 @@ export default function RecebimentoForm({
               name="valor"
               min="0.01"
               max={
-                parcela.saldo
+                saldoTotal
               }
               step="0.01"
               value={
@@ -395,9 +492,72 @@ export default function RecebimentoForm({
                   event.target.value,
                 )
               }
+              placeholder="Ex.: 50,00"
               required
               className="h-[56px] w-full rounded-[17px] border border-slate-200 bg-white pl-11 pr-4 text-[15px] font-black outline-none focus:border-emerald-400"
             />
+
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-2">
+
+            {sugestoes.map(
+              (
+                sugestao,
+              ) => (
+                <button
+                  key={
+                    sugestao
+                  }
+                  type="button"
+                  onClick={() =>
+                    setValor(
+                      sugestao.toFixed(
+                        2,
+                      ),
+                    )
+                  }
+                  className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-2 text-[9px] font-black text-emerald-700"
+                >
+                  {sugestao ===
+                  saldoTotal
+                    ? `Quitar ${moeda(sugestao)}`
+                    : moeda(sugestao)}
+                </button>
+              ),
+            )}
+
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+
+            <div className="rounded-[16px] bg-slate-50 p-3">
+
+              <p className="text-[7px] font-black uppercase tracking-[0.1em] text-slate-400">
+                Saldo antes
+              </p>
+
+              <p className="mt-1 text-[14px] font-black">
+                {moeda(
+                  saldoTotal,
+                )}
+              </p>
+
+            </div>
+
+            <div className="rounded-[16px] bg-emerald-50 p-3">
+
+              <p className="text-[7px] font-black uppercase tracking-[0.1em] text-emerald-600">
+                Saldo após receber
+              </p>
+
+              <p className="mt-1 text-[14px] font-black text-emerald-700">
+                {moeda(
+                  saldoDepoisPreview,
+                )}
+              </p>
+
+            </div>
 
           </div>
 
@@ -447,9 +607,10 @@ export default function RecebimentoForm({
           <button
             type="submit"
             disabled={
-              pending
+              pending ||
+              !valorValido
             }
-            className="mt-5 flex h-[56px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_30px_rgba(23,111,60,0.30)] transition active:scale-[0.985] disabled:opacity-50"
+            className="mt-5 flex h-[56px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_30px_rgba(23,111,60,0.30)] transition active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40"
           >
 
             <Save
@@ -465,10 +626,6 @@ export default function RecebimentoForm({
         </section>
 
       </form>
-
-      {/* =================================================
-          MODAL
-      ================================================= */}
 
       {modal &&
         state.message && (
@@ -501,19 +658,19 @@ export default function RecebimentoForm({
               <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
 
                 {state.success
-                  ? "Pagamento concluído"
-                  : "Falha no pagamento"}
+                  ? "Recebimento confirmado"
+                  : "Recebimento não concluído"}
 
               </p>
 
               <h3 className="mt-2 text-[21px] font-black tracking-[-0.035em]">
 
                 {state.success
-                  ? state.status ===
-                    "PAGA"
-                    ? "Parcela quitada"
-                    : "Pagamento parcial"
-                  : "Não foi possível receber"}
+                  ? state.saldoDepois ===
+                    0
+                    ? "Dívida quitada"
+                    : "Saldo atualizado"
+                  : "Verifique o recebimento"}
 
               </h3>
 
@@ -523,50 +680,171 @@ export default function RecebimentoForm({
                 }
               </p>
 
-              {state.success &&
-                state.saldoAntes !==
-                  null &&
-                state.saldoDepois !==
-                  null && (
-                <div className="mt-5 grid grid-cols-2 gap-3">
+              {state.success && (
+                <div className="mt-5 space-y-3 text-left">
 
-                  <div className="rounded-[18px] border border-slate-100 bg-white p-4">
+                  <div className="rounded-[20px] border border-emerald-100 bg-emerald-50 p-4">
 
-                    <p className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">
-                      Antes
-                    </p>
+                    <div className="flex items-center justify-between gap-3">
 
-                    <p className="mt-2 text-[18px] font-black">
-                      {moeda(
-                        state.saldoAntes,
-                      )}
-                    </p>
+                      <div>
+
+                        <p className="text-[7px] font-black uppercase tracking-[0.12em] text-emerald-600">
+                          Recebido
+                        </p>
+
+                        <p className="mt-1 text-[20px] font-black text-emerald-800">
+                          {moeda(
+                            state.valorRecebido ??
+                            0,
+                          )}
+                        </p>
+
+                      </div>
+
+                      <div className="text-right">
+
+                        <p className="text-[7px] font-black uppercase tracking-[0.12em] text-emerald-600">
+                          Forma
+                        </p>
+
+                        <p className="mt-1 text-[11px] font-black text-emerald-800">
+                          {formaLabel(
+                            state.formaPagamento,
+                          )}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    {state.recebimentoId && (
+                      <p className="mt-3 border-t border-emerald-100 pt-3 text-[8px] font-black text-emerald-700/70">
+                        Comprovante REC-{String(
+                          state.recebimentoId,
+                        ).padStart(
+                          6,
+                          "0",
+                        )}
+                      </p>
+                    )}
 
                   </div>
 
-                  <div className="rounded-[18px] border border-emerald-100 bg-emerald-50 p-4">
+                  {state.saldoAntes !==
+                    null &&
+                    state.saldoDepois !==
+                    null && (
+                    <div className="grid grid-cols-2 gap-3">
 
-                    <p className="text-[8px] font-black uppercase tracking-[0.12em] text-emerald-600">
-                      Agora
-                    </p>
+                      <div className="rounded-[18px] border border-slate-100 bg-white p-4">
 
-                    <p className="mt-2 text-[18px] font-black text-emerald-700">
-                      {moeda(
-                        state.saldoDepois,
-                      )}
-                    </p>
+                        <p className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">
+                          Saldo antes
+                        </p>
+
+                        <p className="mt-2 text-[17px] font-black">
+                          {moeda(
+                            state.saldoAntes,
+                          )}
+                        </p>
+
+                      </div>
+
+                      <div className="rounded-[18px] border border-emerald-100 bg-emerald-50 p-4">
+
+                        <p className="text-[8px] font-black uppercase tracking-[0.12em] text-emerald-600">
+                          Saldo agora
+                        </p>
+
+                        <p className="mt-2 text-[17px] font-black text-emerald-700">
+                          {moeda(
+                            state.saldoDepois,
+                          )}
+                        </p>
+
+                      </div>
+
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-2">
+
+                    <MicroInfo
+                      icon={
+                        <ReceiptText
+                          size={12}
+                        />
+                      }
+                      label="Afetadas"
+                      valor={
+                        String(
+                          state.parcelasAfetadas,
+                        )
+                      }
+                    />
+
+                    <MicroInfo
+                      icon={
+                        <CheckCircle2
+                          size={12}
+                        />
+                      }
+                      label="Quitadas"
+                      valor={
+                        String(
+                          state.parcelasQuitadas,
+                        )
+                      }
+                    />
+
+                    <MicroInfo
+                      icon={
+                        <Coins
+                          size={12}
+                        />
+                      }
+                      label="Parciais"
+                      valor={
+                        String(
+                          state.parcelasParciais,
+                        )
+                      }
+                    />
 
                   </div>
+
+                  {state.proximaVisita && (
+                    <div className="rounded-[18px] border border-sky-100 bg-sky-50 p-4">
+
+                      <p className="text-[8px] font-black uppercase tracking-[0.12em] text-sky-700">
+                        Próxima visita sugerida
+                      </p>
+
+                      <p className="mt-1 text-[16px] font-black text-sky-900">
+                        {dataBR(
+                          state.proximaVisita,
+                        )}
+                      </p>
+
+                    </div>
+                  )}
 
                 </div>
               )}
 
               {state.success ? (
                 <Link
-                  href="/mobile/recebimentos"
+                  href={
+                    rotaClienteId
+                      ? "/mobile/rota"
+                      : "/mobile/recebimentos"
+                  }
                   className="mt-6 flex h-[52px] items-center justify-center rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
                 >
-                  Continuar recebimentos
+                  {rotaClienteId
+                    ? "Continuar minha rota"
+                    : "Continuar recebimentos"}
                 </Link>
               ) : (
                 <button
@@ -578,7 +856,7 @@ export default function RecebimentoForm({
                   }
                   className="mt-6 h-[52px] w-full rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
                 >
-                  Entendi
+                  Corrigir valor
                 </button>
               )}
 
@@ -592,10 +870,6 @@ export default function RecebimentoForm({
     </>
   );
 }
-
-/* =========================================================
-   MICRO INFO
-========================================================= */
 
 function MicroInfo({
   icon,

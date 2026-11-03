@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import {
   redirect,
@@ -497,10 +497,19 @@ export default async function CreditoPage({
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto w-full">
+        {/* V69_CREDITO_QA_LINK */}
         <ModuleHeader
           eyebrow="Crédito"
           title="Gestão de crédito"
+          actions={
+            <a
+              href="/admin/credito/consistencia"
+              className="inline-flex h-11 items-center rounded-[14px] border border-emerald-100 bg-white px-5 text-[10px] font-black text-[#176f3c] transition hover:bg-emerald-50"
+            >
+              Certificação QA
+            </a>
+          }
         />
 
         <Hero
@@ -685,3 +694,4 @@ export default async function CreditoPage({
     </main>
   );
 }
+

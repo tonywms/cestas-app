@@ -1,0 +1,18 @@
+-- CESTAS APP - V64
+-- RECEBIMENTO IDEMPOTENTE E CONCORRÊNCIA SEGURA
+--
+-- Migration remota já aplicada no Supabase:
+--   v64_recebimento_idempotente_concorrencia_segura
+--
+-- Implementado:
+-- - recebimentos_cliente.chave_operacao UUID;
+-- - recebimentos_cliente.resultado JSONB;
+-- - índice único por empresa + chave da operação;
+-- - RPC registrar_recebimento_cliente_v64(...);
+-- - RPC registrar_recebimento_cliente_rota_v64(...);
+-- - lock do cliente e das parcelas antes de calcular/aplicar saldo;
+-- - replay idempotente retorna o resultado original sem duplicar financeiro;
+-- - invariantes conferem total alocado e redução do saldo antes do COMMIT;
+-- - anon sem EXECUTE; authenticated autorizado.
+--
+-- NÃO EXECUTAR ESTE ARQUIVO MANUALMENTE.

@@ -1,5 +1,7 @@
 "use client";
 
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
 import { ArrowRight, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -56,7 +58,7 @@ function formatarTipoMovimento(tipo: string) {
     case "AVARIA_CARGA":
       return "Avaria na carga";
     default:
-      return tipo.replaceAll("_", " ");
+      return rotuloTecnico(tipo);
   }
 }
 

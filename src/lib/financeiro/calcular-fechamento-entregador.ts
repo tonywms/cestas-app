@@ -64,6 +64,7 @@ export async function calcularFechamentoEntregador({
     vendasResult,
     vendaRecebimentosResult,
     pagamentosResult,
+    estornosResult,
   ] = await Promise.all([
     supabase
       .from("cargas")
@@ -104,6 +105,14 @@ export async function calcularFechamentoEntregador({
       .eq("recebido_por", entregadorId)
       .gte("created_at", inicioPeriodo)
       .lte("created_at", fimPeriodo),
+
+    supabase
+      .from("financeiro_estornos")
+      .select("id, valor, forma_pagamento, origem_created_at")
+      .eq("empresa_id", empresaId)
+      .eq("recebido_por_original", entregadorId)
+      .gte("origem_created_at", inicioPeriodo)
+      .lte("origem_created_at", fimPeriodo),
   ]);
 
   const cargaIds = (cargasResult.data ?? []).map((item) => Number(item.id));
@@ -178,6 +187,18 @@ export async function calcularFechamentoEntregador({
 
   for (const pagamento of pagamentosResult.data ?? []) {
     somarForma(resumo, pagamento.forma_pagamento, pagamento.valor);
+  }
+
+  /* V70_ESTORNOS_FECHAMENTO
+     Estornos corrigem o mesmo período/origem do recebimento original.
+     O lançamento positivo permanece auditável; a compensação é subtraída aqui.
+  */
+  for (const estorno of estornosResult.data ?? []) {
+    somarForma(
+      resumo,
+      estorno.forma_pagamento,
+      -numero(estorno.valor),
+    );
   }
 
   return resumo;

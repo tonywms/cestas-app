@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import {
   AlertTriangle,
@@ -28,10 +28,8 @@ import {
   calcularFechamentoEntregador,
 } from "@/lib/financeiro/calcular-fechamento-entregador";
 import { createClient } from "@/lib/supabase/server";
-import {
-  reabrirFechamento,
-} from "./actions";
 import ConferenciaForm from "./ConferenciaForm";
+import ReabrirFechamentoForm from "./ReabrirFechamentoForm";
 
 type PageProps = {
   params: Promise<{
@@ -124,6 +122,16 @@ function numero(
   )
     ? convertido
     : 0;
+}
+
+// V75_7_FECHAMENTO_CONSISTENTE_DETALHE
+function quaseIgual(
+  a: unknown,
+  b: unknown,
+) {
+  return Math.abs(
+    numero(a) - numero(b),
+  ) < 0.01;
 }
 
 function tipoVersaoLabel(
@@ -321,7 +329,7 @@ export default async function ConferirFechamentoPage({
         "fechamentos_entregador",
       )
       .select(
-        "id, status, bloqueado, recebido_esperado, dinheiro_conferido, pix_conferido, cartao_conferido, transferencia_conferida, outro_conferido, diferenca_total, observacao, conferido_at, conferido_por, reaberto_por, reaberto_at, motivo_reabertura",
+        "id, status, bloqueado, quantidade_carregada, quantidade_entregue, quantidade_retornada, quantidade_avariada, saldo_carga, venda_total, crediario_prazo, recebido_esperado, dinheiro_esperado, pix_esperado, cartao_esperado, transferencia_esperada, outro_esperado, dinheiro_conferido, pix_conferido, cartao_conferido, transferencia_conferida, outro_conferido, diferenca_total, observacao, conferido_at, conferido_por, reaberto_por, reaberto_at, motivo_reabertura",
       )
       .eq(
         "empresa_id",
@@ -457,9 +465,29 @@ export default async function ConferirFechamentoPage({
           .bloqueado !== false
       : false;
 
+  const fechamentoDesatualizado = Boolean(
+    fechamento &&
+      bloqueado &&
+      !(
+        quaseIgual(fechamento.quantidade_carregada, calculado.carregado) &&
+        quaseIgual(fechamento.quantidade_entregue, calculado.entregueCarga) &&
+        quaseIgual(fechamento.quantidade_retornada, calculado.retornado) &&
+        quaseIgual(fechamento.quantidade_avariada, calculado.avariado) &&
+        quaseIgual(fechamento.saldo_carga, calculado.saldoCarga) &&
+        quaseIgual(fechamento.venda_total, calculado.vendaTotal) &&
+        quaseIgual(fechamento.crediario_prazo, calculado.crediarioPrazo) &&
+        quaseIgual(fechamento.recebido_esperado, calculado.recebido) &&
+        quaseIgual(fechamento.dinheiro_esperado, calculado.dinheiro) &&
+        quaseIgual(fechamento.pix_esperado, calculado.pix) &&
+        quaseIgual(fechamento.cartao_esperado, calculado.cartao) &&
+        quaseIgual(fechamento.transferencia_esperada, calculado.transferencia) &&
+        quaseIgual(fechamento.outro_esperado, calculado.outro)
+      ),
+  );
+
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1120px]">
+      <div className="mx-auto w-full">
         <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
           <div className="flex items-center gap-4">
             <Link
@@ -491,6 +519,10 @@ export default async function ConferirFechamentoPage({
             <span className="rounded-full bg-amber-100 px-4 py-2 text-[8px] font-black uppercase text-amber-700">
               Reaberto
             </span>
+          ) : fechamentoDesatualizado ? (
+            <span className="rounded-full bg-amber-100 px-4 py-2 text-[8px] font-black uppercase text-amber-800">
+              Revisão necessária
+            </span>
           ) : fechamento.status === "CONFERIDO" ? (
             <span className="rounded-full bg-emerald-100 px-4 py-2 text-[8px] font-black uppercase text-emerald-700">
               Conferido
@@ -510,6 +542,20 @@ export default async function ConferirFechamentoPage({
             <p className="text-[9px] font-black">
               Fechamento reaberto. Faça os ajustes e salve para reconferir e bloquear novamente.
             </p>
+          </div>
+        )}
+
+        {fechamentoDesatualizado && (
+          <div className="mt-4 flex items-start gap-3 rounded-[18px] border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900">
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.12em]">
+                Revisão financeira necessária
+              </p>
+              <p className="mt-1 text-[8px] leading-5 text-amber-800">
+                Os dados operacionais atuais mudaram depois da última conferência. O fechamento antigo continua preservado no histórico, mas não pode mais ser tratado como conferido. Reabra com um motivo e faça uma nova conferência dos valores atuais.
+              </p>
+            </div>
           </div>
         )}
 
@@ -679,64 +725,19 @@ export default async function ConferirFechamentoPage({
                     Esta prestação não pode ser sobrescrita diretamente.
                   </h3>
                   <p className="mt-1 max-w-3xl text-[9px] leading-5 text-slate-500">
-                    Para alterar qualquer valor, informe o motivo da reabertura. O estado atual ficará preservado no histórico de versões.
+                    {fechamentoDesatualizado
+                      ? "Existem operações posteriores à conferência. Reabra com motivo para reconferir os números atuais; o fechamento anterior ficará preservado no histórico de versões."
+                      : "Para alterar qualquer valor, informe o motivo da reabertura. O estado atual ficará preservado no histórico de versões."}
                   </p>
 
-                  <form
-                    action={
-                      reabrirFechamento
-                    }
-                    className="mt-4"
-                  >
-                    <input
-                      type="hidden"
-                      name="entregador_id"
-                      value={
-                        entregadorId
-                      }
-                    />
-                    <input
-                      type="hidden"
-                      name="data_inicio"
-                      value={
-                        dataInicio
-                      }
-                    />
-                    <input
-                      type="hidden"
-                      name="data_fim"
-                      value={
-                        dataFim
-                      }
-                    />
-
-                    <label className="block">
-                      <span className="text-[7px] font-black uppercase tracking-[0.13em] text-slate-400">
-                        Motivo da reabertura
-                      </span>
-                      <textarea
-                        name="motivo_reabertura"
-                        required
-                        minLength={5}
-                        maxLength={1000}
-                        rows={3}
-                        placeholder="Ex.: divergência identificada no extrato PIX; valor será reconferido."
-                        className="mt-2 w-full resize-none rounded-[16px] border border-slate-200 bg-[#f8faf8] p-4 text-[10px] leading-5 outline-none focus:border-amber-300"
-                      />
-                    </label>
-
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        type="submit"
-                        className="flex h-11 items-center gap-2 rounded-[14px] bg-amber-500 px-5 text-[9px] font-black text-white"
-                      >
-                        <UnlockKeyhole
-                          size={15}
-                        />
-                        Reabrir fechamento
-                      </button>
-                    </div>
-                  </form>
+                  {/* V63_REABRIR_COMPONENT */}
+                  <ReabrirFechamentoForm
+                    entregadorId={entregadorId}
+                    entregadorNome={String(entregadorResult.data.nome)}
+                    dataInicio={dataInicio}
+                    dataFim={dataFim}
+                    periodoLabel={periodoLabel}
+                  />
                 </div>
               </div>
             </section>
@@ -1138,3 +1139,4 @@ function Forma({
     </div>
   );
 }
+

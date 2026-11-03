@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import Link from "next/link";
 
@@ -347,7 +347,7 @@ export default async function ReceberParcelaPage({
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1050px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Financeiro"
           title="Receber parcela"
@@ -656,3 +656,4 @@ function Info({
     </div>
   );
 }
+

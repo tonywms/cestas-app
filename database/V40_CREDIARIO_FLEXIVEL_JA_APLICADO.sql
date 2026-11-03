@@ -1,0 +1,8 @@
+-- CESTAS APP - V40.1
+-- CREDIARIO FLEXIVEL / CARTEIRA DE COBRANCA
+--
+-- A migration v40_crediario_flexivel_carteira_cobranca JA FOI APLICADA
+-- no Supabase. O rollback do instalador V40 anterior reverteu SOMENTE os
+-- arquivos locais; o banco permaneceu preparado para a V40.
+--
+-- Este arquivo e apenas documentacao. NAO executar SQL manualmente.

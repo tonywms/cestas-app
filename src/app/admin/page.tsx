@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -355,7 +355,7 @@ export default async function AdminPage() {
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1280px]">
+      <div className="mx-auto w-full">
 
         {/* HEADER */}
         <header className="glass animate-fade-up flex items-center justify-between gap-5 rounded-[28px] px-5 py-4">
@@ -557,3 +557,4 @@ export default async function AdminPage() {
     </main>
   );
 }
+

@@ -13,15 +13,19 @@ export type VendaCampoState = {
   codigo: string | null;
   contratoCodigo: string | null;
   valorTotal: number | null;
+  saldoAberto: number | null;
+  proximaVisita: string | null;
 };
 
-export const vendaCampoInitialState: VendaCampoState = {
+const vendaCampoInitialState: VendaCampoState = {
   success: false,
   message: "",
   vendaId: null,
   codigo: null,
   contratoCodigo: null,
   valorTotal: null,
+  saldoAberto: null,
+  proximaVisita: null,
 };
 
 function parseValor(value: FormDataEntryValue | null) {
@@ -93,7 +97,7 @@ export async function registrarVendaCampo(
     };
   }
 
-  if (!["AVISTA", "CREDIARIO"].includes(tipoVenda)) {
+  if (!["AVISTA", "SALDO_ABERTO", "CREDIARIO"].includes(tipoVenda)) {
     return {
       ...vendaCampoInitialState,
       message: "Selecione o tipo de venda.",
@@ -110,6 +114,34 @@ export async function registrarVendaCampo(
       ...vendaCampoInitialState,
       message: "Selecione a forma de pagamento.",
     };
+  }
+
+  if (tipoVenda === "SALDO_ABERTO") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(primeiroVencimento)) {
+      return {
+        ...vendaCampoInitialState,
+        message: "Informe a próxima visita sugerida.",
+      };
+    }
+
+    if (!Number.isFinite(valorEntrada) || valorEntrada < 0) {
+      return {
+        ...vendaCampoInitialState,
+        message: "Informe um valor recebido hoje válido.",
+      };
+    }
+
+    if (
+      valorEntrada > 0 &&
+      !["DINHEIRO", "PIX", "CARTAO", "TRANSFERENCIA", "OUTRO"].includes(
+        formaPagamento,
+      )
+    ) {
+      return {
+        ...vendaCampoInitialState,
+        message: "Selecione a forma do valor recebido hoje.",
+      };
+    }
   }
 
   if (tipoVenda === "CREDIARIO") {
@@ -161,17 +193,17 @@ export async function registrarVendaCampo(
       p_tipo_venda: tipoVenda,
       p_forma_pagamento: formaPagamento || null,
       p_valor_entrada:
-        tipoVenda === "CREDIARIO"
-          ? valorEntrada
-          : 0,
+        tipoVenda === "AVISTA"
+          ? 0
+          : valorEntrada,
       p_quantidade_parcelas:
         tipoVenda === "CREDIARIO"
           ? quantidadeParcelas
           : null,
       p_primeiro_vencimento:
-        tipoVenda === "CREDIARIO"
-          ? primeiroVencimento
-          : null,
+        tipoVenda === "AVISTA"
+          ? null
+          : primeiroVencimento,
       p_observacao: observacao || null,
     },
   );
@@ -198,6 +230,8 @@ export async function registrarVendaCampo(
     codigo?: string;
     valor_total?: number;
     contrato_codigo?: string | null;
+    saldo_aberto?: number;
+    proxima_visita_sugerida?: string | null;
   };
 
   [
@@ -216,7 +250,9 @@ export async function registrarVendaCampo(
     message:
       tipoVenda === "AVISTA"
         ? "Venda à vista registrada com sucesso."
-        : "Venda no crediário registrada e parcelas geradas.",
+        : tipoVenda === "SALDO_ABERTO"
+          ? "Venda registrada. O restante ficou em saldo aberto para cobranças flexíveis."
+          : "Venda parcelada registrada e parcelas geradas.",
     vendaId: Number(resultado.venda_id ?? 0) || null,
     codigo: resultado.codigo ?? null,
     contratoCodigo: resultado.contrato_codigo ?? null,
@@ -224,5 +260,11 @@ export async function registrarVendaCampo(
       resultado.valor_total !== undefined
         ? Number(resultado.valor_total)
         : null,
+    saldoAberto:
+      resultado.saldo_aberto !== undefined
+        ? Number(resultado.saldo_aberto)
+        : null,
+    proximaVisita:
+      resultado.proxima_visita_sugerida ?? null,
   };
 }

@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -53,6 +53,7 @@ export default async function FinanceiroPage({
     clientesResult,
     contratosResult,
     pagamentosResult,
+    vendaRecebimentosResult,
     usuariosResult,
   ] = await Promise.all([
     supabase
@@ -96,7 +97,24 @@ export default async function FinanceiroPage({
       `)
       .eq("empresa_id", usuario.empresa.id)
       .order("created_at", { ascending: false })
-      .limit(12),
+      .limit(100),
+
+    supabase
+      .from("venda_recebimentos")
+      .select(`
+        id,
+        venda_id,
+        cliente_id,
+        recebido_por,
+        tipo,
+        valor,
+        forma_pagamento,
+        observacao,
+        created_at
+      `)
+      .eq("empresa_id", usuario.empresa.id)
+      .order("created_at", { ascending: false })
+      .limit(100),
 
     supabase
       .from("usuarios")
@@ -118,6 +136,16 @@ export default async function FinanceiroPage({
     (contratosResult.data ?? []).map((item) => [
       Number(item.id),
       String(item.codigo),
+    ]),
+  );
+
+  const parcelasMap = new Map(
+    (parcelasResult.data ?? []).map((item) => [
+      Number(item.id),
+      {
+        contratoId: Number(item.contrato_id),
+        clienteId: Number(item.cliente_id),
+      },
     ]),
   );
 
@@ -163,6 +191,76 @@ export default async function FinanceiroPage({
   const busca = (filtros.q ?? "")
     .trim()
     .toLocaleLowerCase("pt-BR");
+
+  const entradasVendas = (vendaRecebimentosResult.data ?? [])
+    .map((recebimento) => {
+      const cliente = clientesMap.get(Number(recebimento.cliente_id));
+
+      return {
+        ...recebimento,
+        valorNumero: Number(recebimento.valor ?? 0),
+        clienteNome: cliente?.nome ?? "Cliente",
+        clienteCodigo: cliente?.codigo ?? "—",
+      };
+    })
+    .filter((recebimento) => {
+      if (
+        String(recebimento.tipo ?? "").toUpperCase() !== "ENTRADA" ||
+        recebimento.valorNumero <= 0
+      ) {
+        return false;
+      }
+
+      if (
+        filtros.cliente &&
+        String(recebimento.cliente_id) !== filtros.cliente
+      ) {
+        return false;
+      }
+
+      if (
+        busca &&
+        !recebimento.clienteNome
+          .toLocaleLowerCase("pt-BR")
+          .includes(busca)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+  const pagamentosFiltrados = (pagamentosResult.data ?? [])
+    .filter((pagamento) => {
+      if (
+        filtros.cliente &&
+        String(pagamento.cliente_id) !== filtros.cliente
+      ) {
+        return false;
+      }
+
+      if (busca) {
+        const cliente = clientesMap.get(Number(pagamento.cliente_id));
+        const parcela = parcelasMap.get(Number(pagamento.parcela_id));
+        const contratoCodigo =
+          parcela
+            ? contratosMap.get(parcela.contratoId) ?? ""
+            : "";
+
+        if (
+          !String(cliente?.nome ?? "")
+            .toLocaleLowerCase("pt-BR")
+            .includes(busca) &&
+          !String(contratoCodigo)
+            .toLocaleLowerCase("pt-BR")
+            .includes(busca)
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
 
   const parcelas = (parcelasResult.data ?? [])
     .map((parcela) => {
@@ -258,10 +356,55 @@ export default async function FinanceiroPage({
     .filter((item) => item.vencida)
     .reduce((sum, item) => sum + item.saldo, 0);
 
-  const recebido = parcelas.reduce(
+  const recebidoParcelas = parcelas.reduce(
     (sum, item) => sum + item.pagoNumero,
     0,
   );
+
+  const entradasRecebidas = entradasVendas.reduce(
+    (sum, item) => sum + item.valorNumero,
+    0,
+  );
+
+  const recebidoTotal =
+    recebidoParcelas +
+    entradasRecebidas;
+
+  const movimentosRecebimento = [
+    ...pagamentosFiltrados.map((pagamento) => {
+      const cliente = clientesMap.get(Number(pagamento.cliente_id));
+
+      return {
+        key: `pagamento-${pagamento.id}`,
+        origem: "Pagamento de parcela",
+        clienteNome: cliente?.nome ?? "Cliente",
+        valor: Number(pagamento.valor ?? 0),
+        formaPagamento: String(pagamento.forma_pagamento ?? "OUTRO"),
+        recebidoPor: String(pagamento.recebido_por ?? ""),
+        createdAt: String(pagamento.created_at),
+        observacao: pagamento.observacao ? String(pagamento.observacao) : null,
+      };
+    }),
+    ...entradasVendas.map((recebimento) => ({
+      key: `entrada-${recebimento.id}`,
+      origem: "Entrada da venda",
+      clienteNome: recebimento.clienteNome,
+      valor: recebimento.valorNumero,
+      formaPagamento: String(recebimento.forma_pagamento ?? "OUTRO"),
+      recebidoPor: String(recebimento.recebido_por ?? ""),
+      createdAt: String(recebimento.created_at),
+      observacao:
+        recebimento.observacao
+          ? String(recebimento.observacao)
+          : `Venda nº ${recebimento.venda_id}`,
+    })),
+  ]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() -
+        new Date(a.createdAt).getTime(),
+    )
+    .slice(0, 12);
 
   const vencidas = parcelas.filter((item) => item.vencida).length;
   const abertas = parcelas.filter((item) => item.saldo > 0).length;
@@ -272,7 +415,7 @@ export default async function FinanceiroPage({
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Financeiro"
           title="Parcelas e recebimentos"
@@ -319,6 +462,49 @@ export default async function FinanceiroPage({
           }
         />
 
+        {/* V70_FINANCEIRO_GOVERNANCA */}
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <Link
+            href="/admin/financeiro/consistencia"
+            className="group flex min-h-[92px] min-w-0 items-center justify-between gap-4 rounded-[22px] border border-emerald-100 bg-white px-5 py-4 shadow-[0_12px_30px_rgba(18,63,34,0.05)] transition hover:border-emerald-200 hover:bg-emerald-50/35"
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b07a12]">
+                Qualidade financeira
+              </p>
+              <p className="mt-1 break-words text-[16px] font-black text-[#163b24]">
+                Certificação QA
+              </p>
+              <p className="mt-1 break-words text-[12px] leading-5 text-slate-500">
+                Parcelas, pagamentos, contratos, fechamento e consistência.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-2 text-[11px] font-black text-emerald-700">
+              Abrir
+            </span>
+          </Link>
+
+          <Link
+            href="/admin/financeiro/estornos"
+            className="group flex min-h-[92px] min-w-0 items-center justify-between gap-4 rounded-[22px] border border-amber-100 bg-white px-5 py-4 shadow-[0_12px_30px_rgba(18,63,34,0.05)] transition hover:border-amber-200 hover:bg-amber-50/35"
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b07a12]">
+                Governança
+              </p>
+              <p className="mt-1 break-words text-[16px] font-black text-[#163b24]">
+                Estornos auditáveis
+              </p>
+              <p className="mt-1 break-words text-[12px] leading-5 text-slate-500">
+                Corrija recebimentos sem apagar o histórico original.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-800">
+              Abrir
+            </span>
+          </Link>
+        </div>
+
         <Hero
           eyebrow="Contas a receber"
           title="Visão financeira"
@@ -338,7 +524,18 @@ export default async function FinanceiroPage({
               value={vencidas}
               warning={vencidas > 0}
             />
-            <Kpi label="Já pago" value={formatMoney(recebido)} />
+            <Kpi
+              label="Entrada em vendas"
+              value={formatMoney(entradasRecebidas)}
+            />
+            <Kpi
+              label="Pago em parcelas"
+              value={formatMoney(recebidoParcelas)}
+            />
+            <Kpi
+              label="Recebido total"
+              value={formatMoney(recebidoTotal)}
+            />
           </KpiGrid>
         </Hero>
 
@@ -392,7 +589,7 @@ export default async function FinanceiroPage({
         >
           <form
             method="get"
-            className="grid gap-3 md:grid-cols-2 xl:grid-cols-6"
+            className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,.85fr)_minmax(0,1fr)_minmax(0,1fr)_220px]"
           >
             <Field label="Buscar">
               <input
@@ -575,25 +772,21 @@ export default async function FinanceiroPage({
             title="Últimos recebimentos"
             right={
               <span className="rounded-full bg-emerald-50 px-4 py-2 text-[11px] font-black text-emerald-700">
-                {(pagamentosResult.data ?? []).length} registro(s)
+                {movimentosRecebimento.length} registro(s)
               </span>
             }
           />
 
-          {(pagamentosResult.data ?? []).length === 0 ? (
+          {movimentosRecebimento.length === 0 ? (
             <EmptyState
               title="Nenhum recebimento registrado"
               text="Os pagamentos confirmados aparecerão aqui com valor, forma, responsável, cliente e horário."
             />
           ) : (
             <div className="grid gap-3 xl:grid-cols-2">
-              {(pagamentosResult.data ?? []).map((pagamento) => {
-                const cliente = clientesMap.get(
-                  Number(pagamento.cliente_id),
-                );
-
+              {movimentosRecebimento.map((movimento) => {
                 const forma =
-                  String(pagamento.forma_pagamento ?? "OUTRO");
+                  String(movimento.formaPagamento ?? "OUTRO");
 
                 const formaLabel =
                   forma === "DINHEIRO"
@@ -607,11 +800,11 @@ export default async function FinanceiroPage({
                           : "Outro";
 
                 const data = new Date(
-                  String(pagamento.created_at),
+                  movimento.createdAt,
                 );
 
                 const quando = Number.isNaN(data.getTime())
-                  ? String(pagamento.created_at)
+                  ? movimento.createdAt
                   : data.toLocaleString("pt-BR", {
                       timeZone: "America/Fortaleza",
                       day: "2-digit",
@@ -623,21 +816,25 @@ export default async function FinanceiroPage({
 
                 return (
                   <article
-                    key={pagamento.id}
+                    key={movimento.key}
                     className="card-premium rounded-[24px] p-5"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#b07a12]">
+                        <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#b07a12]">
+                          {movimento.origem}
+                        </p>
+
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
                           {formaLabel}
                         </p>
 
                         <h3 className="mt-1 text-[18px] font-black text-emerald-700">
-                          {formatMoney(Number(pagamento.valor ?? 0))}
+                          {formatMoney(movimento.valor)}
                         </h3>
 
                         <p className="mt-1 text-[12px] font-bold text-slate-600">
-                          {cliente?.nome ?? "Cliente"}
+                          {movimento.clienteNome}
                         </p>
                       </div>
 
@@ -650,7 +847,7 @@ export default async function FinanceiroPage({
                       <MiniMetric
                         label="Recebido por"
                         value={
-                          usuariosMap.get(String(pagamento.recebido_por)) ??
+                          usuariosMap.get(movimento.recebidoPor) ??
                           "Sistema"
                         }
                       />
@@ -661,18 +858,18 @@ export default async function FinanceiroPage({
                       />
                     </div>
 
-                    {pagamento.observacao ? (
+                    {movimento.observacao ? (
                       <p className="mt-4 rounded-[14px] bg-slate-50 px-4 py-3 text-[11px] leading-5 text-slate-500">
-                        {pagamento.observacao}
+                        {movimento.observacao}
                       </p>
                     ) : null}
                   </article>
                 );
               })}
-            </div>
-          )}
+            </div>          )}
         </section>
       </div>
     </main>
   );
 }
+

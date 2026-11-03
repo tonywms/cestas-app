@@ -1,4 +1,6 @@
-export const instant = false;
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
+﻿export const instant = false;
 
 import {
   Activity,
@@ -63,7 +65,7 @@ function entidadeLegivel(entidade: string) {
     USUARIO: "Usuários",
   };
 
-  return mapa[entidade] ?? entidade.replaceAll("_", " ");
+  return mapa[entidade] ?? rotuloTecnico(entidade);
 }
 
 function acaoLegivel(acao: string) {
@@ -83,10 +85,7 @@ function acaoLegivel(acao: string) {
     EMPRESA_ATUALIZADA: "Configuração da empresa atualizada",
   };
 
-  return mapa[acao] ?? acao.replaceAll("_", " ").toLowerCase().replace(
-    /^./,
-    (letra) => letra.toUpperCase(),
-  );
+  return mapa[acao] ?? rotuloTecnico(acao);
 }
 
 function resumoEvento(
@@ -218,9 +217,7 @@ function detalhesEvento(
           continue;
         }
 
-        const legivel = chave
-          .replaceAll("_", " ")
-          .replace(/^./, (letra) => letra.toUpperCase());
+        const legivel = rotuloTecnico(chave);
 
         push(legivel, valor);
       }
@@ -372,7 +369,7 @@ export default async function RelatorioAuditoriaPage({
 
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1240px]">
+      <div className="mx-auto w-full">
         <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
           <div className="flex items-center gap-4">
             <Link
@@ -647,3 +644,4 @@ function Resumo({
     </div>
   );
 }
+

@@ -1,4 +1,6 @@
-export const instant = false;
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
+﻿export const instant = false;
 
 import {
   ArrowLeft,
@@ -71,7 +73,7 @@ function rotuloMovimento(tipo: string) {
     AVARIA_CARGA: "Avaria",
   };
 
-  return mapa[tipo] ?? tipo.replaceAll("_", " ");
+  return mapa[tipo] ?? rotuloTecnico(tipo);
 }
 
 function sinalMovimento(tipo: string) {
@@ -267,7 +269,7 @@ export default async function RelatorioEstoquePage({
 
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1240px]">
+      <div className="mx-auto w-full">
         <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
           <div className="flex items-center gap-4">
             <Link
@@ -542,7 +544,7 @@ export default async function RelatorioEstoquePage({
                       </td>
                       <td className="px-4 py-4">
                         <p className="text-[9px] font-black">
-                          {item.carga_id ? `Carga #${item.carga_id}` : "—"}
+                          {item.carga_id ? `Carga nº ${item.carga_id}` : "—"}
                         </p>
                         <p className="mt-1 text-[8px] text-slate-400">{item.referencia ?? "—"}</p>
                       </td>
@@ -644,3 +646,4 @@ function ResumoCard({
     </div>
   );
 }
+

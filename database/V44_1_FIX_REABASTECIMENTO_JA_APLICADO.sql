@@ -1,0 +1,19 @@
+-- CESTAS APP - V44.1
+-- FIX REABASTECIMENTO + TRATAMENTO DE ERROS
+--
+-- Migration remota já aplicada:
+--   v44_fix_reabastecimento_carga_id_ambiguo
+--
+-- Correção banco:
+-- - substitui ON CONFLICT (carga_id, tipo_cesta_id) por
+--   ON CONFLICT ON CONSTRAINT carga_itens_carga_tipo_unique
+-- - elimina a ambiguidade causada pelo nome de saída carga_id do RETURNS TABLE
+-- - não altera dados existentes
+--
+-- Correção aplicação:
+-- - mensagens técnicas nunca são mostradas ao usuário
+-- - detalhes continuam no console do servidor para diagnóstico
+-- - erros operacionais recebem mensagem simples
+-- - quando existir ação corretiva, o modal oferece um botão para a tela certa
+--
+-- NÃO EXECUTAR SQL MANUALMENTE.

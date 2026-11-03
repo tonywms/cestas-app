@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import {
   AlertTriangle,
@@ -801,7 +801,7 @@ export default async function DetalheRotaPage({
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
 
-      <div className="mx-auto max-w-[1120px]">
+      <div className="mx-auto w-full">
 
         {/* =========================================
             HEADER
@@ -1686,3 +1686,4 @@ function Info({
     </div>
   );
 }
+

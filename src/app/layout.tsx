@@ -10,7 +10,7 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "Cestas APP",
-  description: "GestÃ£o inteligente de cestas, entregas, clientes e recebimentos.",
+  description: "Gestão inteligente de cestas, entregas, clientes e recebimentos.",
 };
 
 export const viewport: Viewport = {

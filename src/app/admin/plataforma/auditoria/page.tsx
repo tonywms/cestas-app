@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import {
   Activity,
@@ -220,7 +220,7 @@ export default async function PlataformaAuditoriaPage() {
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Plataforma"
           title="Auditoria administrativa"
@@ -469,3 +469,4 @@ function Info({
     </div>
   );
 }
+

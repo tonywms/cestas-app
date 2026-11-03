@@ -1,5 +1,8 @@
 export const instant = false;
 
+// V64_RECEBIMENTO_IDEMPOTENTE
+import { randomUUID } from "node:crypto";
+
 import {
   AlertTriangle,
   ArrowLeft,
@@ -36,11 +39,18 @@ import {
 } from "@/lib/supabase/server";
 
 import RecebimentoForm from "./RecebimentoForm";
+import ConcluirCobrancaSemSaldo from "./ConcluirCobrancaSemSaldo";
 
 type PageProps = {
   params:
     Promise<{
       clienteId:
+        string;
+    }>;
+
+  searchParams:
+    Promise<{
+      rotaClienteId?:
         string;
     }>;
 };
@@ -57,6 +67,16 @@ function moeda(
         "BRL",
     },
   ).format(valor);
+}
+
+function dataBR(valor: string) {
+  const [ano, mes, dia] = valor.split("-");
+
+  if (!ano || !mes || !dia) {
+    return valor;
+  }
+
+  return `${dia}/${mes}/${ano}`;
 }
 
 function hojeFortaleza() {
@@ -77,6 +97,7 @@ function hojeFortaleza() {
 
 export default async function ClienteRecebimentosPage({
   params,
+  searchParams,
 }: PageProps) {
   const usuario =
     await requirePermission(
@@ -101,6 +122,25 @@ export default async function ClienteRecebimentosPage({
     Number(
       clienteIdTexto,
     );
+
+  const paramsBusca =
+    await searchParams;
+
+  const rotaClienteIdNumero =
+    Number(
+      paramsBusca
+        .rotaClienteId ??
+        0,
+    );
+
+  const rotaClienteId =
+    Number.isInteger(
+      rotaClienteIdNumero,
+    ) &&
+    rotaClienteIdNumero >
+      0
+      ? rotaClienteIdNumero
+      : null;
 
   if (
     !Number.isInteger(
@@ -276,7 +316,9 @@ export default async function ClienteRecebimentosPage({
           )
           .select(`
             id,
-            codigo
+            codigo,
+            modalidade,
+            proxima_visita_sugerida
           `)
           .eq(
             "empresa_id",
@@ -296,13 +338,10 @@ export default async function ClienteRecebimentosPage({
         contratos ??
         []
       ).map(
-        (
-          contrato,
-        ) => [
+        (contrato) => [
           contrato.id,
-          contrato.codigo,
-        ],
-      ),
+          contrato,
+        ]),
     );
 
   const hoje =
@@ -375,8 +414,18 @@ export default async function ClienteRecebimentosPage({
           contratoCodigo:
             contratosMap.get(
               item.contrato_id,
-            ) ??
+            )?.codigo ??
             `Contrato ${item.contrato_id}`,
+
+          modalidade:
+            (contratosMap.get(
+              item.contrato_id,
+            )?.modalidade ?? "PARCELADO") as "PARCELADO" | "SALDO_ABERTO",
+
+          proximaVisita:
+            contratosMap.get(
+              item.contrato_id,
+            )?.proxima_visita_sugerida ?? null,
 
           vencimento:
             item.vencimento,
@@ -415,6 +464,18 @@ export default async function ClienteRecebimentosPage({
       (item) =>
         item.vencida,
     ).length;
+
+  const proximaVisitaFlexivel =
+    parcelas
+      .filter((item) =>
+        item.modalidade === "SALDO_ABERTO" &&
+        item.proximaVisita
+      )
+      .sort((a, b) =>
+        String(a.proximaVisita).localeCompare(
+          String(b.proximaVisita),
+        )
+      )[0]?.proximaVisita ?? null;
 
   const liberacao =
     liberacaoResult.data
@@ -691,6 +752,39 @@ export default async function ClienteRecebimentosPage({
 
           </div>
 
+          {proximaVisitaFlexivel && (
+            <div className="mb-4 rounded-[22px] border border-sky-100 bg-sky-50 p-4">
+              <div className="flex items-start gap-3">
+                <CalendarClock size={18} className="mt-0.5 text-sky-700" />
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-[0.16em] text-sky-600">
+                    Próxima visita sugerida
+                  </p>
+                  <p className="mt-1 text-[16px] font-black text-sky-900">
+                    {dataBR(proximaVisitaFlexivel)}
+                  </p>
+                  <p className="mt-1 text-[9px] leading-4 text-sky-700/70">
+                    Cobrança flexível baseada no último recebimento e na frequência mensal.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {rotaClienteId && (
+            <div className="mb-4 rounded-[22px] border border-amber-200 bg-amber-50 p-4">
+
+              <p className="text-[8px] font-black uppercase tracking-[0.15em] text-amber-700">
+                Cobrança da rota
+              </p>
+
+              <p className="mt-1 text-[10px] leading-5 text-amber-800/75">
+                Ao confirmar o recebimento, esta parada será concluída automaticamente e você poderá continuar sua rota.
+              </p>
+
+            </div>
+          )}
+
           {parcelas.length >
           0 ? (
             <RecebimentoForm
@@ -699,6 +793,12 @@ export default async function ClienteRecebimentosPage({
               }
               parcelas={
                 parcelas
+              }
+              rotaClienteId={
+                rotaClienteId
+              }
+              chaveOperacaoInicial={
+                randomUUID()
               }
             />
           ) : (
@@ -716,6 +816,14 @@ export default async function ClienteRecebimentosPage({
               <p className="mt-2 text-[10px] leading-5 text-slate-400">
                 Todos os compromissos financeiros disponíveis estão quitados.
               </p>
+
+              {/* V66_COBRANCA_SEM_SALDO_PAGE */}
+              {rotaClienteId && (
+                <ConcluirCobrancaSemSaldo
+                  rotaClienteId={rotaClienteId}
+                  clienteNome={cliente.nome}
+                />
+              )}
 
             </div>
           )}

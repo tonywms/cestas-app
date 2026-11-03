@@ -1,0 +1,28 @@
+-- CESTAS APP - V48
+-- AGENDA INTELIGENTE DE COBRANCAS / ROTA MOBILE
+--
+-- MIGRATIONS JA APLICADAS NO SUPABASE:
+--   v48_agenda_cobrancas_rota_mobile
+--   v48_lockdown_legacy_mobile_route_rpcs
+--
+-- FUNCOES:
+--   public.mobile_adicionar_cobranca_rota_propria(uuid,bigint)
+--   public.registrar_recebimento_cliente_rota(uuid,bigint,numeric,text,text,bigint)
+--
+-- REGRAS:
+-- - cliente pode ser adicionado a rota como COBRANCA;
+-- - observacao da parada recebe marcador [COBRANCA];
+-- - rota de cobranca pode existir mesmo sem carga ativa;
+-- - se ja houver rota ativa, a cobranca entra nela;
+-- - pagamento + conclusao da parada de cobranca sao atomicos;
+-- - parada so fica processada se o recebimento for confirmado;
+-- - anon nao possui EXECUTE nas novas RPCs;
+-- - RPCs antigas de iniciar/adicionar/finalizar rota tambem tiveram anon revogado;
+-- - authenticated autorizado continua com EXECUTE;
+-- - validacoes internas de empresa/permissao/auth.uid() permanecem.
+--
+-- O advisor de seguranca deixou de apontar execucao anonima nas RPCs de rota.
+-- Permanecem avisos de SECURITY DEFINER para authenticated, intencionais porque
+-- essas funcoes sao endpoints autenticados com autorizacao interna.
+--
+-- NAO EXECUTAR ESTE ARQUIVO MANUALMENTE.

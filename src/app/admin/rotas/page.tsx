@@ -1,4 +1,6 @@
-export const instant = false;
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
+﻿export const instant = false;
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -235,7 +237,7 @@ export default async function RotasPage({
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Logística"
           title="Rotas"
@@ -409,7 +411,7 @@ export default async function RotasPage({
                       </div>
 
                       <StatusBadge tone={tone}>
-                        {String(rota.status).replaceAll("_", " ")}
+                        {rotuloTecnico(String(rota.status))}
                       </StatusBadge>
                     </div>
 

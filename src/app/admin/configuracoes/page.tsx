@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import Link from "next/link";
 
@@ -59,7 +59,7 @@ export default async function ConfiguracoesEmpresaPage() {
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1100px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Empresa"
           title="Configurações operacionais"
@@ -282,3 +282,4 @@ function Atalho({
     </Link>
   );
 }
+

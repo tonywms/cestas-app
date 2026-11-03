@@ -1,0 +1,32 @@
+-- CESTAS APP - V41 - VENDA ANTES DA BIPAGEM / FLUXO RECUPERAVEL
+--
+-- MIGRACOES JA APLICADAS NO SUPABASE:
+--   v41_fluxo_venda_antes_entrega_resumivel
+--   v41_ajusta_forma_sem_entrada
+--
+-- PRINCIPIO:
+-- 1) vendedor informa cesta, quantidade, valor/forma/modalidade;
+-- 2) sistema salva uma pendencia recuperavel;
+-- 3) so depois ocorre bipagem/confirmacao fisica;
+-- 4) entrega + estoque + venda + financeiro sao gravados na MESMA transacao;
+-- 5) se a transacao falhar, nada e baixado/lancado;
+-- 6) se o servidor concluir e o celular perder a resposta, a RPC e idempotente e nao duplica.
+--
+-- TABELA:
+--   public.venda_fluxos_campo
+--
+-- STATUS:
+--   AGUARDANDO_ENTREGA
+--   CONCLUIDO
+--   CANCELADO
+--
+-- SEGURANCA:
+-- - RLS habilitada
+-- - anon sem SELECT
+-- - wrappers publicos SECURITY INVOKER
+-- - anon sem EXECUTE
+-- - authenticated com EXECUTE
+--
+-- IMPORTANTE:
+-- NAO EXECUTAR ESTE ARQUIVO MANUALMENTE.
+-- Ele e somente registro de governanca da alteracao ja aplicada.

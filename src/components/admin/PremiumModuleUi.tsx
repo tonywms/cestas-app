@@ -23,7 +23,7 @@ export function ModuleHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white bg-white/80 px-5 py-4 shadow-[0_0_0_1px_rgba(17,63,33,0.05),0_22px_44px_-28px_rgba(12,77,39,0.35)] backdrop-blur-xl">
+    <header className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white bg-white/95 px-4 py-3 shadow-[0_0_0_1px_rgba(17,63,33,0.04),0_12px_28px_-22px_rgba(12,77,39,0.28)] md:px-5">
       <div className="flex items-center gap-4">
         <Link
           href={backHref}
@@ -92,28 +92,28 @@ export function Hero({
 }) {
   return (
     <section
-      className="relative mt-6 overflow-hidden rounded-[36px] px-6 py-8 text-white shadow-[0_1px_0_rgba(255,255,255,0.25)_inset,0_36px_70px_-30px_rgba(7,51,26,0.75)] md:px-9 md:py-10"
+      className="relative mt-4 overflow-hidden rounded-[28px] px-5 py-5 text-white shadow-[0_1px_0_rgba(255,255,255,0.18)_inset,0_20px_42px_-28px_rgba(7,51,26,0.62)] md:px-6 md:py-6"
       style={{
         backgroundImage:
           "radial-gradient(110% 140% at 100% 0%, rgba(244,177,63,0.24), transparent 46%), radial-gradient(90% 120% at 0% 110%, rgba(63,191,120,0.30), transparent 56%), linear-gradient(135deg, #1d7a43 0%, #0f5a30 48%, #07331a 100%)",
       }}
     >
-      <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full border-[44px] border-white/[0.045]" />
-      <div className="pointer-events-none absolute -bottom-24 right-[28%] h-44 w-44 rounded-full bg-[#f4b13f]/[0.07] blur-2xl" />
+      <div className="pointer-events-none absolute -right-14 -top-16 h-52 w-52 rounded-full border-[32px] border-white/[0.04]" />
+      <div className="pointer-events-none absolute -bottom-16 right-[28%] h-32 w-32 rounded-full bg-[#f4b13f]/[0.06]" />
 
       <div className="relative z-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-[720px]">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.26em] text-[#bfe9cc]">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#bfe9cc]">
               {eyebrow}
             </p>
 
-            <h2 className="mt-3 text-[34px] font-extrabold leading-[1.02] tracking-[-0.05em] md:text-[42px]">
+            <h2 className="mt-2 text-[28px] font-extrabold leading-[1.04] tracking-[-0.045em] md:text-[32px]">
               {title}
               <span className="text-[#f7c35f]">.</span>
             </h2>
 
-            <p className="mt-3 text-[14px] font-medium leading-6 text-white/75">
+            <p className="mt-2 text-[13px] font-medium leading-5 text-white/75">
               {description}
             </p>
           </div>
@@ -121,7 +121,7 @@ export function Hero({
           {badge}
         </div>
 
-        {children ? <div className="mt-8">{children}</div> : null}
+        {children ? <div className="mt-5">{children}</div> : null}
       </div>
     </section>
   );
@@ -129,7 +129,7 @@ export function Hero({
 
 export function KpiGrid({ children }: { children: ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{children}</div>
+    <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-none xl:grid-flow-col xl:auto-cols-fr">{children}</div>
   );
 }
 
@@ -150,7 +150,7 @@ export function Kpi({
 
   return (
     <div
-      className={`rounded-[22px] border px-4 py-4 backdrop-blur-xl md:px-5 ${
+      className={`rounded-[18px] border px-4 py-3 ${
         destaque
           ? "border-[#f4b13f]/40 bg-[#f4b13f]/[0.13]"
           : "border-white/15 bg-white/[0.09]"
@@ -168,7 +168,7 @@ export function Kpi({
       </div>
 
       <p
-        className={`mt-3 text-[32px] font-extrabold leading-none tracking-[-0.03em] tabular-nums ${
+        className={`mt-2 text-[26px] font-extrabold leading-none tracking-[-0.03em] tabular-nums ${
           destaque ? "text-[#ffd98a]" : "text-white"
         }`}
       >
@@ -260,11 +260,11 @@ export function SmartFilters({
   chips?: ReactNode;
 }) {
   return (
-    <section className="mt-6 overflow-hidden rounded-[30px] border border-white bg-white shadow-[0_0_0_1px_rgba(17,63,33,0.05),0_22px_44px_-28px_rgba(12,77,39,0.32)]">
+    <section className="mt-4 overflow-hidden rounded-[24px] border border-white bg-white shadow-[0_0_0_1px_rgba(17,63,33,0.04),0_14px_30px_-24px_rgba(12,77,39,0.25)]">
       {/* Cabeçalho */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-5 md:px-7">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 md:px-6">
         <div className="flex items-center gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(145deg,#2a9d5c,#0f5a30)] text-white shadow-[0_1px_0_rgba(255,255,255,0.3)_inset,0_12px_22px_-10px_rgba(12,77,39,0.65)]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[linear-gradient(145deg,#2a9d5c,#0f5a30)] text-white shadow-[0_1px_0_rgba(255,255,255,0.3)_inset,0_8px_16px_-10px_rgba(12,77,39,0.55)]">
             <SlidersHorizontal size={21} />
           </span>
 
@@ -301,7 +301,7 @@ export function SmartFilters({
 
       {/* Atalhos rápidos */}
       {quick ? (
-        <div className="space-y-5 border-t border-[#eef2ee] px-5 py-6 md:px-7">
+        <div className="space-y-4 border-t border-[#eef2ee] px-5 py-4 md:px-6">
           {quick}
         </div>
       ) : null}
@@ -309,7 +309,7 @@ export function SmartFilters({
       {/* Filtros avançados */}
       {children ? (
         <details className="group border-t border-[#eef2ee] bg-[#fbfdfb]">
-          <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-3 px-5 py-4 md:px-7 [&::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-3 px-5 py-3.5 md:px-6 [&::-webkit-details-marker]:hidden">
             <span className="text-[14px] font-extrabold text-[#14743d]">
               Filtros avançados
               <span className="ml-2 font-semibold text-[#6b786c]">

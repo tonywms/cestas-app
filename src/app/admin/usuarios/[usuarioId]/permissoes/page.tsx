@@ -1,4 +1,5 @@
-export const instant = false;
+/* V71_2_ROTULOS_PERMISSOES_PREMIUM */
+﻿export const instant = false;
 
 import {
   KeyRound,
@@ -39,6 +40,8 @@ const PROIBIDAS =
     PERMISSOES.EMPRESA_CONFIGURAR,
     PERMISSOES.PERMISSOES_GERENCIAR,
     PERMISSOES.USUARIOS_GERENCIAR,
+    PERMISSOES.FINANCEIRO_AUDITAR,
+    PERMISSOES.FINANCEIRO_ESTORNAR,
   ]);
 
 export default async function PermissoesUsuarioPage({
@@ -371,7 +374,7 @@ export default async function PermissoesUsuarioPage({
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1080px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Segurança"
           title="Permissão individual"
@@ -496,3 +499,4 @@ export default async function PermissoesUsuarioPage({
     </main>
   );
 }
+

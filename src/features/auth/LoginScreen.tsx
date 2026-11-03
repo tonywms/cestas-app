@@ -56,18 +56,31 @@ export default function LoginScreen({ onBack }: LoginScreenProps) {
       });
 
       if (error) {
-        console.error("Erro Supabase Auth:", error);
+        // V60_1_AUTH_FEEDBACK
+        // Erros esperados de autenticação são feedback de formulário, não falhas de console.
+        // Isso evita o overlay do Next/Turbopack para uma simples senha digitada incorretamente.
+        const authMessage = error.message.toLowerCase();
 
-        if (error.message.toLowerCase().includes("invalid login credentials")) {
+        if (authMessage.includes("invalid login credentials")) {
           setErro("E-mail ou senha inválidos.");
           return;
         }
 
-        if (error.message.toLowerCase().includes("email not confirmed")) {
+        if (authMessage.includes("email not confirmed")) {
           setErro("Seu e-mail ainda não foi confirmado.");
           return;
         }
 
+        if (
+          authMessage.includes("too many requests") ||
+          authMessage.includes("rate limit")
+        ) {
+          setErro("Muitas tentativas de acesso. Aguarde um instante e tente novamente.");
+          return;
+        }
+
+        // Somente falhas inesperadas permanecem no console para diagnóstico técnico.
+        console.error("Erro inesperado do Supabase Auth:", error);
         setErro("Não foi possível realizar o login. Tente novamente.");
         return;
       }

@@ -1,5 +1,7 @@
 "use client";
 
+/* V71_2_ROTULOS_PERMISSOES_PREMIUM */
+
 import {
   CheckCircle2,
   Minus,
@@ -17,6 +19,20 @@ import {
 import {
   salvarPermissoesUsuario,
 } from "./actions";
+
+function rotuloModuloPremium(valor: string) {
+  const limpo = valor
+    .trim()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("pt-BR");
+
+  return limpo.replace(
+    /(^|\s)([a-záàâãéèêíïóôõöúç])/g,
+    (_, espaco, letra) =>
+      espaco + letra.toLocaleUpperCase("pt-BR"),
+  );
+}
 
 const initialState = {
   success: false,
@@ -163,9 +179,7 @@ export default function PermissoesUsuarioForm({
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#18834a]">
-                      {
-                        permissao.modulo
-                      }
+                      {rotuloModuloPremium(permissao.modulo)}
                     </p>
 
                     <h3 className="mt-1 text-[13px] font-black">
@@ -173,12 +187,6 @@ export default function PermissoesUsuarioForm({
                         permissao.nome
                       }
                     </h3>
-
-                    <p className="mt-1 text-[9px] font-bold text-slate-400">
-                      {
-                        permissao.codigo
-                      }
-                    </p>
                   </div>
 
                   <div

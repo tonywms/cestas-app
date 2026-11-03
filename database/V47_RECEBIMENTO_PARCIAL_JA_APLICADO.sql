@@ -1,0 +1,26 @@
+-- CESTAS APP - V47
+-- RECEBIMENTO PARCIAL / COBRANCA NO MOBILE
+--
+-- Migration JA APLICADA no Supabase:
+--   v47_recebimento_cliente_distribuicao_automatica
+--
+-- Estrutura criada:
+--   public.recebimentos_cliente
+--   public.pagamentos.recebimento_id
+--
+-- RPC criada:
+--   public.registrar_recebimento_cliente(...)
+--
+-- Regra:
+-- - entregador informa um unico valor recebido do cliente;
+-- - o banco aplica o valor nas cobrancas mais antigas;
+-- - pode quitar uma parcela e continuar na proxima na mesma operacao;
+-- - tudo ocorre em uma unica transacao;
+-- - cada recebimento possui cabecalho proprio para auditoria/comprovante;
+-- - pagamentos continuam detalhados por parcela;
+-- - SALDO_ABERTO move a proxima visita automaticamente quando permanece saldo;
+-- - RLS habilitada;
+-- - anon sem EXECUTE;
+-- - authenticated autorizado com EXECUTE.
+--
+-- NAO EXECUTAR MANUALMENTE.

@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import {
   ArrowLeft,
@@ -94,6 +94,56 @@ function moeda(valor: number) {
 function numero(valor: unknown) {
   const convertido = Number(valor ?? 0);
   return Number.isFinite(convertido) ? convertido : 0;
+}
+
+// V75_7_FECHAMENTO_CONSISTENTE_LISTA
+type FechamentoSalvo = {
+  id: number;
+  entregador_id: string;
+  status: string;
+  diferenca_total: number | null;
+  conferido_at: string | null;
+  bloqueado: boolean;
+  quantidade_carregada: number | null;
+  quantidade_entregue: number | null;
+  quantidade_retornada: number | null;
+  quantidade_avariada: number | null;
+  saldo_carga: number | null;
+  venda_total: number | null;
+  crediario_prazo: number | null;
+  recebido_esperado: number | null;
+  dinheiro_esperado: number | null;
+  pix_esperado: number | null;
+  cartao_esperado: number | null;
+  transferencia_esperada: number | null;
+  outro_esperado: number | null;
+};
+
+function quaseIgual(a: unknown, b: unknown) {
+  return Math.abs(numero(a) - numero(b)) < 0.01;
+}
+
+function fechamentoDesatualizado(
+  resumo: ResumoEntregador,
+  fechamento?: FechamentoSalvo | null,
+) {
+  if (!fechamento || fechamento.bloqueado === false) return false;
+
+  return !(
+    quaseIgual(fechamento.quantidade_carregada, resumo.carregado) &&
+    quaseIgual(fechamento.quantidade_entregue, resumo.entregueCarga) &&
+    quaseIgual(fechamento.quantidade_retornada, resumo.retornado) &&
+    quaseIgual(fechamento.quantidade_avariada, resumo.avariado) &&
+    quaseIgual(fechamento.saldo_carga, resumo.saldoCarga) &&
+    quaseIgual(fechamento.venda_total, resumo.vendaTotal) &&
+    quaseIgual(fechamento.crediario_prazo, resumo.crediarioPrazo) &&
+    quaseIgual(fechamento.recebido_esperado, resumo.recebido) &&
+    quaseIgual(fechamento.dinheiro_esperado, resumo.dinheiro) &&
+    quaseIgual(fechamento.pix_esperado, resumo.pix) &&
+    quaseIgual(fechamento.cartao_esperado, resumo.cartao) &&
+    quaseIgual(fechamento.transferencia_esperada, resumo.transferencia) &&
+    quaseIgual(fechamento.outro_esperado, resumo.outro)
+  );
 }
 
 function somarForma(
@@ -416,25 +466,18 @@ export default async function FechamentoDiarioPage({
       ? await supabase
           .from("fechamentos_entregador")
           .select(
-            "id, entregador_id, status, diferenca_total, conferido_at, bloqueado",
+            "id, entregador_id, status, diferenca_total, conferido_at, bloqueado, quantidade_carregada, quantidade_entregue, quantidade_retornada, quantidade_avariada, saldo_carga, venda_total, crediario_prazo, recebido_esperado, dinheiro_esperado, pix_esperado, cartao_esperado, transferencia_esperada, outro_esperado",
           )
           .eq("empresa_id", usuario.empresa.id)
           .eq("data_inicio", dataInicio)
           .eq("data_fim", dataFim)
           .in("entregador_id", idsNoResumo)
       : {
-          data: [] as Array<{
-            id: number;
-            entregador_id: string;
-            status: string;
-            diferenca_total: number | null;
-            conferido_at: string | null;
-            bloqueado: boolean;
-          }>,
+          data: [] as FechamentoSalvo[],
         };
 
-  const fechamentoMap = new Map(
-    (fechamentosResult.data ?? []).map((item) => [
+  const fechamentoMap = new Map<string, FechamentoSalvo>(
+    ((fechamentosResult.data ?? []) as FechamentoSalvo[]).map((item) => [
       String(item.entregador_id),
       item,
     ]),
@@ -503,17 +546,20 @@ export default async function FechamentoDiarioPage({
     cartao: moeda(item.cartao),
     transferencia: moeda(item.transferencia),
     outro: moeda(item.outro),
-    prestacao:
-      fechamentoMap.get(item.id)?.status === "CONFERIDO"
-        ? "Conferido"
-        : fechamentoMap.get(item.id)?.status === "COM_DIVERGENCIA"
-          ? "Com divergência"
-          : "Pendente",
+    prestacao: (() => {
+      const fechamento = fechamentoMap.get(item.id);
+      if (!fechamento) return "Pendente";
+      if (fechamento.bloqueado === false) return "Reaberto";
+      if (fechamentoDesatualizado(item, fechamento)) return "Revisão necessária";
+      if (fechamento.status === "CONFERIDO") return "Conferido";
+      if (fechamento.status === "COM_DIVERGENCIA") return "Com divergência";
+      return "Pendente";
+    })(),
   }));
 
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1280px]">
+      <div className="mx-auto w-full">
         <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
           <div className="flex items-center gap-4">
             <Link
@@ -842,6 +888,14 @@ export default async function FechamentoDiarioPage({
                             );
                           }
 
+                          if (fechamentoDesatualizado(item, fechamento)) {
+                            return (
+                              <span className="inline-flex h-9 w-[112px] items-center justify-center rounded-[12px] bg-amber-100 px-3 text-center text-[7px] font-black uppercase text-amber-800">
+                                Revisão necessária
+                              </span>
+                            );
+                          }
+
                           if (fechamento.status === "CONFERIDO") {
                             return (
                               <span className="inline-flex h-9 w-[96px] items-center justify-center rounded-[12px] bg-emerald-100 px-3 text-center text-[7px] font-black uppercase text-emerald-700">
@@ -866,7 +920,12 @@ export default async function FechamentoDiarioPage({
                             ? "Conferir"
                             : fechamentoMap.get(item.id)?.bloqueado === false
                               ? "Continuar"
-                              : "Abrir"}
+                              : fechamentoDesatualizado(
+                                    item,
+                                    fechamentoMap.get(item.id),
+                                  )
+                                ? "Revisar"
+                                : "Abrir"}
                         </Link>
                       </td>
                     </tr>
@@ -1006,3 +1065,4 @@ function Forma({
     </div>
   );
 }
+

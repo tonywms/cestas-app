@@ -1,0 +1,20 @@
+-- CESTAS APP - V62
+-- DEVOLUCAO DE CARGA SEM JORNADA - JA APLICADA NO SUPABASE
+-- Projeto: pwnaldrxjnyovlhudxan
+-- Migration remota: v62_devolucao_carga_sem_jornada
+-- Data: 2026-11-02
+--
+-- Regra aplicada:
+-- - somente a propria carga do entregador;
+-- - exige CARGA_RETORNAR ou CARGA_GERENCIAR;
+-- - somente carga ABERTA;
+-- - motivo obrigatorio (8 a 500 caracteres);
+-- - bloqueia rota PLANEJADA/EM_ROTA;
+-- - bloqueia carga ja vinculada a qualquer rota;
+-- - bloqueia entregas/movimentacoes anteriores;
+-- - retorna todo saldo ao estoque central;
+-- - em modo VOLUME, EM_CARGA -> CANCELADO;
+-- - carga -> CANCELADA;
+-- - auditoria: CARGA_DEVOLVIDA_SEM_JORNADA;
+-- - RPC publica: public.devolver_carga_sem_jornada(uuid,bigint,text);
+-- - EXECUTE apenas para authenticated; anon/public revogados.

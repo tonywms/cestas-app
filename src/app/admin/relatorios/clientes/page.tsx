@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import {
   ArrowLeft,
@@ -250,7 +250,7 @@ export default async function RelatorioClientesPage({ searchParams }: PageProps)
 
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1240px]">
+      <div className="mx-auto w-full">
         <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
           <div className="flex items-center gap-4">
             <Link
@@ -478,3 +478,4 @@ function Resumo({
     </div>
   );
 }
+

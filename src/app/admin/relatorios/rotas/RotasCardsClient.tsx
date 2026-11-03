@@ -1,5 +1,7 @@
 "use client";
 
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
 import {
   CheckCircle2,
   ChevronDown,
@@ -210,7 +212,7 @@ export default function RotasCardsClient({ rotas }: { rotas: RotaCardItem[] }) {
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="truncate text-[9px] font-black">{cliente.cliente}</p>
                               <span className={`rounded-full px-2 py-1 text-[6px] font-black uppercase ${classeParada(cliente.status)}`}>
-                                {cliente.status.replaceAll("_", " ")}
+                                {rotuloTecnico(cliente.status)}
                               </span>
                             </div>
 

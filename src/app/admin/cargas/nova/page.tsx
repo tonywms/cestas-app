@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import {
   ArrowLeft,
@@ -53,6 +53,7 @@ export default async function NovaCargaPage() {
     entregadoresResult,
     tiposResult,
     saldosResult,
+    cargasAtivasResult,
   ] =
     await Promise.all([
       supabase
@@ -116,7 +117,67 @@ export default async function NovaCargaPage() {
           "empresa_id",
           usuario.empresa.id,
         ),
+
+      supabase
+        .from(
+          "cargas",
+        )
+        .select(`
+          id,
+          codigo,
+          entregador_id,
+          status
+        `)
+        .eq(
+          "empresa_id",
+          usuario.empresa.id,
+        )
+        .in(
+          "status",
+          [
+            "ABERTA",
+            "EM_ROTA",
+          ],
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          },
+        ),
     ]);
+
+  const cargasAtivasMap =
+    new Map(
+      (
+        cargasAtivasResult.data ??
+        []
+      ).map(
+        (
+          carga,
+        ) => [
+          String(
+            carga.entregador_id,
+          ),
+          {
+            id:
+              Number(
+                carga.id,
+              ),
+
+            codigo:
+              String(
+                carga.codigo,
+              ),
+
+            status:
+              String(
+                carga.status,
+              ),
+          },
+        ],
+      ),
+    );
 
   const entregadores =
     (
@@ -137,9 +198,7 @@ export default async function NovaCargaPage() {
               ? raw[0]
               : raw;
 
-          if (
-            !colaborador
-          ) {
+          if (!colaborador) {
             return null;
           }
 
@@ -152,6 +211,14 @@ export default async function NovaCargaPage() {
 
             email:
               colaborador.email,
+
+            cargaAtiva:
+              cargasAtivasMap.get(
+                String(
+                  colaborador.id,
+                ),
+              ) ??
+              null,
           };
         },
       )
@@ -162,6 +229,11 @@ export default async function NovaCargaPage() {
           id: string;
           nome: string;
           email: string | null;
+          cargaAtiva: {
+            id: number;
+            codigo: string;
+            status: string;
+          } | null;
         } =>
           item !==
           null,
@@ -216,7 +288,7 @@ export default async function NovaCargaPage() {
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
 
-      <div className="mx-auto max-w-[940px]">
+      <div className="mx-auto w-full">
 
         <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
 
@@ -278,7 +350,7 @@ export default async function NovaCargaPage() {
             </h2>
 
             <p className="mt-3 max-w-2xl text-[11px] leading-6 text-white/65">
-              A carga passa a retirar saldo real do estoque central. Se não existir quantidade suficiente, o banco bloqueia a operação.
+              Se o entregador já possuir uma carga ativa, o sistema adiciona o novo saldo à mesma carga. Caso contrário, cria uma nova carga.
             </p>
 
             <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-[9px] font-black">
@@ -311,3 +383,4 @@ export default async function NovaCargaPage() {
     </main>
   );
 }
+

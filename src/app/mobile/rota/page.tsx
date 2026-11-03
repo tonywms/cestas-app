@@ -1,3 +1,5 @@
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
 export const instant = false;
 
 import {
@@ -15,6 +17,7 @@ import {
   Route,
   Sparkles,
   Square,
+  WalletCards,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -36,6 +39,10 @@ import {
   encerrarMinhaRota,
   iniciarMinhaRota,
 } from "./actions";
+
+import ItinerarioRota, {
+  type ItinerarioRotaItem,
+} from "./ItinerarioRota";
 
 /* =========================================================
    DATA LOCAL
@@ -92,15 +99,7 @@ function rotuloStatus(
     CANCELADO: "Cancelado",
   };
 
-  return (
-    mapa[status] ??
-    status
-      .replaceAll("_", " ")
-      .toLowerCase()
-      .replace(/^\w/, (c) =>
-        c.toUpperCase(),
-      )
-  );
+  return mapa[status] ?? rotuloTecnico(status);
 }
 
 /* =========================================================
@@ -141,6 +140,16 @@ export default async function MinhaRotaPage({
     temPermissao(
       usuario.permissoes,
       PERMISSOES.ROTA_MOBILE_GERENCIAR_PROPRIA,
+    );
+
+  const podeRegistrarPagamento =
+    usuario.configuracao.permitirPagamentoMobile &&
+    (
+      usuario.isPlatformAdmin ||
+      temPermissao(
+        usuario.permissoes,
+        PERMISSOES.PAGAMENTO_REGISTRAR,
+      )
     );
 
   const supabase =
@@ -250,6 +259,34 @@ export default async function MinhaRotaPage({
   const rota =
     rotaAtiva;
 
+  /* V60_2_ROTA_CARGA_GATE
+   * A rota pode ser planejada antes da carga, mas o atendimento
+   * só é liberado depois que a carga ativa estiver pronta e a
+   * jornada tiver sido iniciada. O RPC mobile_iniciar_rota_propria
+   * vincula a carga à rota administrativa existente.
+   */
+  const rotaPlanejada =
+    rota?.status === "PLANEJADA";
+
+  const rotaEmOperacao =
+    rota?.status === "EM_ROTA";
+
+  const rotaAguardandoCarga =
+    !!rota &&
+    rotaPlanejada &&
+    !cargaAtiva;
+
+  const rotaAguardandoConferencia =
+    !!rota &&
+    rotaPlanejada &&
+    !!cargaAtiva &&
+    !cargaPronta;
+
+  const rotaProntaParaIniciar =
+    !!rota &&
+    rotaPlanejada &&
+    cargaPronta;
+
   /* SEM ROTA */
 
   if (!rota) {
@@ -311,12 +348,12 @@ export default async function MinhaRotaPage({
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#a8d8b7]">
                   Operação
                 </p>
-                <h1 className="mt-1 text-lg font-black tracking-[-0.03em]">
+                <h1 className="mt-0.5 text-[17px] font-black tracking-[-0.03em]">
                   Minha Rota
                 </h1>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/10">
+              <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/15 bg-white/10">
                 <Route size={19} />
               </div>
 
@@ -374,7 +411,7 @@ export default async function MinhaRotaPage({
                     </div>
 
                     <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[9px] font-black uppercase text-emerald-700">
-                      {cargaAtiva.status.replaceAll("_", " ")}
+                      {rotuloTecnico(cargaAtiva.status)}
                     </span>
                   </div>
                 </div>
@@ -558,23 +595,376 @@ export default async function MinhaRotaPage({
     ),
   );
 
+  /* VENDA OBRIGATÓRIA DA ROTA MOBILE */
+
+  const rotaClienteIds =
+    listaItens.map((item) =>
+      Number(item.id),
+    );
+
+  const fluxosPendentesResult =
+    rota.origem === "MOBILE" &&
+    rotaClienteIds.length > 0
+      ? await supabase
+          .from("venda_fluxos_campo")
+          .select(`
+            id,
+            rota_cliente_id,
+            status
+          `)
+          .eq(
+            "empresa_id",
+            usuario.empresa.id,
+          )
+          .eq(
+            "entregador_id",
+            usuario.id,
+          )
+          .eq(
+            "status",
+            "AGUARDANDO_ENTREGA",
+          )
+          .in(
+            "rota_cliente_id",
+            rotaClienteIds,
+          )
+      : {
+          data: [],
+          error: null,
+        };
+
+  if (fluxosPendentesResult.error) {
+    console.error(
+      "Erro ao consultar operações de venda pendentes:",
+      fluxosPendentesResult.error,
+    );
+  }
+
+  const fluxoPendentePorParada =
+    new Map(
+      (
+        fluxosPendentesResult.data ??
+        []
+      ).map(
+        (item) => [
+          Number(
+            item.rota_cliente_id,
+          ),
+          Number(
+            item.id,
+          ),
+        ],
+      ),
+    );
+
+  const entregasResult =
+    rota.origem === "MOBILE" &&
+    rotaClienteIds.length > 0
+      ? await supabase
+          .from("entregas")
+          .select(`
+            id,
+            rota_cliente_id,
+            status
+          `)
+          .eq(
+            "empresa_id",
+            usuario.empresa.id,
+          )
+          .eq(
+            "entregador_id",
+            usuario.id,
+          )
+          .eq(
+            "status",
+            "CONCLUIDA",
+          )
+          .in(
+            "rota_cliente_id",
+            rotaClienteIds,
+          )
+      : {
+          data: [],
+          error: null,
+        };
+
+  if (entregasResult.error) {
+    console.error(
+      "Erro ao consultar entregas da rota mobile:",
+      entregasResult.error,
+    );
+  }
+
+  const entregasRota =
+    entregasResult.data ?? [];
+
+  const entregaIds =
+    entregasRota.map((item) =>
+      Number(item.id),
+    );
+
+  const vendasResult =
+    entregaIds.length > 0
+      ? await supabase
+          .from("vendas")
+          .select(`
+            id,
+            entrega_id
+          `)
+          .eq(
+            "empresa_id",
+            usuario.empresa.id,
+          )
+          .in(
+            "entrega_id",
+            entregaIds,
+          )
+      : {
+          data: [],
+          error: null,
+        };
+
+  if (vendasResult.error) {
+    console.error(
+      "Erro ao consultar vendas da rota mobile:",
+      vendasResult.error,
+    );
+  }
+
+  const entregaPorParada = new Map(
+    entregasRota
+      .filter((item) =>
+        item.rota_cliente_id !== null,
+      )
+      .map((item) => [
+        Number(item.rota_cliente_id),
+        Number(item.id),
+      ]),
+  );
+
+  const entregasComVenda = new Set(
+    (vendasResult.data ?? []).map(
+      (item) =>
+        Number(item.entrega_id),
+    ),
+  );
+
+  const vendaPendenteParadaIds =
+    new Set(
+      listaItens
+        .filter((item) => {
+          if (
+            rota.origem !== "MOBILE" ||
+            item.status !== "ENTREGUE"
+          ) {
+            return false;
+          }
+
+          const entregaId =
+            entregaPorParada.get(
+              Number(item.id),
+            );
+
+          return (
+            !!entregaId &&
+            !entregasComVenda.has(
+              entregaId,
+            )
+          );
+        })
+        .map((item) =>
+          Number(item.id),
+        ),
+    );
+
+  const rotaMobile =
+    rota.origem ===
+    "MOBILE";
+
+  /* =========================================================
+     V49 - CHECKLIST DE ENCERRAMENTO
+     ---------------------------------------------------------
+     Consolida as pendências em uma lista operacional curta.
+     A ordem é intencional: operação já iniciada vem antes de
+     uma nova ação, evitando o entregador abandonar fluxo pela metade.
+  ========================================================= */
+
+  type PendenciaEncerramento = {
+    id: string;
+    cliente: string;
+    detalhe: string;
+    acao: string;
+    href: string;
+    tipo:
+      | "ENTREGA"
+      | "FINANCEIRO"
+      | "COBRANCA"
+      | "ATENDIMENTO";
+  };
+
+  const pendenciasEncerramento:
+    PendenciaEncerramento[] =
+    listaItens.flatMap<PendenciaEncerramento>(
+      (item):
+        PendenciaEncerramento[] => {
+        const cliente =
+          clientesMap.get(
+            item.cliente_id,
+          );
+
+        if (!cliente) {
+          return [];
+        }
+
+        const paradaId =
+          Number(item.id);
+
+        const fluxoPendenteId =
+          fluxoPendentePorParada.get(
+            paradaId,
+          ) ?? null;
+
+        const entregaId =
+          entregaPorParada.get(
+            paradaId,
+          ) ?? null;
+
+        const vendaPendente =
+          vendaPendenteParadaIds.has(
+            paradaId,
+          );
+
+        const cobrancaRota =
+          String(
+            item.observacao ??
+              "",
+          ).startsWith(
+            "[COBRANCA]",
+          );
+
+        if (
+          fluxoPendenteId !==
+          null
+        ) {
+          return [
+            {
+              id:
+                `fluxo-${paradaId}`,
+              cliente:
+                cliente.nome,
+              detalhe:
+                "Venda informada; falta bipar e concluir a entrega.",
+              acao:
+                "Finalizar entrega",
+              href:
+                `/mobile/vendas/finalizar?fluxoId=${fluxoPendenteId}`,
+              tipo:
+                "ENTREGA",
+            },
+          ];
+        }
+
+        if (
+          vendaPendente &&
+          entregaId
+        ) {
+          return [
+            {
+              id:
+                `financeiro-${paradaId}`,
+              cliente:
+                cliente.nome,
+              detalhe:
+                "A entrega existe, mas o financeiro ainda não foi concluído.",
+              acao:
+                "Informar pagamento",
+              href:
+                `/mobile/vendas/nova?entregaId=${entregaId}`,
+              tipo:
+                "FINANCEIRO",
+            },
+          ];
+        }
+
+        if (
+          item.status !==
+            "PENDENTE" &&
+          item.status !==
+            "EM_ATENDIMENTO"
+        ) {
+          return [];
+        }
+
+        if (cobrancaRota) {
+          return [
+            {
+              id:
+                `cobranca-${paradaId}`,
+              cliente:
+                cliente.nome,
+              detalhe:
+                "Cobrança adicionada à rota e ainda não recebida.",
+              acao:
+                "Receber cliente",
+              href:
+                `/mobile/recebimentos/${cliente.id}?rotaClienteId=${paradaId}`,
+              tipo:
+                "COBRANCA",
+            },
+          ];
+        }
+
+        return [
+          {
+            id:
+              `atendimento-${paradaId}`,
+            cliente:
+              cliente.nome,
+            detalhe:
+              rotaMobile
+                ? "Cliente ainda precisa ter venda/pagamento informado."
+                : "Cliente ainda precisa ser atendido ou ter ocorrência registrada.",
+            acao:
+              rotaMobile
+                ? "Atender cliente"
+                : "Abrir atendimento",
+            href:
+              rotaMobile
+                ? `/mobile/vendas/preparar?rotaClienteId=${paradaId}`
+                : `/mobile/entregas/nova?rotaClienteId=${paradaId}`,
+            tipo:
+              "ATENDIMENTO",
+          },
+        ];
+      },
+    );
+
+  const totalPendenciasEncerramento =
+    pendenciasEncerramento.length;
+
+  const pendenciasDestaque =
+    pendenciasEncerramento.slice(
+      0,
+      3,
+    );
+
   /* INDICADORES */
 
   const total =
     listaItens.length;
 
-  const entregues =
-    listaItens.filter(
-      (item) =>
-        item.status === "ENTREGUE",
-    ).length;
-
-  const pendentes =
+  const pendentesOperacionais =
     listaItens.filter(
       (item) =>
         item.status === "PENDENTE" ||
         item.status === "EM_ATENDIMENTO",
     ).length;
+
+  const vendasPendentes =
+    vendaPendenteParadaIds.size;
+
+  const pendentes =
+    totalPendenciasEncerramento;
 
   const processados =
     Math.max(
@@ -595,9 +985,272 @@ export default async function MinhaRotaPage({
   const finalizada =
     rota.status === "FINALIZADA";
 
-  const rotaMobile =
-    rota.origem ===
-    "MOBILE";
+  const vendaMobileBloqueada =
+    rotaMobile &&
+    !podeRegistrarPagamento;
+
+  /* =========================================================
+     V50 - ITINERÁRIO OPERACIONAL COMPACTO
+     ---------------------------------------------------------
+     Toda a regra continua no Server Component. O componente
+     cliente recebe somente dados já resolvidos e faz busca,
+     filtros e paginação instantaneamente, sem nova consulta.
+  ========================================================= */
+
+  const itensItinerario:
+    ItinerarioRotaItem[] =
+    listaItens.flatMap<ItinerarioRotaItem>(
+      (item): ItinerarioRotaItem[] => {
+        const cliente =
+          clientesMap.get(
+            item.cliente_id,
+          );
+
+        if (!cliente) {
+          return [];
+        }
+
+        const paradaId =
+          Number(item.id);
+
+        const entregaId =
+          entregaPorParada.get(
+            paradaId,
+          ) ?? null;
+
+        const vendaPendente =
+          vendaPendenteParadaIds.has(
+            paradaId,
+          );
+
+        const fluxoPendenteId =
+          fluxoPendentePorParada.get(
+            paradaId,
+          ) ?? null;
+
+        const aguardandoEntregaVenda =
+          fluxoPendenteId !==
+          null;
+
+        const cobrancaRota =
+          String(
+            item.observacao ??
+              "",
+          ).startsWith(
+            "[COBRANCA]",
+          );
+
+        const processado =
+          item.status !==
+            "PENDENTE" &&
+          item.status !==
+            "EM_ATENDIMENTO" &&
+          !vendaPendente &&
+          !aguardandoEntregaVenda;
+
+        const logradouroRota =
+          item.endereco_logradouro ??
+          cliente.logradouro;
+
+        const numeroRota =
+          item.endereco_numero ??
+          cliente.numero;
+
+        const bairroRota =
+          item.endereco_bairro ??
+          cliente.bairro;
+
+        const cidadeRota =
+          item.endereco_cidade ??
+          cliente.cidade;
+
+        const ufRota =
+          item.endereco_uf ??
+          cliente.uf;
+
+        const endereco =
+          [
+            logradouroRota,
+            numeroRota,
+          ]
+            .filter(Boolean)
+            .join(", ");
+
+        const enderecoCompleto =
+          `${
+            endereco ||
+            "Endereço não informado"
+          }${
+            bairroRota
+              ? ` - ${bairroRota}`
+              : ""
+          }`;
+
+        const queryMapa =
+          encodeURIComponent(
+            [
+              endereco,
+              bairroRota,
+              cidadeRota,
+              ufRota,
+            ]
+              .filter(Boolean)
+              .join(", "),
+          );
+
+        let categoria:
+          ItinerarioRotaItem["categoria"] =
+          "ATENDIMENTO";
+
+        let situacao =
+          processado
+            ? rotuloStatus(
+                item.status,
+              )
+            : "Aguardando";
+
+        let acaoLabel:
+          string | null =
+          null;
+
+        let acaoHref:
+          string | null =
+          null;
+
+        if (
+          aguardandoEntregaVenda &&
+          fluxoPendenteId
+        ) {
+          categoria =
+            "ENTREGA";
+          situacao =
+            "Aguardando bipagem";
+          acaoLabel =
+            "Finalizar";
+          acaoHref =
+            `/mobile/vendas/finalizar?fluxoId=${fluxoPendenteId}`;
+        } else if (
+          vendaPendente &&
+          entregaId
+        ) {
+          categoria =
+            "FINANCEIRO";
+          situacao =
+            "Pagamento pendente";
+          acaoLabel =
+            "Pagamento";
+          acaoHref =
+            `/mobile/vendas/nova?entregaId=${entregaId}`;
+        } else if (
+          cobrancaRota
+        ) {
+          categoria =
+            "COBRANCA";
+          situacao =
+            processado
+              ? "Cobrança concluída"
+              : "Cobrança pendente";
+
+          if (!processado) {
+            acaoLabel =
+              "Receber";
+            acaoHref =
+              `/mobile/recebimentos/${cliente.id}?rotaClienteId=${paradaId}`;
+          }
+        } else if (
+          !processado
+        ) {
+          categoria =
+            "ATENDIMENTO";
+          situacao =
+            rotaMobile
+              ? "Aguardando venda"
+              : "Aguardando atendimento";
+          acaoLabel =
+            rotaMobile
+              ? "Atender"
+              : "Atender";
+          acaoHref =
+            rotaMobile
+              ? `/mobile/vendas/preparar?rotaClienteId=${paradaId}`
+              : `/mobile/entregas/nova?rotaClienteId=${paradaId}`;
+        } else {
+          categoria =
+            cobrancaRota
+              ? "COBRANCA"
+              : "CONCLUIDO";
+        }
+
+        if (
+          !rotaEmOperacao &&
+          !processado
+        ) {
+          situacao =
+            "Aguardando início da rota";
+          acaoLabel =
+            null;
+          acaoHref =
+            null;
+        }
+
+        return [
+          {
+            id:
+              paradaId,
+            sequencia:
+              Number(
+                item.sequencia,
+              ),
+            clienteId:
+              Number(
+                cliente.id,
+              ),
+            nome:
+              String(
+                cliente.nome ??
+                  "Cliente",
+              ),
+            codigo:
+              String(
+                cliente.codigo ??
+                  "",
+              ),
+            telefone:
+              String(
+                cliente.telefone ??
+                  "",
+              ),
+            bairro:
+              String(
+                bairroRota ??
+                  "",
+              ),
+            endereco:
+              enderecoCompleto,
+            mapaHref:
+              queryMapa
+                ? `https://www.google.com/maps/search/?api=1&query=${queryMapa}`
+                : null,
+            processado,
+            categoria,
+            situacao,
+            statusOriginal:
+              String(
+                item.status ??
+                  "",
+              ),
+            acaoLabel:
+              finalizada
+                ? null
+                : acaoLabel,
+            acaoHref:
+              finalizada
+                ? null
+                : acaoHref,
+          },
+        ];
+      },
+    );
 
   /* TELA */
 
@@ -610,7 +1263,7 @@ export default async function MinhaRotaPage({
             HERO
         ================================================= */}
 
-        <header className="hero-premium grain relative overflow-hidden px-5 pb-9 pt-5 text-white">
+        <header className="hero-premium grain relative overflow-hidden px-4 pb-5 pt-4 text-white sm:px-5 sm:pb-7 sm:pt-5">
 
           <div className="pointer-events-none absolute -right-20 -top-20 h-[210px] w-[210px] rounded-full border-[30px] border-white/[0.04]" />
 
@@ -625,7 +1278,7 @@ export default async function MinhaRotaPage({
             <Link
               href="/mobile"
               aria-label="Voltar"
-              className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl transition active:scale-95"
+              className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/15 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl transition active:scale-95"
             >
               <ArrowLeft size={19} />
             </Link>
@@ -636,13 +1289,13 @@ export default async function MinhaRotaPage({
                 Operação
               </p>
 
-              <h1 className="mt-1 text-lg font-black tracking-[-0.03em]">
+              <h1 className="mt-0.5 text-[17px] font-black tracking-[-0.03em]">
                 Minha Rota
               </h1>
 
             </div>
 
-            <div className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/10">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/15 bg-white/10">
               <Route size={19} />
             </div>
 
@@ -650,7 +1303,7 @@ export default async function MinhaRotaPage({
 
           {/* IDENTIFICAÇÃO */}
 
-          <div className="relative z-10 mt-7">
+          <div className="relative z-10 mt-4">
 
             <div className="flex items-start justify-between gap-4">
 
@@ -669,7 +1322,7 @@ export default async function MinhaRotaPage({
 
                 </div>
 
-                <h2 className="mt-3 text-[34px] font-black leading-none tracking-[-0.05em]">
+                <h2 className="mt-2 text-[28px] font-black leading-none tracking-[-0.05em] sm:text-[32px]">
                   <span className="text-gold">
                     {total}
                   </span>{" "}
@@ -677,11 +1330,11 @@ export default async function MinhaRotaPage({
                   {total === 1 ? "" : "s"}
                 </h2>
 
-                <div className="mt-3 flex items-center gap-2 text-white/65">
+                <div className="mt-2 flex items-center gap-2 text-white/65">
 
                   <Clock3 size={14} />
 
-                  <span className="text-[12px] font-semibold">
+                  <span className="text-[11px] font-semibold">
                     {formatarData(
                       rota.data_rota,
                     )}
@@ -692,7 +1345,7 @@ export default async function MinhaRotaPage({
               </div>
 
               <span
-                className={`rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-[0.1em] ${
+                className={`rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] ${
                   finalizada
                     ? "border-[#f4b13f]/60 bg-[#f4b13f] text-[#3b2600] shadow-[0_8px_20px_rgba(244,177,63,0.35)]"
                     : "border-white/20 bg-white/10 text-white backdrop-blur"
@@ -707,17 +1360,17 @@ export default async function MinhaRotaPage({
 
             {/* PROGRESSO */}
 
-            <div className="mt-7 rounded-[24px] border border-white/15 bg-white/[0.09] p-4 backdrop-blur-xl">
+            <div className="mt-4 rounded-[20px] border border-white/15 bg-white/[0.09] p-3 backdrop-blur-xl">
 
               <div className="flex items-center justify-between">
 
                 <div>
 
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">
+                  <p className="text-[9px] font-black uppercase tracking-[0.16em] text-white/55">
                     Progresso
                   </p>
 
-                  <p className="mt-1 text-[14px] font-bold text-white">
+                  <p className="mt-1 text-[12px] font-bold text-white">
                     {processados} de {total}{" "}
                     concluído
                     {total === 1 ? "" : "s"}
@@ -725,13 +1378,13 @@ export default async function MinhaRotaPage({
 
                 </div>
 
-                <div className="text-[28px] font-black tracking-[-0.04em]">
+                <div className="text-[24px] font-black tracking-[-0.04em]">
                   {percentual}%
                 </div>
 
               </div>
 
-              <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/20">
+              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-black/20">
 
                 <div
                   className="relative h-full rounded-full bg-[linear-gradient(90deg,#f4b13f,#ffe3a1)] shadow-[0_0_18px_rgba(244,177,63,0.55)] transition-all duration-700"
@@ -746,7 +1399,7 @@ export default async function MinhaRotaPage({
 
             {/* KPIs */}
 
-            <div className="mt-3 grid grid-cols-3 gap-2.5">
+            <div className="mt-2.5 grid grid-cols-3 gap-2">
 
               <HeroKpi
                 label="Total"
@@ -754,8 +1407,8 @@ export default async function MinhaRotaPage({
               />
 
               <HeroKpi
-                label="Entregues"
-                valor={entregues}
+                label="Processados"
+                valor={processados}
               />
 
               <HeroKpi
@@ -773,7 +1426,7 @@ export default async function MinhaRotaPage({
             CONTEÚDO
         ================================================= */}
 
-        <div className="px-5 pb-10 pt-6">
+        <div className="px-4 pb-10 pt-4 sm:px-5 sm:pt-5">
 
           {/* FINALIZADA */}
 
@@ -831,346 +1484,265 @@ export default async function MinhaRotaPage({
             </div>
           )}
 
-          {!finalizada && (
-            <section className="mb-6 space-y-3">
-              <Link
-                href="/mobile/clientes?modo=venda"
-                className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_30px_rgba(23,111,60,0.26)] transition active:scale-[0.985]"
-              >
-                <Plus size={18} />
-                Novo atendimento
-              </Link>
+          {!finalizada && rotaPlanejada && (
+            <section className="mb-5 overflow-hidden rounded-[24px] border border-amber-200 bg-[linear-gradient(145deg,#fff9ed,#ffffff)] p-4 shadow-[0_18px_40px_-30px_rgba(217,145,21,0.42)]">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-amber-100 text-amber-700">
+                  <PackageCheck size={20} />
+                </div>
 
-              {rotaMobile && (
-                <form
-                  action={
-                    encerrarMinhaRota
-                  }
+                <div className="min-w-0 flex-1">
+                  <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-700">
+                    Antes do atendimento
+                  </p>
+                  <h3 className="mt-1 text-[15px] font-black tracking-[-0.03em]">
+                    {rotaAguardandoCarga
+                      ? "Rota planejada, mas sem carga ativa"
+                      : rotaAguardandoConferencia
+                        ? "Receba e confira sua carga"
+                        : "Carga pronta para iniciar a rota"}
+                  </h3>
+                  <p className="mt-1 text-[9px] leading-4 text-slate-500">
+                    {rotaAguardandoCarga
+                      ? "A rota pode ser planejada antes da separação, mas nenhum cliente pode ser atendido sem estoque móvel ativo."
+                      : rotaAguardandoConferencia
+                        ? "A carga já está vinculada ao entregador, porém a conferência física obrigatória ainda não foi concluída."
+                        : "Inicie a jornada para vincular a carga ativa a esta rota e liberar os atendimentos."}
+                  </p>
+                </div>
+              </div>
+
+              {rotaAguardandoCarga && (
+                <Link
+                  href="/mobile/carga"
+                  className="mt-4 flex h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[11px] font-black text-white shadow-[0_14px_28px_rgba(23,111,60,0.24)]"
                 >
-                  <input
-                    type="hidden"
-                    name="rota_id"
-                    value={rota.id}
-                  />
+                  <PackageCheck size={16} />
+                  Ir para Minha carga
+                </Link>
+              )}
 
+              {rotaAguardandoConferencia && (
+                <Link
+                  href="/mobile/carga/receber"
+                  className="mt-4 flex h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[11px] font-black text-white shadow-[0_14px_28px_rgba(23,111,60,0.24)]"
+                >
+                  <PackageCheck size={16} />
+                  Receber e conferir carga
+                </Link>
+              )}
+
+              {rotaProntaParaIniciar && podeGerenciarRotaPropria && (
+                <form action={iniciarMinhaRota} className="mt-4">
                   <button
                     type="submit"
-                    disabled={
-                      pendentes > 0
-                    }
-                    className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] border border-slate-200 bg-white text-[12px] font-black text-slate-600 transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                    className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[11px] font-black text-white shadow-[0_14px_28px_rgba(23,111,60,0.24)] transition active:scale-[0.985]"
                   >
-                    <Square size={16} />
-                    {pendentes > 0
-                      ? `${pendentes} atendimento(s) pendente(s)`
-                      : "Encerrar minha rota"}
+                    <Play size={16} fill="currentColor" />
+                    Iniciar rota e vincular carga
                   </button>
-
-                  {pendentes > 0 && (
-                    <p className="mt-2 text-center text-[9px] font-semibold leading-4 text-slate-400">
-                      Conclua ou registre ocorrência nos atendimentos pendentes antes de encerrar.
-                    </p>
-                  )}
                 </form>
+              )}
+
+              {rotaProntaParaIniciar && !podeGerenciarRotaPropria && (
+                <div className="mt-4 rounded-[16px] border border-red-100 bg-red-50 px-4 py-3 text-[10px] font-bold leading-5 text-red-700">
+                  Seu perfil não possui permissão para iniciar esta rota.
+                </div>
               )}
             </section>
           )}
 
-          {/* TÍTULO LISTA */}
+          {!finalizada && rotaEmOperacao && (
+            <section className="mb-5 space-y-2.5">
 
-          <div className="mb-5 flex items-end justify-between">
+              {totalPendenciasEncerramento >
+              0 ? (
+                <div className="overflow-hidden rounded-[20px] border border-amber-200 bg-[linear-gradient(145deg,#fff9ed,#ffffff)] shadow-[0_18px_36px_-30px_rgba(217,145,21,0.42)]">
 
-            <div>
+                  <div className="flex items-start gap-3 border-b border-amber-100 px-3.5 py-3.5">
 
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#b07a12]">
-                Itinerário
-              </p>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-amber-100 text-amber-700">
+                      <Clock3
+                        size={18}
+                      />
+                    </div>
 
-              <h3 className="mt-1 text-[22px] font-black tracking-[-0.04em]">
-                Sequência de clientes
-              </h3>
+                    <div className="min-w-0 flex-1">
 
-            </div>
+                      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-700">
+                        Antes de encerrar
+                      </p>
 
-            <span className="rounded-full border border-[#dceade] bg-white px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-[#176f3c] shadow-[0_6px_16px_rgba(17,63,33,0.06)]">
-              {total} parada
-              {total === 1 ? "" : "s"}
-            </span>
+                      <h3 className="mt-1 text-[15px] font-black tracking-[-0.03em]">
+                        {totalPendenciasEncerramento}{" "}
+                        {totalPendenciasEncerramento === 1
+                          ? "ação pendente"
+                          : "ações pendentes"}
+                      </h3>
 
-          </div>
-
-          {/* CLIENTES (com linha de itinerário) */}
-
-          {listaItens.length === 0 ? (
-            <section className="rounded-[26px] border border-dashed border-emerald-200 bg-emerald-50/40 p-7 text-center">
-              <MapPinned
-                size={28}
-                className="mx-auto text-[#176f3c]"
-              />
-
-              <h4 className="mt-3 text-[16px] font-black">
-                Rota iniciada
-              </h4>
-
-              <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                Nenhum cliente foi adicionado ainda. Use “Novo atendimento” conforme encontrar clientes em campo.
-              </p>
-            </section>
-          ) : (
-          <section className="relative space-y-4 before:absolute before:bottom-8 before:left-[46px] before:top-8 before:border-l-2 before:border-dashed before:border-emerald-300/70 before:content-['']">
-
-            {listaItens.map(
-              (item, index) => {
-                const cliente =
-                  clientesMap.get(
-                    item.cliente_id,
-                  );
-
-                if (!cliente) {
-                  return null;
-                }
-
-                const processado =
-                  item.status !==
-                    "PENDENTE" &&
-                  item.status !==
-                    "EM_ATENDIMENTO";
-
-                /*
-                 * ENDEREÇO CONGELADO DA ROTA
-                 *
-                 * A rota usa primeiro o snapshot salvo em rota_clientes.
-                 * O cadastro atual do cliente é apenas fallback para registros
-                 * antigos que ainda não possuam snapshot.
-                 */
-                const logradouroRota =
-                  item.endereco_logradouro ??
-                  cliente.logradouro;
-
-                const numeroRota =
-                  item.endereco_numero ??
-                  cliente.numero;
-
-                const bairroRota =
-                  item.endereco_bairro ??
-                  cliente.bairro;
-
-                const cidadeRota =
-                  item.endereco_cidade ??
-                  cliente.cidade;
-
-                const ufRota =
-                  item.endereco_uf ??
-                  cliente.uf;
-
-                const endereco = [
-                  logradouroRota,
-                  numeroRota,
-                ]
-                  .filter(Boolean)
-                  .join(", ");
-
-                const enderecoCompleto =
-                  `${
-                    endereco ||
-                    "Endereço não informado"
-                  }${
-                    bairroRota
-                      ? ` - ${bairroRota}`
-                      : ""
-                  }`;
-
-                const queryMapa =
-                  encodeURIComponent(
-                    [
-                      endereco,
-                      bairroRota,
-                      cidadeRota,
-                      ufRota,
-                    ]
-                      .filter(Boolean)
-                      .join(", "),
-                  );
-
-                return (
-                  <article
-                    key={item.id}
-                    style={{
-                      animationDelay: `${
-                        index * 80
-                      }ms`,
-                    }}
-                    className={`animate-fade-up relative overflow-hidden rounded-[28px] p-5 ${
-                      processado
-                        ? "border border-emerald-200 bg-[linear-gradient(145deg,#f0fbf4,#ffffff)] shadow-[0_18px_40px_-28px_rgba(16,185,129,0.55)]"
-                        : "card-premium"
-                    }`}
-                  >
-
-                    <div
-                      className={`absolute inset-x-0 top-0 h-[3px] ${
-                        processado
-                          ? "bg-[linear-gradient(90deg,#16a05d,#8ee9b2)]"
-                          : "bg-[linear-gradient(90deg,#f4b13f,#176f3c)]"
-                      }`}
-                    />
-
-                    {/* CABEÇALHO DO CARD */}
-
-                    <div className="flex items-center gap-3.5">
-
-                      <div
-                        className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[18px] ${
-                          processado
-                            ? "icon-emerald"
-                            : "border border-[#f4b13f]/40 bg-[#fff8e8] text-[#b07a12] shadow-[0_8px_18px_rgba(244,177,63,0.2)]"
-                        }`}
-                      >
-                        {processado ? (
-                          <CheckCircle2 size={24} />
-                        ) : (
-                          <span className="text-[20px] font-black">
-                            {item.sequencia}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-
-                        <h4 className="truncate text-[19px] font-black tracking-[-0.035em]">
-                          {cliente.nome}
-                        </h4>
-
-                        <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                          {cliente.codigo}
-                        </p>
-
-                      </div>
-
-                      <span
-                        className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] ${
-                          processado
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-50 text-amber-700"
-                        }`}
-                      >
-                        {processado
-                          ? rotuloStatus(
-                              item.status,
-                            )
-                          : "Aguardando"}
-                      </span>
+                      <p className="mt-1 text-[8px] leading-4 text-slate-500">
+                        Resolva diretamente daqui. A rota só libera o encerramento quando tudo estiver concluído.
+                      </p>
 
                     </div>
 
-                    {/* ENDEREÇO (largura total) */}
+                  </div>
 
-                    <div className="mt-4 flex items-center gap-3 rounded-[18px] bg-[#f4f8f5] p-3.5">
+                  <div className="divide-y divide-amber-100">
 
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-white text-[#176f3c] shadow-sm">
-                        <MapPin size={17} />
-                      </div>
+                    {pendenciasDestaque.map(
+                      (pendencia) => (
+                        <div
+                          key={
+                            pendencia.id
+                          }
+                          className="flex items-center gap-3 px-3.5 py-2.5"
+                        >
 
-                      <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1">
 
-                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
-                          Endereço
-                        </p>
+                            <p className="truncate text-[11px] font-black">
+                              {
+                                pendencia.cliente
+                              }
+                            </p>
 
-                        <p className="mt-0.5 text-[13px] font-semibold leading-5 text-slate-700">
-                          {enderecoCompleto}
-                        </p>
+                            <p className="mt-0.5 line-clamp-2 text-[8px] leading-4 text-slate-400">
+                              {
+                                pendencia.detalhe
+                              }
+                            </p>
 
-                      </div>
+                          </div>
 
-                      {!processado &&
-                        !finalizada && (
-                          <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${queryMapa}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label="Abrir no mapa"
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#176f3c] text-white shadow-[0_8px_18px_rgba(23,111,60,0.3)] transition active:scale-90"
+                          <Link
+                            href={
+                              pendencia.href
+                            }
+                            className="flex h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-[12px] bg-[#176f3c] px-3 text-[8px] font-black text-white shadow-sm"
                           >
-                            <Navigation size={16} />
-                          </a>
-                        )}
+                            {
+                              pendencia.acao
+                            }
+                            <ChevronRight
+                              size={13}
+                            />
+                          </Link>
 
-                    </div>
-
-                    {/* MICRO INFO */}
-
-                    <div className="mt-3 grid grid-cols-2 gap-2.5">
-
-                      <div className="rounded-[16px] border border-slate-100 bg-white px-3.5 py-3">
-
-                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-                          Parada
-                        </p>
-
-                        <p className="mt-1 text-[14px] font-black">
-                          #{item.sequencia}
-                        </p>
-
-                      </div>
-
-                      <div className="rounded-[16px] border border-slate-100 bg-white px-3.5 py-3">
-
-                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-                          Situação
-                        </p>
-
-                        <p
-                          className={`mt-1 text-[14px] font-black ${
-                            processado
-                              ? "text-emerald-700"
-                              : "text-amber-700"
-                          }`}
-                        >
-                          {processado
-                            ? rotuloStatus(
-                                item.status,
-                              )
-                            : "Aguardando"}
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                    {/* AÇÃO */}
-
-                    {!processado &&
-                      !finalizada && (
-                        <Link
-                          href={`/mobile/entregas/nova?rotaClienteId=${item.id}`}
-                          className="mt-5 flex h-[56px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_30px_rgba(23,111,60,0.30)] transition active:scale-[0.985]"
-                        >
-                          <PackageCheck size={18} />
-
-                          Atender cliente
-
-                          <ChevronRight size={17} />
-                        </Link>
-                      )}
-
-                    {processado && (
-                      <div className="mt-5 flex h-[50px] items-center justify-center gap-2 rounded-[16px] border border-emerald-100 bg-emerald-50 text-[12px] font-black text-emerald-700">
-
-                        <CheckCircle2 size={17} />
-
-                        Atendimento processado
-
-                      </div>
+                        </div>
+                      ),
                     )}
 
-                  </article>
-                );
-              },
-            )}
+                  </div>
 
-          </section>
+                  {totalPendenciasEncerramento >
+                    pendenciasDestaque.length && (
+                    <a
+                      href="#itinerario-rota"
+                      className="flex h-[42px] items-center justify-center border-t border-amber-100 text-[9px] font-black text-amber-800"
+                    >
+                      Ver mais {totalPendenciasEncerramento - pendenciasDestaque.length} pendência(s) na rota
+                    </a>
+                  )}
+
+                </div>
+              ) : rotaMobile ? (
+                <div className="overflow-hidden rounded-[24px] border border-emerald-200 bg-[linear-gradient(145deg,#effbf3,#ffffff)] p-4 shadow-[0_18px_40px_-30px_rgba(16,185,129,0.45)]">
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="icon-emerald flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
+                      <CircleCheckBig
+                        size={20}
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+
+                      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-emerald-600">
+                        Checklist concluído
+                      </p>
+
+                      <h3 className="mt-1 text-[15px] font-black">
+                        Rota pronta para encerrar
+                      </h3>
+
+                      <p className="mt-0.5 text-[8px] leading-4 text-slate-400">
+                        Não existem atendimentos, cobranças ou vendas pendentes.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  <form
+                    action={
+                      encerrarMinhaRota
+                    }
+                    className="mt-4"
+                  >
+                    <input
+                      type="hidden"
+                      name="rota_id"
+                      value={
+                        rota.id
+                      }
+                    />
+
+                    <button
+                      type="submit"
+                      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[11px] font-black text-white shadow-[0_14px_28px_rgba(23,111,60,0.24)] transition active:scale-[0.985]"
+                    >
+                      <Square
+                        size={15}
+                      />
+                      Finalizar minha rota
+                    </button>
+
+                  </form>
+
+                </div>
+              ) : null}
+
+              <Link
+                href="/mobile/clientes?modo=venda"
+                className="flex h-[48px] w-full items-center justify-center gap-2 rounded-[15px] border border-emerald-200 bg-white text-[10px] font-black text-[#176f3c] shadow-[0_8px_20px_rgba(17,63,33,0.06)] transition active:scale-[0.985]"
+              >
+                <Plus
+                  size={16}
+                />
+                Adicionar outro atendimento
+              </Link>
+
+            </section>
           )}
+
+          {vendaMobileBloqueada && (
+            <div className="mb-5 rounded-[20px] border border-red-200 bg-red-50 px-4 py-4 text-[11px] font-bold leading-5 text-red-800">
+              Esta rota foi criada no mobile e exige venda em campo, mas o pagamento mobile está desabilitado ou sem permissão para este usuário. Novas entregas ficam bloqueadas até a configuração ser corrigida.
+            </div>
+          )}
+
+          {/* =================================================
+              V50 - ITINERÁRIO INTELIGENTE COMPACTO
+          ================================================= */}
+
+          <section
+            id="itinerario-rota"
+            className="scroll-mt-3"
+          >
+            <ItinerarioRota
+              itens={
+                itensItinerario
+              }
+              totalRota={
+                total
+              }
+              finalizada={
+                finalizada
+              }
+            />
+          </section>
 
           {/* VOLTAR */}
 
@@ -1203,13 +1775,13 @@ function HeroKpi({
   valor: number;
 }) {
   return (
-    <div className="rounded-[18px] border border-white/15 bg-white/[0.09] px-3.5 py-3 backdrop-blur-xl">
+    <div className="rounded-[16px] border border-white/15 bg-white/[0.09] px-3 py-2.5 backdrop-blur-xl">
 
-      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/55">
+      <p className="text-[8px] font-black uppercase tracking-[0.14em] text-white/55">
         {label}
       </p>
 
-      <p className="mt-1 text-[24px] font-black tracking-[-0.04em] text-white">
+      <p className="mt-1 text-[20px] font-black tracking-[-0.04em] text-white">
         {valor}
       </p>
 

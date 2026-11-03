@@ -1,0 +1,4 @@
+-- CESTAS APP - V63
+-- Migration remota: v63_reabertura_fechamento_atomica
+-- Reabertura via RPC atomico com FOR UPDATE, motivo obrigatorio, versionamento e auditoria.
+-- NAO EXECUTAR NOVAMENTE.

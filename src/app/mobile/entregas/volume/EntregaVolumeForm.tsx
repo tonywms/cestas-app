@@ -11,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { registrarEntregaVolume, type EntregaVolumeState } from "./actions";
 
@@ -36,6 +37,7 @@ export default function EntregaVolumeForm({
   tipos,
   exigirBipagem,
   habilitarFinanceiro,
+  vendaObrigatoria,
 }: {
   cargaId: number;
   cargaCodigo: string;
@@ -45,7 +47,9 @@ export default function EntregaVolumeForm({
   tipos: TipoCesta[];
   exigirBipagem: boolean;
   habilitarFinanceiro: boolean;
+  vendaObrigatoria: boolean;
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(registrarEntregaVolume, initialState);
   const [modal, setModal] = useState(false);
   const [tipoId, setTipoId] = useState(tipos[0]?.id ? String(tipos[0].id) : "");
@@ -54,8 +58,15 @@ export default function EntregaVolumeForm({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (state.message) setModal(true);
-  }, [state]);
+    if (!state.message) return;
+
+    if (state.success && vendaObrigatoria && state.entregaId) {
+      router.replace(`/mobile/vendas/nova?entregaId=${state.entregaId}`);
+      return;
+    }
+
+    setModal(true);
+  }, [router, state, vendaObrigatoria]);
 
   const tipoSelecionado = useMemo(
     () => tipos.find((item) => String(item.id) === tipoId) ?? null,
@@ -219,6 +230,16 @@ export default function EntregaVolumeForm({
           </section>
         )}
 
+        {vendaObrigatoria && (
+          <section className="rounded-[26px] border border-amber-200 bg-amber-50 p-5 shadow-[0_14px_36px_rgba(17,63,33,0.04)]">
+            <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-700">Venda em campo</p>
+            <h3 className="mt-1 text-[16px] font-black text-amber-950">Pagamento obrigatório nesta rota</h3>
+            <p className="mt-2 text-[9px] leading-5 text-amber-800/80">
+              Ao confirmar a entrega, você será direcionado imediatamente para informar o tipo da venda, forma de pagamento e, se necessário, os dados do crediário.
+            </p>
+          </section>
+        )}
+
         <section className="rounded-[26px] bg-white p-5 shadow-[0_14px_36px_rgba(17,63,33,0.05)]">
           <label className="text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Observação</label>
           <input name="observacao" placeholder="Opcional" className="mt-2 h-[54px] w-full rounded-[16px] border border-slate-200 px-4 text-[11px] font-semibold outline-none focus:border-emerald-500" />
@@ -226,7 +247,15 @@ export default function EntregaVolumeForm({
 
         <button type="submit" disabled={pending || !podeConfirmar} className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#176f3c] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.18)] disabled:opacity-40">
           <PackageCheck size={18} />
-          {pending ? "Concluindo entrega..." : exigirBipagem ? `Confirmar ${codigos.length} volume(s)` : "Confirmar entrega"}
+          {pending
+            ? "Concluindo entrega..."
+            : vendaObrigatoria
+              ? exigirBipagem
+                ? `Confirmar ${codigos.length} volume(s) e informar venda`
+                : "Confirmar entrega e informar venda"
+              : exigirBipagem
+                ? `Confirmar ${codigos.length} volume(s)`
+                : "Confirmar entrega"}
         </button>
       </form>
 

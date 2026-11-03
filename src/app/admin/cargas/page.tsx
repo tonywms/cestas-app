@@ -1,4 +1,6 @@
-export const instant = false;
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
+﻿export const instant = false;
 
 import {
   AlertTriangle,
@@ -98,10 +100,7 @@ function subtrairDias(
 }
 
 function normalizarStatus(status: string) {
-  return status
-    .replaceAll("_", " ")
-    .toLowerCase()
-    .replace(/(^|\s)\S/g, (letra) => letra.toUpperCase());
+  return rotuloTecnico(status);
 }
 
 function classeStatus(status: string) {
@@ -516,7 +515,7 @@ export default async function CargasPage({
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1220px]">
+      <div className="mx-auto w-full">
 
         <header className="glass animate-fade-up flex flex-wrap items-center justify-between gap-4 rounded-[28px] px-5 py-4">
           <div className="flex items-center gap-4">
@@ -976,3 +975,4 @@ function Legenda({
     </div>
   );
 }
+

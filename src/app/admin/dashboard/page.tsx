@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import Link from "next/link";
 import {
@@ -1253,7 +1253,7 @@ export default async function DashboardPage({
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1280px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Executivo"
           title="Dashboard da operação"

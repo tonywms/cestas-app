@@ -1,4 +1,6 @@
-export const instant = false;
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
+﻿export const instant = false;
 
 import {
   AlertTriangle,
@@ -98,7 +100,7 @@ function rotuloStatus(status: string) {
     A_VENCER: "A vencer",
   };
 
-  return mapa[status] ?? status.replaceAll("_", " ");
+  return mapa[status] ?? rotuloTecnico(status);
 }
 
 function classeStatus(status: string) {
@@ -130,8 +132,13 @@ export default async function RelatorioFinanceiroPage({
 
   const supabase = await createClient();
 
-  const [clientesResult, parcelasResult, contratosResult, pagamentosResult] =
-    await Promise.all([
+  const [
+    clientesResult,
+    parcelasResult,
+    contratosResult,
+    pagamentosResult,
+    estornosResult,
+  ] = await Promise.all([
       supabase
         .from("clientes")
         .select("id, codigo, nome, telefone, bairro, cidade")
@@ -161,12 +168,21 @@ export default async function RelatorioFinanceiroPage({
         .gte("created_at", `${de}T00:00:00-03:00`)
         .lte("created_at", `${ate}T23:59:59.999-03:00`)
         .order("created_at", { ascending: false }),
+
+      supabase
+        .from("financeiro_estornos")
+        .select("id, valor, forma_pagamento, origem_created_at")
+        .eq("empresa_id", usuario.empresa.id)
+        .gte("origem_created_at", `${de}T00:00:00-03:00`)
+        .lte("origem_created_at", `${ate}T23:59:59.999-03:00`)
+        .order("origem_created_at", { ascending: false }),
     ]);
 
   const clientes = clientesResult.data ?? [];
   const parcelas = (parcelasResult.data ?? []) as ParcelaRow[];
   const contratos = (contratosResult.data ?? []) as ContratoRow[];
   const pagamentos = (pagamentosResult.data ?? []) as PagamentoRow[];
+  const estornos = estornosResult.data ?? [];
 
   const clientesMap = new Map(
     clientes.map((cliente) => [Number(cliente.id), cliente]),
@@ -202,9 +218,20 @@ export default async function RelatorioFinanceiroPage({
     0,
   );
 
-  const recebidoPeriodo = pagamentos.reduce(
+  /* V70_RELATORIO_ESTORNOS */
+  const recebidoBrutoPeriodo = pagamentos.reduce(
     (total, pagamento) => total + Number(pagamento.valor ?? 0),
     0,
+  );
+
+  const estornadoPeriodo = estornos.reduce(
+    (total, estorno) => total + Number(estorno.valor ?? 0),
+    0,
+  );
+
+  const recebidoPeriodo = Math.max(
+    0,
+    recebidoBrutoPeriodo - estornadoPeriodo,
   );
 
   const clientesInadimplentes = new Set(
@@ -327,7 +354,7 @@ export default async function RelatorioFinanceiroPage({
 
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1240px]">
+      <div className="mx-auto w-full">
         <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
           <div className="flex items-center gap-4">
             <Link
@@ -774,3 +801,4 @@ function ResumoCard({
     </div>
   );
 }
+

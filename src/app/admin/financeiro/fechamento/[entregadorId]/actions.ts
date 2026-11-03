@@ -223,14 +223,27 @@ export async function salvarFechamento(formData: FormData) {
   );
 }
 
+type ReabrirFechamentoState = {
+  success: boolean;
+  message: string;
+  redirectTo?: string;
+};
 
+
+// V63_1_USE_SERVER_EXPORT_FIX
+// V63_4_COMPONENTE_REABERTURA_COMPLETO
+// V63_FECHAMENTO_ATOMICO
 export async function reabrirFechamento(
+  _previousState: ReabrirFechamentoState,
   formData: FormData,
-) {
+): Promise<ReabrirFechamentoState> {
   const usuario = await getCurrentUserProfile();
 
   if (!usuario || !usuario.ativo) {
-    redirect("/");
+    return {
+      success: false,
+      message: "Sessão inválida. Entre novamente no sistema.",
+    };
   }
 
   const autorizado =
@@ -240,168 +253,63 @@ export async function reabrirFechamento(
     usuario.perfilCodigo === "FINANCEIRO";
 
   if (!autorizado) {
-    throw new Error(
-      "Usuário sem permissão para reabrir prestação de contas.",
-    );
+    return {
+      success: false,
+      message: "Usuário sem permissão para reabrir prestação de contas.",
+    };
   }
 
-  const entregadorId =
-    String(
-      formData.get("entregador_id") ?? "",
-    ).trim();
+  const entregadorId = String(formData.get("entregador_id") ?? "").trim();
+  let dataInicio = String(formData.get("data_inicio") ?? "").trim();
+  let dataFim = String(formData.get("data_fim") ?? "").trim();
+  const motivo = String(formData.get("motivo_reabertura") ?? "").trim();
 
-  let dataInicio =
-    String(
-      formData.get("data_inicio") ?? "",
-    ).trim();
-
-  let dataFim =
-    String(
-      formData.get("data_fim") ?? "",
-    ).trim();
-
-  const motivo =
-    String(
-      formData.get("motivo_reabertura") ?? "",
-    ).trim();
-
-  if (
-    !entregadorId ||
-    !dataValida(dataInicio) ||
-    !dataValida(dataFim)
-  ) {
-    throw new Error(
-      "Dados do fechamento inválidos.",
-    );
+  if (!entregadorId || !dataValida(dataInicio) || !dataValida(dataFim)) {
+    return { success: false, message: "Dados do fechamento inválidos." };
   }
 
   if (dataInicio > dataFim) {
-    [dataInicio, dataFim] =
-      [dataFim, dataInicio];
+    [dataInicio, dataFim] = [dataFim, dataInicio];
   }
 
-  if (motivo.length < 5) {
-    throw new Error(
-      "Informe um motivo de reabertura com pelo menos 5 caracteres.",
-    );
+  if (motivo.length < 8) {
+    return {
+      success: false,
+      message: "Informe um motivo de reabertura com pelo menos 8 caracteres.",
+    };
   }
 
-  const supabase =
-    await createClient();
-
-  const agora =
-    new Date().toISOString();
-
-  const {
-    data: fechamento,
-    error,
-  } =
-    await supabase
-      .from(
-        "fechamentos_entregador",
-      )
-      .update({
-        bloqueado:
-          false,
-        reaberto_por:
-          usuario.id,
-        reaberto_at:
-          agora,
-        motivo_reabertura:
-          motivo.slice(0, 1000),
-        updated_at:
-          agora,
-      })
-      .eq(
-        "empresa_id",
-        usuario.empresa.id,
-      )
-      .eq(
-        "entregador_id",
-        entregadorId,
-      )
-      .eq(
-        "data_inicio",
-        dataInicio,
-      )
-      .eq(
-        "data_fim",
-        dataFim,
-      )
-      .eq(
-        "bloqueado",
-        true,
-      )
-      .select(
-        "id",
-      )
-      .maybeSingle();
-
-  if (
-    error ||
-    !fechamento
-  ) {
-    console.error(
-      "Erro ao reabrir fechamento:",
-      error,
-    );
-
-    throw new Error(
-      "Não foi possível reabrir o fechamento.",
-    );
+  if (motivo.length > 1000) {
+    return {
+      success: false,
+      message: "O motivo da reabertura deve possuir no máximo 1000 caracteres.",
+    };
   }
 
-  const {
-    error: auditoriaError,
-  } =
-    await supabase
-      .from(
-        "auditoria_eventos",
-      )
-      .insert({
-        empresa_id:
-          usuario.empresa.id,
-        usuario_id:
-          usuario.id,
-        entidade:
-          "FECHAMENTO",
-        entidade_id:
-          String(
-            fechamento.id,
-          ),
-        acao:
-          "FECHAMENTO_ENTREGADOR_REABERTO",
-        dados: {
-          entregador_id:
-            entregadorId,
-          data_inicio:
-            dataInicio,
-          data_fim:
-            dataFim,
-          motivo,
-        },
-      });
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reabrir_fechamento_entregador", {
+    p_empresa_id: usuario.empresa.id,
+    p_entregador_id: entregadorId,
+    p_data_inicio: dataInicio,
+    p_data_fim: dataFim,
+    p_motivo: motivo,
+  });
 
-  if (auditoriaError) {
-    console.error(
-      "Falha ao registrar auditoria da reabertura:",
-      auditoriaError,
-    );
+  if (error) {
+    console.error("Erro ao reabrir fechamento via V63:", error);
+    return {
+      success: false,
+      message: error.message || "Não foi possível reabrir o fechamento.",
+    };
   }
 
-  revalidatePath(
-    "/admin/financeiro/fechamento",
-  );
+  revalidatePath("/admin/financeiro/fechamento");
+  revalidatePath(`/admin/financeiro/fechamento/${entregadorId}`);
+  revalidatePath("/admin/financeiro/fechamento/historico");
 
-  revalidatePath(
-    `/admin/financeiro/fechamento/${entregadorId}`,
-  );
-
-  revalidatePath(
-    "/admin/financeiro/fechamento/historico",
-  );
-
-  redirect(
-    `/admin/financeiro/fechamento/${entregadorId}?inicio=${dataInicio}&fim=${dataFim}&reaberto=1`,
-  );
+  return {
+    success: true,
+    message: "Fechamento reaberto com segurança.",
+    redirectTo: `/admin/financeiro/fechamento/${entregadorId}?inicio=${dataInicio}&fim=${dataFim}&reaberto=1`,
+  };
 }

@@ -1,0 +1,18 @@
+-- CESTAS APP - V44 - REABASTECIMENTO DE CARGA ATIVA
+-- Migration já aplicada no Supabase:
+--   v44_reabastecimento_carga_ativa
+--
+-- RPC:
+--   public.reabastecer_carga_com_estoque(...)
+--
+-- Regras:
+-- - não cria uma segunda carga aberta para o mesmo entregador;
+-- - adiciona saldo à carga ABERTA/EM_ROTA existente;
+-- - baixa o estoque central de forma atômica;
+-- - gera novos volumes em modo VOLUME;
+-- - se a empresa exige bipagem no recebimento, zera recebida_at/recebida_por
+--   para obrigar a conferência dos novos volumes;
+-- - mantém rota e histórico da carga;
+-- - anon não possui EXECUTE; authenticated possui EXECUTE.
+--
+-- NÃO EXECUTAR MANUALMENTE.

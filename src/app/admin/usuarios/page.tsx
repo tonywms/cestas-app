@@ -1,4 +1,5 @@
-export const instant = false;
+/* V71_2_ROTULOS_PERMISSOES_PREMIUM */
+﻿export const instant = false;
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -433,7 +434,7 @@ export default async function UsuariosPage({
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
 
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto w-full">
 
         <ModuleHeader
           eyebrow="Segurança"
@@ -736,7 +737,7 @@ export default async function UsuariosPage({
                         <MiniMetric
                           label="Perfil"
                           value={
-                            perfil.codigo
+                            perfil.nome
                           }
                         />
 

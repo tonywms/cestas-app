@@ -133,6 +133,16 @@ export default async function EntregaVolumePage({
   const supabase =
     await createClient();
 
+  const habilitarFinanceiro =
+    usuario.configuracao.permitirPagamentoMobile &&
+    (
+      usuario.isPlatformAdmin ||
+      temPermissao(
+        usuario.permissoes,
+        PERMISSOES.PAGAMENTO_REGISTRAR,
+      )
+    );
+
   const {
     data: carga,
     error: cargaError,
@@ -221,6 +231,9 @@ export default async function EntregaVolumePage({
   let enderecoPlanejado:
     string | null = null;
 
+  let rotaOrigem:
+    string | null = null;
+
   if (
     rotaClienteIdInformado &&
     Number.isInteger(
@@ -273,7 +286,8 @@ export default async function EntregaVolumePage({
         .select(`
           id,
           entregador_id,
-          status
+          status,
+          origem
         `)
         .eq(
           "empresa_id",
@@ -302,6 +316,9 @@ export default async function EntregaVolumePage({
       );
     }
 
+    rotaOrigem =
+      String(rota.origem ?? "ADMIN");
+
     if (
       parada.status ===
       "ENTREGUE"
@@ -326,6 +343,77 @@ export default async function EntregaVolumePage({
         bairro:
           parada.endereco_bairro,
       });
+
+    /* =========================================================
+       ROTA MOBILE: VENDA/PAGAMENTO SEMPRE VEM ANTES DA ENTREGA
+       ---------------------------------------------------------
+       Esta tela e um fluxo fisico legado. Para rotas criadas pelo
+       proprio entregador, a V41 exige que a intencao financeira
+       seja salva antes de qualquer bipagem/baixa de volume.
+
+       Mesmo que o usuario chegue aqui por historico do navegador,
+       bookmark ou link antigo, o servidor corrige a sequencia.
+    ========================================================= */
+    if (
+      rotaOrigem ===
+      "MOBILE"
+    ) {
+      const {
+        data: fluxoPendente,
+        error: fluxoError,
+      } = await supabase
+        .from(
+          "venda_fluxos_campo",
+        )
+        .select("id, status")
+        .eq(
+          "empresa_id",
+          usuario.empresa.id,
+        )
+        .eq(
+          "entregador_id",
+          usuario.id,
+        )
+        .eq(
+          "rota_cliente_id",
+          parada.id,
+        )
+        .eq(
+          "status",
+          "AGUARDANDO_ENTREGA",
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          },
+        )
+        .limit(1)
+        .maybeSingle();
+
+      if (fluxoError) {
+        console.error(
+          "Erro ao verificar venda preparada antes da bipagem:",
+          fluxoError,
+        );
+
+        redirect(
+          `/mobile/vendas/preparar?rotaClienteId=${parada.id}`,
+        );
+      }
+
+      if (
+        fluxoPendente?.id
+      ) {
+        redirect(
+          `/mobile/vendas/finalizar?fluxoId=${fluxoPendente.id}`,
+        );
+      }
+
+      redirect(
+        `/mobile/vendas/preparar?rotaClienteId=${parada.id}`,
+      );
+    }
   }
 
   const [
@@ -640,6 +728,25 @@ export default async function EntregaVolumePage({
         }
       : null;
 
+  const vendaObrigatoria =
+    rotaClienteId !== null &&
+    rotaOrigem === "MOBILE";
+
+  if (vendaObrigatoria && !habilitarFinanceiro) {
+    return (
+      <main className="min-h-dvh bg-[#eaf2ec] text-[#142018]">
+        <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-[#f7faf7] p-5">
+          <EstadoVazio
+            titulo="Venda em campo indisponível"
+            texto="Esta rota foi criada pelo entregador e exige o registro da venda. O pagamento mobile precisa estar habilitado para a empresa e para este usuário antes de concluir a entrega."
+            href="/mobile/rota"
+            botao="Voltar para a rota"
+          />
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-dvh bg-[#eaf2ec] text-[#142018]">
 
@@ -746,15 +853,10 @@ export default async function EntregaVolumePage({
                   .exigirBipagemEntrega
               }
               habilitarFinanceiro={
-                usuario.configuracao
-                  .permitirPagamentoMobile &&
-                (
-                  usuario.isPlatformAdmin ||
-                  temPermissao(
-                    usuario.permissoes,
-                    PERMISSOES.PAGAMENTO_REGISTRAR,
-                  )
-                )
+                habilitarFinanceiro
+              }
+              vendaObrigatoria={
+                vendaObrigatoria
               }
             />
           )}

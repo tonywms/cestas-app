@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import {
   ArrowLeft,
@@ -132,7 +132,7 @@ function VolumeItem({
               <p className="truncate text-[10px] font-black">{volume.codigo_volume}</p>
               <p className="mt-1 truncate text-[8px] font-semibold text-slate-400">
                 {tipoNome}
-                {volume.carga_id ? ` • Carga #${volume.carga_id}` : ""}
+                {volume.carga_id ? ` • Carga nº ${volume.carga_id}` : ""}
               </p>
             </div>
 
@@ -299,7 +299,7 @@ export default async function VolumesPage() {
 
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1240px]">
+      <div className="mx-auto w-full">
         <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
           <div className="flex items-center gap-4">
             <Link
@@ -618,3 +618,4 @@ function ResumoStatusCard({
     </div>
   );
 }
+

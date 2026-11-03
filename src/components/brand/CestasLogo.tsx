@@ -2,13 +2,13 @@
 
 type CestasLogoProps = {
   className?: string;
-  /** Mostra o nome "Cestas APP" abaixo do Ã­cone. */
+  /** Mostra o nome "Cestas APP" abaixo do ícone. */
   showWordmark?: boolean;
 };
 
 /**
  * Logo vetorial do Cestas APP.
- * SVG puro = fundo 100% transparente, nÃ­tido em qualquer tamanho/densidade de tela.
+ * SVG puro = fundo 100% transparente, nítido em qualquer tamanho/densidade de tela.
  */
 export default function CestasLogo({
   className,
@@ -89,7 +89,7 @@ export default function CestasLogo({
         />
       </g>
 
-      {/* AlÃ§a (parte de trÃ¡s) */}
+      {/* Alça (parte de trás) */}
       <path
         d="M112 92 C108 34 212 34 208 92"
         fill="none"
@@ -108,7 +108,7 @@ export default function CestasLogo({
 
       {/* Produtos saindo da cesta */}
       <g>
-        {/* Ã“leo */}
+        {/* Óleo */}
         <rect x="116" y="48" width="9" height="12" rx="2" fill="#d98e0b" />
         <rect x="112" y="58" width="19" height="40" rx="6" fill={`url(#${id("oil")})`} />
         <rect x="115" y="70" width="13" height="14" rx="3" fill="#fff" fillOpacity=".75" />

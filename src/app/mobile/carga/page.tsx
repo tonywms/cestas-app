@@ -33,6 +33,8 @@ import {
   getCargaAtiva,
 } from "@/services/cargas/get-carga-ativa";
 
+import DevolverCargaSemJornadaButton from "./DevolverCargaSemJornadaButton";
+
 function formatarData(
   data: string,
 ) {
@@ -82,7 +84,7 @@ function StatusCarga({
 export default async function MinhaCargaPage() {
   /*
    * =========================================================
-   * PERMISSÃƒO
+   * PERMISSÃO
    * =========================================================
    */
 
@@ -96,7 +98,7 @@ export default async function MinhaCargaPage() {
    * IDENTIDADE DO TENANT
    * =========================================================
    *
-   * Aqui NÃƒO usamos:
+   * Aqui NÃO usamos:
    *
    * usuario.empresaId
    * usuario.empresa_id
@@ -361,6 +363,66 @@ export default async function MinhaCargaPage() {
         PERMISSOES.CARGA_BIPAR_VOLUME,
       )
     );
+
+  const supabaseRota =
+    await createClient();
+
+  // V61_4_GATE_FECHAMENTO_POS_JORNADA
+  const [
+    {
+      data: rotaAtiva,
+      error: rotaAtivaError,
+    },
+    {
+      data: rotaFinalizadaDaCarga,
+      error: rotaFinalizadaError,
+    },
+  ] = await Promise.all([
+    supabaseRota
+      .from("rotas")
+      .select("id, codigo, status, carga_id, finalizada_at")
+      .eq("empresa_id", empresaId)
+      .eq("entregador_id", entregadorId)
+      .in("status", [
+        "PLANEJADA",
+        "EM_ROTA",
+      ])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+
+    supabaseRota
+      .from("rotas")
+      .select("id, codigo, status, carga_id, finalizada_at")
+      .eq("empresa_id", empresaId)
+      .eq("entregador_id", entregadorId)
+      .eq("carga_id", carga.id)
+      .eq("status", "FINALIZADA")
+      .not("finalizada_at", "is", null)
+      .order("finalizada_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if (rotaAtivaError) {
+    console.error(
+      "Erro ao consultar rota ativa na carga:",
+      rotaAtivaError,
+    );
+  }
+
+  if (rotaFinalizadaError) {
+    console.error(
+      "Erro ao consultar jornada finalizada da carga:",
+      rotaFinalizadaError,
+    );
+  }
+
+  const temRotaAtiva =
+    !!rotaAtiva;
+
+  const temRotaFinalizadaDaCarga =
+    !!rotaFinalizadaDaCarga;
 
   let volumesEsperados = 0;
   let volumesConfirmados = 0;
@@ -806,18 +868,92 @@ export default async function MinhaCargaPage() {
           )}
 
           {podeFecharCarga &&
-            recebimentoCompleto && (
-<Link
-              href="/mobile/carga/fechar"
-              className="mt-5 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176b3a] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,107,58,0.18)]"
-            >
-              <RotateCcw
-                size={17}
-              />
+            recebimentoCompleto &&
+            temRotaAtiva && (
+              <div className="mt-5 rounded-[20px] border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle
+                    size={18}
+                    className="mt-0.5 shrink-0 text-amber-700"
+                  />
 
-              Fechar carga / informar retorno
-            </Link>
-          )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-700">
+                      Rota ainda ativa
+                    </p>
+
+                    <p className="mt-1 text-[10px] leading-5 text-amber-800">
+                      {rotaAtiva?.codigo
+                        ? `A rota ${rotaAtiva.codigo} precisa ser finalizada antes do fechamento da carga.`
+                        : "Finalize a rota ativa antes do fechamento da carga."}
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  href="/mobile/rota"
+                  replace
+                  className="mt-4 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-amber-600 text-[11px] font-black text-white shadow-[0_14px_30px_rgba(180,120,10,0.18)]"
+                >
+                  <Truck size={17} />
+                  Ir para minha rota / finalizar atendimentos
+                </Link>
+              </div>
+            )}
+
+          {recebimentoCompleto &&
+            !temRotaAtiva &&
+            !temRotaFinalizadaDaCarga && (
+              <div className="mt-5 rounded-[20px] border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2
+                    size={18}
+                    className="mt-0.5 shrink-0 text-emerald-700"
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">
+                      Carga pronta para iniciar jornada
+                    </p>
+
+                    <p className="mt-1 text-[10px] leading-5 text-emerald-800">
+                      A carga foi recebida e conferida. O fechamento só será liberado depois que uma rota vinculada a esta carga for finalizada.
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  href="/mobile/rota"
+                  className="mt-4 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176b3a] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,107,58,0.18)]"
+                >
+                  <Truck size={17} />
+                  Ir para Minha Rota
+                </Link>
+
+                {/* V62_DEVOLUCAO_SEM_JORNADA */}
+                {podeFecharCarga && (
+                  <DevolverCargaSemJornadaButton
+                    cargaId={Number(carga.id)}
+                    codigo={String(carga.codigo)}
+                    totalEmPosse={saldo}
+                  />
+                )}
+              </div>
+            )}
+
+          {podeFecharCarga &&
+            recebimentoCompleto &&
+            !temRotaAtiva &&
+            temRotaFinalizadaDaCarga && (
+              <Link
+                href="/mobile/carga/fechar"
+                replace
+                className="mt-5 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176b3a] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,107,58,0.18)]"
+              >
+                <RotateCcw size={17} />
+                Finalizar carga / informar retorno
+              </Link>
+            )}
 
           {/* SEGURANÇA */}
           
@@ -969,5 +1105,3 @@ function MiniInfo({
     </div>
   );
 }
-
-

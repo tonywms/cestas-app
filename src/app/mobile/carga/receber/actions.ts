@@ -135,10 +135,86 @@ export async function biparVolumeCarga(
       completo?: boolean;
     };
 
-  const completo =
-    Boolean(
-      resultado.completo,
+  const [
+    volumesAtuaisResult,
+    bipagensAtuaisResult,
+  ] = await Promise.all([
+    supabase
+      .from("cesta_volumes")
+      .select(
+        "id",
+        {
+          count: "exact",
+          head: true,
+        },
+      )
+      .eq(
+        "empresa_id",
+        usuario.empresa.id,
+      )
+      .eq(
+        "carga_id",
+        cargaId,
+      )
+      .in(
+        "status",
+        [
+          "EM_CARGA",
+          "ENTREGUE",
+          "RETORNADO",
+          "AVARIADO",
+        ],
+      ),
+
+    supabase
+      .from("carga_volume_bipagens")
+      .select(
+        "id",
+        {
+          count: "exact",
+          head: true,
+        },
+      )
+      .eq(
+        "empresa_id",
+        usuario.empresa.id,
+      )
+      .eq(
+        "carga_id",
+        cargaId,
+      ),
+  ]);
+
+  const recontagemOk =
+    !volumesAtuaisResult.error &&
+    !bipagensAtuaisResult.error;
+
+  if (!recontagemOk) {
+    console.error(
+      "Falha ao recontar conferencia da carga:",
+      volumesAtuaisResult.error?.message,
+      bipagensAtuaisResult.error?.message,
     );
+  }
+
+  const esperadosAtuais =
+    recontagemOk
+      ? volumesAtuaisResult.count ?? 0
+      : Number(
+          resultado.esperados ?? 0,
+        );
+
+  const confirmadosAtuais =
+    recontagemOk
+      ? bipagensAtuaisResult.count ?? 0
+      : Number(
+          resultado.confirmados ?? 0,
+        );
+
+  const completo =
+    recontagemOk &&
+    esperadosAtuais > 0 &&
+    confirmadosAtuais >= esperadosAtuais;
 
   revalidatePath(
     "/mobile/carga",
@@ -167,14 +243,10 @@ export async function biparVolumeCarga(
         codigoVolume,
 
       esperados:
-        Number(
-          resultado.esperados ?? 0,
-        ),
+        esperadosAtuais,
 
       confirmados:
-        Number(
-          resultado.confirmados ?? 0,
-        ),
+        confirmadosAtuais,
 
       completo,
     },

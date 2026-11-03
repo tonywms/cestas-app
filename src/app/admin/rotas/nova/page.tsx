@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -31,6 +31,8 @@ import {
 
 import NovaRotaForm from "./NovaRotaForm";
 
+/* V59_CLIENTE_PRESELECIONADO */
+
 function dataFortaleza() {
   return new Intl.DateTimeFormat(
     "en-CA",
@@ -49,13 +51,24 @@ function dataFortaleza() {
   );
 }
 
-export default async function NovaRotaPage() {
+type PageProps = {
+  searchParams: Promise<{
+    cliente?: string;
+  }>;
+};
+
+export default async function NovaRotaPage({
+  searchParams,
+}: PageProps) {
   const usuario =
     await getCurrentUserProfile();
 
   if (!usuario) {
     redirect("/");
   }
+
+  const filtros =
+    await searchParams;
 
   const podeGerenciar =
     usuario.isPlatformAdmin ||
@@ -252,9 +265,29 @@ export default async function NovaRotaPage() {
       }),
     );
 
+  const clienteInicialNumero =
+    Number(
+      filtros.cliente ??
+      "",
+    );
+
+  const clienteInicialId =
+    Number.isInteger(
+      clienteInicialNumero,
+    ) &&
+    clienteInicialNumero >
+      0 &&
+    clientes.some(
+      (cliente) =>
+        cliente.id ===
+        clienteInicialNumero,
+    )
+      ? clienteInicialNumero
+      : null;
+
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Logística"
           title="Nova rota"
@@ -339,6 +372,9 @@ export default async function NovaRotaPage() {
 
         <div className="mt-6">
           <NovaRotaForm
+            clienteInicialId={
+              clienteInicialId
+            }
             entregadores={
               entregadores
             }
@@ -354,3 +390,4 @@ export default async function NovaRotaPage() {
     </main>
   );
 }
+

@@ -1,4 +1,6 @@
-export const instant = false;
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
+﻿export const instant = false;
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -123,7 +125,7 @@ function formatarTipoMovimento(tipo: string) {
     case "ENTRADA_CENTRAL":
       return "Entrada no estoque central";
     default:
-      return tipo.replaceAll("_", " ");
+      return rotuloTecnico(tipo);
   }
 }
 
@@ -324,7 +326,7 @@ const estiloNatureza = {
   SAIDA: {
     tone: "amber" as const,
     cor: "text-[#a15f00]",
-    sinal: "−",
+    sinal: "âˆ’",
     faixa: "bg-[#d99a2b]",
   },
   TRANSFERENCIA: {
@@ -868,7 +870,7 @@ export default async function EstoquePage({ searchParams }: PageProps) {
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Estoque"
           title="Estoque central"
@@ -884,6 +886,14 @@ export default async function EstoquePage({ searchParams }: PageProps) {
                   }
                 />
               )}
+
+              {/* V68_ESTOQUE_CONSISTENCIA_LINK */}
+              <Link
+                href="/admin/estoque/consistencia"
+                className="inline-flex h-11 items-center rounded-[14px] border border-[#cfe6d6] bg-white px-5 text-[13px] font-extrabold text-[#14743d] transition hover:-translate-y-0.5 hover:bg-[#f4faf6]"
+              >
+                Consistência
+              </Link>
 
               <Link
                 href="/admin/cargas"
@@ -1135,3 +1145,4 @@ export default async function EstoquePage({ searchParams }: PageProps) {
     </main>
   );
 }
+

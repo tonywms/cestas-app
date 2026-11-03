@@ -1,0 +1,13 @@
+-- CESTAS APP - V52.2
+-- IMPORTACAO / EXPORTACAO DE CLIENTES
+-- Nenhuma migration necessaria.
+--
+-- Campos de planilha obrigatorios:
+-- NOME, TELEFONE, ENDERECO, NUMERO, BAIRRO.
+--
+-- ENDERECO e mapeado internamente para clientes.logradouro.
+-- CODIGO_REFERENCIA e opcional e mapeado para clientes.codigo.
+-- O clientes.id permanece a chave interna controlada pelo PostgreSQL.
+-- Quando CODIGO_REFERENCIA vier vazio, o aplicativo gera um codigo interno CLI...
+--
+-- tenant/empresa_id nunca vem da planilha: sempre da sessao autenticada.

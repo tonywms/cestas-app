@@ -97,6 +97,7 @@ export default function NovaRotaForm({
   entregadores,
   clientes,
   dataInicial,
+  clienteInicialId,
 }: {
   entregadores:
     Entregador[];
@@ -104,7 +105,19 @@ export default function NovaRotaForm({
     Cliente[];
   dataInicial:
     string;
+  clienteInicialId?:
+    number | null;
 }) {
+  /* V59_CLIENTE_PRESELECIONADO */
+  const clienteInicialValido =
+    clienteInicialId &&
+    clientes.some(
+      (cliente) =>
+        cliente.id ===
+        clienteInicialId,
+    )
+      ? clienteInicialId
+      : null;
   const [
     state,
     formAction,
@@ -121,7 +134,14 @@ export default function NovaRotaForm({
   ] =
     useState<
       number[]
-    >([]);
+    >(
+      () =>
+        clienteInicialValido
+          ? [
+              clienteInicialValido,
+            ]
+          : [],
+    );
 
   const [
     busca,
@@ -240,6 +260,14 @@ export default function NovaRotaForm({
           !!cliente,
       );
 
+  const clientePreSelecionado =
+    clienteInicialValido
+      ? clientesMap.get(
+          clienteInicialValido,
+        ) ??
+        null
+      : null;
+
   function alternarCliente(
     clienteId: number,
   ) {
@@ -344,6 +372,23 @@ export default function NovaRotaForm({
 
   return (
     <>
+      {clientePreSelecionado ? (
+        <div className="mb-4 flex items-start gap-3 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-emerald-100 text-emerald-700">
+            <CheckCircle2 size={16} />
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-[9px] font-black text-emerald-800">
+              Cliente pré-selecionado pela Central 360°
+            </p>
+            <p className="mt-1 truncate text-[9px] font-semibold text-emerald-700/70">
+              {clientePreSelecionado.nome} • {clientePreSelecionado.codigo}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <form
         action={
           formAction

@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import Link from "next/link";
 
@@ -183,7 +183,7 @@ export default async function PlataformaPage() {
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1220px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Plataforma"
           title="Empresas e contratos"
@@ -475,3 +475,4 @@ function Mini({
     </div>
   );
 }
+

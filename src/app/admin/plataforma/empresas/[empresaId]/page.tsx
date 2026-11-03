@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import {
   Building2,
@@ -184,7 +184,7 @@ export default async function EmpresaPlataformaPage({
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1100px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Plataforma"
           title="Detalhe da empresa"
@@ -454,3 +454,4 @@ export default async function EmpresaPlataformaPage({
     </main>
   );
 }
+

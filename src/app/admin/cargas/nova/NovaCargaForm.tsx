@@ -35,6 +35,11 @@ type Entregador = {
   id: string;
   nome: string;
   email: string | null;
+  cargaAtiva: {
+    id: number;
+    codigo: string;
+    status: string;
+  } | null;
 };
 
 type TipoCesta = {
@@ -70,6 +75,18 @@ export default function NovaCargaForm({
   const [
     tipoId,
     setTipoId,
+  ] =
+    useState("");
+
+  const [
+    entregadorId,
+    setEntregadorId,
+  ] =
+    useState("");
+
+  const [
+    quantidade,
+    setQuantidade,
   ] =
     useState("");
 
@@ -114,6 +131,47 @@ export default function NovaCargaForm({
         tipoId,
       ],
     );
+
+  const entregadorSelecionado =
+    useMemo(
+      () =>
+        entregadores.find(
+          (
+            item,
+          ) =>
+            item.id ===
+            entregadorId,
+        ) ??
+        null,
+      [
+        entregadores,
+        entregadorId,
+      ],
+    );
+
+  const cargaAtiva =
+    entregadorSelecionado
+      ?.cargaAtiva ??
+    null;
+
+  const quantidadeNumero =
+    Number(
+      quantidade,
+    );
+
+  const quantidadeValida =
+    Number.isInteger(
+      quantidadeNumero,
+    ) &&
+    quantidadeNumero > 0 &&
+    !!tipoSelecionado &&
+    quantidadeNumero <=
+      tipoSelecionado.saldo;
+
+  const formularioPronto =
+    !!entregadorSelecionado &&
+    !!tipoSelecionado &&
+    quantidadeValida;
 
   const possuiSaldo =
     tiposCesta.some(
@@ -171,7 +229,7 @@ export default function NovaCargaForm({
             </p>
 
             <p className="mt-1 text-[9px] leading-5 text-amber-800/70">
-              Registre uma entrada antes de criar a próxima carga.
+              Registre uma entrada antes de criar ou reabastecer uma carga.
             </p>
 
             <Link
@@ -202,6 +260,16 @@ export default function NovaCargaForm({
             <select
               name="entregador_id"
               required
+              value={
+                entregadorId
+              }
+              onChange={(
+                event,
+              ) =>
+                setEntregadorId(
+                  event.target.value,
+                )
+              }
               className="mt-2 h-[54px] w-full rounded-[17px] border border-slate-200 bg-white px-4 text-[12px] font-bold outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
             >
               <option value="">
@@ -220,9 +288,10 @@ export default function NovaCargaForm({
                       entregador.id
                     }
                   >
-                    {
-                      entregador.nome
-                    }
+                    {entregador.nome}
+                    {entregador.cargaAtiva
+                      ? ` — ${entregador.cargaAtiva.codigo} ativa`
+                      : ""}
                   </option>
                 ),
               )}
@@ -244,9 +313,7 @@ export default function NovaCargaForm({
                 event,
               ) =>
                 setTipoId(
-                  event
-                    .target
-                    .value,
+                  event.target.value,
                 )
               }
               className="mt-2 h-[54px] w-full rounded-[17px] border border-slate-200 bg-white px-4 text-[12px] font-bold outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
@@ -278,6 +345,37 @@ export default function NovaCargaForm({
             </select>
           </div>
 
+          {cargaAtiva && (
+            <div className="md:col-span-2 rounded-[18px] border border-sky-200 bg-sky-50 p-4">
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-[0.14em] text-sky-700">
+                    Carga ativa encontrada
+                  </p>
+
+                  <p className="mt-1 text-[14px] font-black text-sky-950">
+                    {cargaAtiva.codigo}
+                  </p>
+
+                  <p className="mt-1 text-[9px] leading-5 text-sky-800/70">
+                    A quantidade informada será adicionada à carga atual. A rota continua a mesma e o histórico permanece preservado.
+                  </p>
+                </div>
+
+                <Link
+                  href={`/admin/cargas/${cargaAtiva.id}`}
+                  className="flex h-[42px] shrink-0 items-center justify-center rounded-[13px] border border-sky-200 bg-white px-4 text-[9px] font-black text-sky-800"
+                >
+                  Abrir carga atual
+                </Link>
+
+              </div>
+
+            </div>
+          )}
+
           {tipoSelecionado && (
             <div className="md:col-span-2">
 
@@ -302,18 +400,14 @@ export default function NovaCargaForm({
                     </p>
 
                     <p className="mt-1 text-[11px] font-black">
-                      {
-                        tipoSelecionado.nome
-                      }
+                      {tipoSelecionado.nome}
                     </p>
                   </div>
 
                 </div>
 
                 <p className="text-[27px] font-black text-[#176f3c]">
-                  {
-                    tipoSelecionado.saldo
-                  }
+                  {tipoSelecionado.saldo}
                 </p>
 
               </div>
@@ -335,6 +429,16 @@ export default function NovaCargaForm({
               }
               step={1}
               required
+              value={
+                quantidade
+              }
+              onChange={(
+                event,
+              ) =>
+                setQuantidade(
+                  event.target.value,
+                )
+              }
               placeholder="Ex.: 10"
               className="mt-2 h-[54px] w-full rounded-[17px] border border-slate-200 px-4 text-[12px] font-bold outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
             />
@@ -354,6 +458,12 @@ export default function NovaCargaForm({
 
         </div>
 
+        {!formularioPronto && (
+          <p className="mt-5 text-center text-[9px] font-bold text-slate-400">
+            Selecione entregador, tipo de cesta e informe uma quantidade válida para continuar.
+          </p>
+        )}
+
         <button
           type="submit"
           disabled={
@@ -361,19 +471,21 @@ export default function NovaCargaForm({
             entregadores.length ===
               0 ||
             !possuiSaldo ||
-            !tipoSelecionado ||
-            tipoSelecionado.saldo <=
-              0
+            !formularioPronto
           }
-          className="mt-6 flex h-[56px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176f3c] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.18)] disabled:opacity-40"
+          className="mt-3 flex h-[56px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176f3c] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.18)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Save
             size={18}
           />
 
           {pending
-            ? "Criando carga..."
-            : "Criar carga e baixar estoque"}
+            ? cargaAtiva
+              ? "Reabastecendo carga..."
+              : "Criando carga..."
+            : cargaAtiva
+              ? `Reabastecer ${cargaAtiva.codigo}`
+              : "Criar carga e baixar estoque"}
         </button>
 
       </form>
@@ -402,20 +514,25 @@ export default function NovaCargaForm({
 
               <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
                 {state.success
-                  ? "Transferência concluída"
-                  : "Carga não criada"}
+                  ? state.operacao ===
+                      "REABASTECIDA"
+                    ? "Reabastecimento concluído"
+                    : "Transferência concluída"
+                  : "Operação não concluída"}
               </p>
 
               <h3 className="mt-2 text-[20px] font-black">
                 {state.success
-                  ? "Carga criada"
-                  : "Verifique a operação"}
+                  ? state.operacao ===
+                      "REABASTECIDA"
+                    ? "Carga reabastecida"
+                    : "Carga criada"
+                  : state.errorTitle ??
+                    "Não foi possível concluir"}
               </h3>
 
               <p className="mt-3 text-[11px] leading-5 text-slate-500">
-                {
-                  state.message
-                }
+                {state.message}
               </p>
 
               {state.success ? (
@@ -426,7 +543,10 @@ export default function NovaCargaForm({
                       href={`/admin/cargas/${state.cargaId}`}
                       className="flex h-[50px] items-center justify-center rounded-[16px] bg-[#176f3c] text-xs font-black text-white shadow-[0_12px_24px_rgba(23,111,60,0.18)]"
                     >
-                      Abrir carga criada
+                      {state.operacao ===
+                      "REABASTECIDA"
+                        ? "Abrir carga reabastecida"
+                        : "Abrir carga criada"}
                     </Link>
                   ) : (
                     <Link
@@ -447,24 +567,47 @@ export default function NovaCargaForm({
                   <button
                     type="button"
                     onClick={() => setModal(false)}
-                    className="flex h-[46px] w-full items-center justify-center rounded-[15px] text-[11px] font-black text-slate-500 transition hover:bg-slate-50"
+                    className="flex h-[50px] w-full items-center justify-center rounded-[16px] border border-emerald-200 bg-emerald-50 px-4 text-[11px] font-black text-[#176f3c] shadow-[0_8px_18px_rgba(23,111,60,0.08)] transition hover:border-emerald-300 hover:bg-emerald-100 active:scale-[0.99]"
                   >
-                    Criar outra carga
+                    {state.operacao ===
+                    "REABASTECIDA"
+                      ? "Adicionar mais saldo"
+                      : "Criar outra carga"}
                   </button>
 
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setModal(
-                      false,
-                    )
-                  }
-                  className="mt-6 h-[50px] w-full rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
-                >
-                  Entendi
-                </button>
+                <div className="mt-6 space-y-2">
+
+                  {state.nextHref &&
+                    state.nextLabel && (
+                      <Link
+                        href={state.nextHref}
+                        className="flex h-[50px] w-full items-center justify-center rounded-[16px] bg-[#176f3c] px-4 text-xs font-black text-white shadow-[0_12px_24px_rgba(23,111,60,0.18)]"
+                      >
+                        {state.nextLabel}
+                      </Link>
+                    )}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setModal(
+                        false,
+                      )
+                    }
+                    className={`h-[48px] w-full rounded-[15px] text-[11px] font-black ${
+                      state.nextHref
+                        ? "border border-slate-200 bg-white text-slate-500"
+                        : "bg-[#176f3c] text-white"
+                    }`}
+                  >
+                    {state.nextHref
+                      ? "Fechar aviso"
+                      : "Entendi"}
+                  </button>
+
+                </div>
               )}
 
             </div>

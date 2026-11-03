@@ -65,6 +65,22 @@ function moeda(
   ).format(valor);
 }
 
+function dataBR(
+  valor: string | null | undefined,
+) {
+  if (!valor) {
+    return "—";
+  }
+
+  const [ano, mes, dia] = valor.slice(0, 10).split("-");
+
+  if (!ano || !mes || !dia) {
+    return valor;
+  }
+
+  return `${dia}/${mes}/${ano}`;
+}
+
 export default async function NovaVendaCampoPage({
   searchParams,
 }: PageProps) {
@@ -165,6 +181,8 @@ export default async function NovaVendaCampoPage({
         codigo,
         tipo_venda,
         valor_total,
+        valor_entrada,
+        forma_pagamento,
         contrato_id
       `)
       .eq(
@@ -338,6 +356,138 @@ export default async function NovaVendaCampoPage({
       0,
     );
 
+  let contratoVenda: {
+    codigo: string;
+    modalidade: string | null;
+    quantidade_parcelas: number;
+    proxima_visita_sugerida: string | null;
+    primeiro_vencimento: string;
+  } | null = null;
+
+  let saldoRestante = 0;
+  let proximoCompromisso: string | null = null;
+
+  if (
+    vendaExistente?.contrato_id
+  ) {
+    const [
+      contratoVendaResult,
+      parcelasVendaResult,
+    ] = await Promise.all([
+      supabase
+        .from("contratos")
+        .select(`
+          codigo,
+          modalidade,
+          quantidade_parcelas,
+          proxima_visita_sugerida,
+          primeiro_vencimento
+        `)
+        .eq(
+          "empresa_id",
+          usuario.empresa.id,
+        )
+        .eq(
+          "id",
+          vendaExistente.contrato_id,
+        )
+        .maybeSingle(),
+
+      supabase
+        .from("parcelas")
+        .select(`
+          valor,
+          valor_pago,
+          status,
+          vencimento
+        `)
+        .eq(
+          "empresa_id",
+          usuario.empresa.id,
+        )
+        .eq(
+          "contrato_id",
+          vendaExistente.contrato_id,
+        )
+        .in(
+          "status",
+          [
+            "ABERTA",
+            "PARCIAL",
+          ],
+        )
+        .order(
+          "vencimento",
+          { ascending: true },
+        ),
+    ]);
+
+    contratoVenda =
+      contratoVendaResult.data ??
+      null;
+
+    const parcelasVenda =
+      parcelasVendaResult.data ??
+      [];
+
+    saldoRestante =
+      parcelasVenda.reduce(
+        (total, parcela) =>
+          total +
+          (
+            Number(
+              parcela.valor,
+            ) -
+            Number(
+              parcela.valor_pago,
+            )
+          ),
+        0,
+      );
+
+    proximoCompromisso =
+      contratoVenda
+        ?.modalidade ===
+      "SALDO_ABERTO"
+        ? contratoVenda
+            .proxima_visita_sugerida
+        : parcelasVenda[0]
+            ?.vencimento ??
+          contratoVenda
+            ?.primeiro_vencimento ??
+          null;
+  }
+
+  const valorVendaExistente =
+    vendaExistente
+      ? Number(
+          vendaExistente.valor_total ??
+            0,
+        )
+      : 0;
+
+  const valorRecebidoHoje =
+    vendaExistente
+      ? vendaExistente.tipo_venda ===
+        "AVISTA"
+        ? valorVendaExistente
+        : Number(
+            vendaExistente.valor_entrada ??
+              0,
+          )
+      : 0;
+
+  const saldoExibido =
+    vendaExistente
+      ? vendaExistente.contrato_id
+        ? saldoRestante
+        : Math.max(
+            0,
+            valorVendaExistente -
+              valorRecebidoHoje,
+          )
+      : 0;
+
   return (
     <main className="app-premium min-h-dvh text-[#142018]">
       <div className="mx-auto min-h-dvh w-full max-w-[480px] overflow-hidden bg-[#f7faf7]/90 shadow-[0_0_70px_rgba(17,63,33,0.14)]">
@@ -400,39 +550,126 @@ export default async function NovaVendaCampoPage({
 
         <section className="space-y-4 px-5 py-6">
           {vendaExistente ? (
-            <section className="rounded-[28px] border border-emerald-200 bg-white p-6 text-center shadow-[0_18px_45px_rgba(17,63,33,0.07)]">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-emerald-600 text-white">
-                <ShieldCheck
-                  size={27}
-                />
+            <section className="rounded-[28px] border border-emerald-200 bg-white p-5 shadow-[0_18px_45px_rgba(17,63,33,0.07)]">
+              <div className="text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-emerald-600 text-white">
+                  <ShieldCheck
+                    size={27}
+                  />
+                </div>
+
+                <p className="mt-4 text-[8px] font-black uppercase tracking-[0.18em] text-emerald-700">
+                  Venda registrada
+                </p>
+
+                <h2 className="mt-1 text-[20px] font-black">
+                  {cliente.nome}
+                </h2>
+
+                <p className="mt-1 text-[9px] font-bold text-slate-400">
+                  {cliente.codigo} • {vendaExistente.codigo}
+                </p>
               </div>
 
-              <p className="mt-5 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700">
-                Venda já registrada
-              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2 text-left">
+                <div className="rounded-[16px] bg-[#f6f9f6] p-3.5">
+                  <p className="text-[7px] font-black uppercase tracking-[0.1em] text-slate-400">
+                    Valor da venda
+                  </p>
+                  <p className="mt-1 text-[16px] font-black">
+                    {moeda(
+                      valorVendaExistente,
+                    )}
+                  </p>
+                </div>
 
-              <h2 className="mt-2 text-[21px] font-black">
-                {
-                  vendaExistente.codigo
-                }
-              </h2>
+                <div className="rounded-[16px] bg-emerald-50 p-3.5">
+                  <p className="text-[7px] font-black uppercase tracking-[0.1em] text-emerald-700">
+                    Recebido hoje
+                  </p>
+                  <p className="mt-1 text-[16px] font-black text-emerald-800">
+                    {moeda(
+                      valorRecebidoHoje,
+                    )}
+                  </p>
+                  <p className="mt-1 text-[8px] font-bold text-emerald-700">
+                    {vendaExistente.forma_pagamento ??
+                      "—"}
+                  </p>
+                </div>
 
-              <p className="mt-2 text-[11px] text-slate-500">
-                {moeda(
-                  Number(
-                    vendaExistente.valor_total,
-                  ),
-                )} • {
-                  vendaExistente.tipo_venda ===
-                  "CREDIARIO"
-                    ? "Crediário"
-                    : "À vista"
-                }
+                <div className="rounded-[16px] bg-amber-50 p-3.5">
+                  <p className="text-[7px] font-black uppercase tracking-[0.1em] text-amber-700">
+                    Saldo restante
+                  </p>
+                  <p className="mt-1 text-[16px] font-black text-amber-800">
+                    {moeda(
+                      saldoExibido,
+                    )}
+                  </p>
+                </div>
+
+                <div className="rounded-[16px] bg-sky-50 p-3.5">
+                  <p className="text-[7px] font-black uppercase tracking-[0.1em] text-sky-700">
+                    Modalidade
+                  </p>
+                  <p className="mt-1 text-[12px] font-black text-sky-900">
+                    {vendaExistente.tipo_venda ===
+                    "CREDIARIO"
+                      ? `Parcelado${
+                          contratoVenda
+                            ?.quantidade_parcelas
+                            ? ` em ${contratoVenda.quantidade_parcelas}x`
+                            : ""
+                        }`
+                      : vendaExistente.tipo_venda ===
+                          "SALDO_ABERTO"
+                        ? "Saldo em aberto"
+                        : "À vista"}
+                  </p>
+                </div>
+              </div>
+
+              {vendaExistente.contrato_id && (
+                <div className="mt-3 rounded-[16px] border border-slate-100 bg-white p-3.5 text-left">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[7px] font-black uppercase tracking-[0.1em] text-slate-400">
+                        {contratoVenda
+                          ?.modalidade ===
+                        "SALDO_ABERTO"
+                          ? "Próxima visita sugerida"
+                          : "Próximo vencimento"}
+                      </p>
+                      <p className="mt-1 text-[13px] font-black">
+                        {dataBR(
+                          proximoCompromisso,
+                        )}
+                      </p>
+                    </div>
+
+                    {contratoVenda
+                      ?.codigo && (
+                      <div className="text-right">
+                        <p className="text-[7px] font-black uppercase tracking-[0.1em] text-slate-400">
+                          Contrato
+                        </p>
+                        <p className="mt-1 text-[9px] font-black text-slate-600">
+                          {contratoVenda.codigo}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <p className="mt-4 text-center text-[9px] leading-4 text-slate-400">
+                O valor da venda é o total da cesta. O recebido hoje é o que entrou no caixa; o saldo restante continua na carteira do cliente.
               </p>
 
               <Link
                 href="/mobile/rota"
-                className="mt-6 flex h-[52px] items-center justify-center rounded-[16px] bg-[#176f3c] text-[11px] font-black text-white"
+                className="mt-5 flex h-[52px] items-center justify-center rounded-[16px] bg-[#176f3c] text-[11px] font-black text-white"
               >
                 Continuar minha rota
               </Link>

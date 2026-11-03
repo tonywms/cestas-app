@@ -1,4 +1,6 @@
-export const instant = false;
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
+﻿export const instant = false;
 
 import {
   ArrowLeft,
@@ -258,7 +260,7 @@ export default async function CargaDetalhePage({
 
   const motivoBloqueioCancelamento =
     carga.status !== "ABERTA"
-      ? `A carga está ${String(carga.status).replaceAll("_", " ").toLowerCase()} e não pode mais ser cancelada.`
+      ? `A carga está ${rotuloTecnico(String(carga.status)).toLowerCase()} e não pode mais ser cancelada.`
       : existeRotaAtiva
         ? "Existe uma rota PLANEJADA ou EM ROTA para este entregador. Finalize ou cancele a rota primeiro."
         : possuiMovimentacao
@@ -267,7 +269,7 @@ export default async function CargaDetalhePage({
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[980px]">
+      <div className="mx-auto w-full">
 
         <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
           <div className="flex items-center gap-4">
@@ -400,7 +402,7 @@ export default async function CargaDetalhePage({
                           status,
                         )}`}
                       >
-                        {status.replaceAll("_", " ")}
+                        {rotuloTecnico(status)}
                       </span>
                     </div>
                   </div>
@@ -413,7 +415,7 @@ export default async function CargaDetalhePage({
             <div className="mt-4 flex items-center justify-between rounded-[16px] bg-emerald-50 px-4 py-3">
               <div className="flex items-center gap-2 text-[8px] font-black text-emerald-800">
                 <PackageCheck size={14} />
-                {volumesGerados.length} volume(s) vinculado(s) à carga #{cargaId}
+                {volumesGerados.length} volume(s) vinculado(s) à carga nº {cargaId}
               </div>
 
               <Link
@@ -517,7 +519,7 @@ export default async function CargaDetalhePage({
                         status,
                       )}`}
                     >
-                      {status.replaceAll("_", " ")}
+                      {rotuloTecnico(status)}
                     </span>
                   </div>
                 );

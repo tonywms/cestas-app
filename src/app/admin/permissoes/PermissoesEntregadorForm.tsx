@@ -1,5 +1,7 @@
 "use client";
 
+/* V71_2_ROTULOS_PERMISSOES_PREMIUM */
+
 import {
   AlertTriangle,
   Check,
@@ -22,6 +24,20 @@ import {
 import {
   salvarPermissoesEntregador,
 } from "./actions";
+
+function rotuloModuloPremium(valor: string) {
+  const limpo = valor
+    .trim()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("pt-BR");
+
+  return limpo.replace(
+    /(^|\s)([a-záàâãéèêíïóôõöúç])/g,
+    (_, espaco, letra) =>
+      espaco + letra.toLocaleUpperCase("pt-BR"),
+  );
+}
 
 const initialPermissoesState = {
   success: false,
@@ -255,7 +271,7 @@ export default function PermissoesEntregadorForm({
                   </p>
 
                   <h2 className="mt-1 text-[17px] font-black tracking-[-0.03em] text-[#142019]">
-                    {modulo}
+                    {rotuloModuloPremium(modulo)}
                   </h2>
                 </div>
 
@@ -359,12 +375,6 @@ export default function PermissoesEntregadorForm({
                                 </span>
                               )}
                           </div>
-
-                          <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                            {
-                              permissao.codigo
-                            }
-                          </p>
 
                           {permissao.descricao && (
                             <p className="mt-1 text-[10px] leading-4 text-slate-400">

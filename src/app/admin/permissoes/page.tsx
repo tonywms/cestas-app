@@ -1,4 +1,5 @@
-export const instant = false;
+/* V71_2_ROTULOS_PERMISSOES_PREMIUM */
+﻿export const instant = false;
 
 import Link from "next/link";
 
@@ -44,6 +45,8 @@ const PROIBIDAS_ENTREGADOR =
     PERMISSOES.EMPRESA_CONFIGURAR,
     PERMISSOES.PERMISSOES_GERENCIAR,
     PERMISSOES.USUARIOS_GERENCIAR,
+    PERMISSOES.FINANCEIRO_AUDITAR,
+    PERMISSOES.FINANCEIRO_ESTORNAR,
   ]);
 
 type PerfilResumo = {
@@ -512,17 +515,26 @@ export default async function PermissoesPage() {
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Segurança"
           title="Permissões e acessos"
           actions={
-            <Link
-              href="/admin/usuarios"
-              className="rounded-[14px] border border-emerald-100 bg-white px-4 py-3 text-[12px] font-extrabold text-emerald-800"
-            >
-              Usuários
-            </Link>
+            <>
+              {/* V72_CERTIFICACAO_SEGURANCA_PERMISSOES */}
+              <Link
+                href="/admin/permissoes/consistencia"
+                className="rounded-[14px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-[12px] font-extrabold text-emerald-800 transition hover:bg-emerald-100"
+              >
+                Certificação QA
+              </Link>
+              <Link
+                href="/admin/usuarios"
+                className="rounded-[14px] border border-emerald-100 bg-white px-4 py-3 text-[12px] font-extrabold text-emerald-800"
+              >
+                Usuários
+              </Link>
+            </>
           }
         />
 
@@ -649,10 +661,6 @@ export default async function PermissoesPage() {
 
                     <p className="mt-4 text-[15px] font-black">
                       {perfil.nome}
-                    </p>
-
-                    <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.1em] text-slate-400">
-                      {perfil.codigo}
                     </p>
 
                     <div className="mt-4 rounded-[15px] bg-[#f5f8f5] p-3">
@@ -827,3 +835,4 @@ function Mini({
     </div>
   );
 }
+

@@ -1,4 +1,6 @@
-export const instant = false;
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
+﻿export const instant = false;
 
 import {
   ArrowLeft,
@@ -67,7 +69,7 @@ function rotuloTipoVenda(tipo: string) {
   const normalizado = tipo.toUpperCase();
   if (normalizado.includes("CRED")) return "Crediário";
   if (normalizado.includes("VISTA")) return "À vista";
-  return tipo.replaceAll("_", " ");
+  return rotuloTecnico(tipo);
 }
 
 export default async function RelatorioVendasPage({
@@ -229,7 +231,7 @@ export default async function RelatorioVendasPage({
 
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1240px]">
+      <div className="mx-auto w-full">
         <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
           <div className="flex items-center gap-4">
             <Link
@@ -549,3 +551,4 @@ function ResumoCard({
     </div>
   );
 }
+

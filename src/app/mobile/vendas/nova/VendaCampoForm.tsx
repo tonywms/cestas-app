@@ -20,7 +20,6 @@ import {
 
 import {
   registrarVendaCampo,
-  vendaCampoInitialState,
 } from "./actions";
 
 type ItemVenda = {
@@ -28,6 +27,17 @@ type ItemVenda = {
   quantidade: number;
   valorUnitario: number;
   subtotal: number;
+};
+
+const vendaCampoInitialState = {
+  success: false,
+  message: "",
+  vendaId: null as number | null,
+  codigo: null as string | null,
+  contratoCodigo: null as string | null,
+  valorTotal: null as number | null,
+  saldoAberto: null as number | null,
+  proximaVisita: null as string | null,
 };
 
 function moeda(valor: number) {
@@ -68,7 +78,7 @@ export default function VendaCampoForm({
     tipoVenda,
     setTipoVenda,
   ] = useState<
-    "AVISTA" | "CREDIARIO"
+    "AVISTA" | "SALDO_ABERTO" | "CREDIARIO"
   >("AVISTA");
 
   const [
@@ -199,7 +209,7 @@ export default function VendaCampoForm({
             Como foi a venda?
           </p>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() =>
@@ -231,6 +241,33 @@ export default function VendaCampoForm({
               type="button"
               onClick={() =>
                 setTipoVenda(
+                  "SALDO_ABERTO",
+                )
+              }
+              className={`rounded-[18px] border p-3 text-left transition ${
+                tipoVenda ===
+                "SALDO_ABERTO"
+                  ? "border-sky-400 bg-sky-50 text-sky-800"
+                  : "border-slate-200 bg-white text-slate-500"
+              }`}
+            >
+              <WalletCards
+                size={19}
+              />
+
+              <p className="mt-3 text-[10px] font-black">
+                Saldo aberto
+              </p>
+
+              <p className="mt-1 text-[7px] leading-4 opacity-70">
+                Recebe hoje e deixa o restante livre.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setTipoVenda(
                   "CREDIARIO",
                 )
               }
@@ -245,12 +282,12 @@ export default function VendaCampoForm({
                 size={19}
               />
 
-              <p className="mt-3 text-[11px] font-black">
-                Crediário
+              <p className="mt-3 text-[10px] font-black">
+                Parcelado
               </p>
 
-              <p className="mt-1 text-[8px] leading-4 opacity-70">
-                Entrada + parcelas.
+              <p className="mt-1 text-[7px] leading-4 opacity-70">
+                Entrada + parcelas fixas.
               </p>
             </button>
           </div>
@@ -297,6 +334,85 @@ export default function VendaCampoForm({
                 )}
               </p>
             </div>
+          </section>
+        ) : tipoVenda ===
+        "SALDO_ABERTO" ? (
+          <section className="rounded-[26px] border border-sky-100 bg-white p-5 shadow-[0_14px_36px_rgba(17,63,33,0.05)]">
+            <div className="flex items-center gap-2">
+              <WalletCards
+                size={18}
+                className="text-sky-700"
+              />
+
+              <div>
+                <h3 className="text-[14px] font-black">
+                  Saldo em aberto
+                </h3>
+                <p className="mt-1 text-[8px] text-slate-400">
+                  O cliente paga quanto puder nas próximas visitas.
+                </p>
+              </div>
+            </div>
+
+            <label className="mt-5 block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">
+              Recebido hoje
+            </label>
+
+            <input
+              name="valor_entrada"
+              inputMode="decimal"
+              value={entrada}
+              onChange={(event) =>
+                setEntrada(event.target.value)
+              }
+              placeholder="0,00"
+              className="mt-2 h-[54px] w-full rounded-[16px] border border-slate-200 px-4 text-[12px] font-black outline-none focus:border-sky-400"
+            />
+
+            <label className="mt-4 block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">
+              Forma do valor recebido hoje
+            </label>
+
+            <select
+              name="forma_pagamento"
+              defaultValue="PIX"
+              className="mt-2 h-[54px] w-full rounded-[16px] border border-slate-200 bg-white px-4 text-[11px] font-black outline-none focus:border-sky-400"
+            >
+              <option value="PIX">PIX</option>
+              <option value="DINHEIRO">Dinheiro</option>
+              <option value="CARTAO">Cartão</option>
+              <option value="TRANSFERENCIA">Transferência</option>
+              <option value="OUTRO">Outro</option>
+            </select>
+
+            <label className="mt-4 block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">
+              Próxima visita sugerida
+            </label>
+
+            <input
+              type="date"
+              name="primeiro_vencimento"
+              defaultValue={primeiroVencimento}
+              required
+              className="mt-2 h-[54px] w-full rounded-[16px] border border-slate-200 px-3 text-[10px] font-black outline-none focus:border-sky-400"
+            />
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Resumo
+                label="Recebido hoje"
+                valor={moeda(entradaNumero)}
+              />
+
+              <Resumo
+                label="Saldo do cliente"
+                valor={moeda(financiado)}
+                destaque
+              />
+            </div>
+
+            <p className="mt-3 text-[8px] leading-4 text-slate-400">
+              A cada pagamento parcial, o sistema reduz o saldo e sugere automaticamente uma nova visita em aproximadamente 30 dias.
+            </p>
           </section>
         ) : (
           <section className="rounded-[26px] border border-amber-100 bg-white p-5 shadow-[0_14px_36px_rgba(17,63,33,0.05)]">
@@ -431,8 +547,8 @@ export default function VendaCampoForm({
           disabled={
             pending ||
             (
-              tipoVenda ===
-                "CREDIARIO" &&
+              tipoVenda !==
+                "AVISTA" &&
               financiado <= 0
             )
           }
@@ -444,10 +560,11 @@ export default function VendaCampoForm({
 
           {pending
             ? "Registrando venda..."
-            : tipoVenda ===
-                "AVISTA"
+            : tipoVenda === "AVISTA"
               ? "Confirmar venda à vista"
-              : "Gerar crediário"}
+              : tipoVenda === "SALDO_ABERTO"
+                ? "Abrir saldo em aberto"
+                : "Gerar venda parcelada"}
         </button>
       </form>
 
@@ -509,6 +626,33 @@ export default function VendaCampoForm({
                         Contrato {state.contratoCodigo}
                       </p>
                     )}
+
+                    {state.saldoAberto !== null &&
+                      state.saldoAberto > 0 && (
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-left">
+                          <div className="rounded-[14px] bg-white/80 p-3">
+                            <p className="text-[7px] font-black uppercase tracking-[0.1em] text-slate-400">
+                              Saldo em aberto
+                            </p>
+                            <p className="mt-1 text-[14px] font-black text-amber-800">
+                              {moeda(state.saldoAberto)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-[14px] bg-sky-50 p-3">
+                            <p className="text-[7px] font-black uppercase tracking-[0.1em] text-sky-600">
+                              Próxima visita
+                            </p>
+                            <p className="mt-1 text-[12px] font-black text-sky-900">
+                              {state.proximaVisita
+                                ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(
+                                    new Date(`${state.proximaVisita}T12:00:00Z`),
+                                  )
+                                : "—"}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                   </div>
                 )}
 

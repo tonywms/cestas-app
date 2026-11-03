@@ -1,4 +1,4 @@
-export const instant = false;
+﻿export const instant = false;
 
 import {
   KeyRound,
@@ -38,7 +38,7 @@ export default async function PlataformaSegurancaPage() {
 
   return (
     <main className="app-premium min-h-screen px-5 py-7 text-[#142018]">
-      <div className="mx-auto max-w-[980px]">
+      <div className="mx-auto w-full">
         <ModuleHeader
           eyebrow="Plataforma"
           title="Blindagem do Super Admin"
@@ -172,3 +172,4 @@ function Protecao({
     </div>
   );
 }
+

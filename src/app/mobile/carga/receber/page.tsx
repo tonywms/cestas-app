@@ -242,7 +242,9 @@ export default async function ReceberCargaPage() {
   const recebida =
     Boolean(
       carga?.recebida_at,
-    );
+    ) &&
+    esperados > 0 &&
+    confirmados >= esperados;
 
   return (
     <main className="min-h-dvh bg-[#eaf2ec] text-[#142018]">
@@ -340,9 +342,7 @@ export default async function ReceberCargaPage() {
             />
           ) : (
             <ReceberCargaForm
-              key={
-                carga.id
-              }
+              key={`${carga.id}-${esperados}-${confirmados}-${recebida ? "1" : "0"}`}
               cargaId={
                 carga.id
               }

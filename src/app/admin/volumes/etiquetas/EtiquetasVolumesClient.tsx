@@ -1,5 +1,7 @@
 "use client";
 
+import { rotuloTecnico } from "@/lib/ui/rotulo-tecnico";
+
 import {
   ArrowLeft,
   Barcode,
@@ -95,7 +97,7 @@ function statusVisual(status: string) {
       };
     default:
       return {
-        label: status.replaceAll("_", " "),
+        label: rotuloTecnico(status),
         className: "bg-slate-100 text-slate-600",
       };
   }
@@ -282,7 +284,7 @@ export default function EtiquetasVolumesClient({
               </h1>
               {cargaIdInicial && (
                 <p className="mt-1 text-[8px] font-black text-blue-600">
-                  Carga #{cargaIdInicial}
+                  Carga nº {cargaIdInicial}
                 </p>
               )}
             </div>
@@ -321,7 +323,7 @@ export default function EtiquetasVolumesClient({
                 Impressão direcionada
               </p>
               <p className="mt-1 text-[12px] font-black text-slate-800">
-                Carga #{cargaIdInicial}
+                Carga nº {cargaIdInicial}
               </p>
               <p className="mt-1 text-[8px] text-slate-500">
                 Esta tela está mostrando somente os volumes vinculados a esta carga.
@@ -466,7 +468,7 @@ export default function EtiquetasVolumesClient({
                       </p>
                       {volume.cargaId && (
                         <p className="mt-1 text-[7px] font-black text-blue-600">
-                          Carga #{volume.cargaId}
+                          Carga nº {volume.cargaId}
                         </p>
                       )}
                     </div>

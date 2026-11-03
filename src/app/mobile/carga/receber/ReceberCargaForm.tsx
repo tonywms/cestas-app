@@ -70,13 +70,18 @@ export default function ReceberCargaForm({
     modalConcluido,
     setModalConcluido,
   ] = useState(
-    recebida,
+    recebida &&
+    esperadosInicial > 0 &&
+    confirmadosInicial >= esperadosInicial,
   );
 
   const esperados =
-    state.esperados > 0
-      ? state.esperados
-      : esperadosInicial;
+    Math.max(
+      esperadosInicial,
+      state.esperados > 0
+        ? state.esperados
+        : 0,
+    );
 
   const confirmados =
     state.success &&
@@ -86,6 +91,10 @@ export default function ReceberCargaForm({
           state.confirmados,
         )
       : confirmadosInicial;
+
+  const completoReal =
+    esperados > 0 &&
+    confirmados >= esperados;
 
   const percentual =
     esperados > 0
@@ -108,7 +117,7 @@ export default function ReceberCargaForm({
           "";
       }
 
-      if (state.completo) {
+      if (state.completo && completoReal) {
         setModalConcluido(
           true,
         );
@@ -121,7 +130,7 @@ export default function ReceberCargaForm({
         );
       }
     }
-  }, [state]);
+  }, [state, completoReal]);
 
   useEffect(() => {
     if (
@@ -136,8 +145,8 @@ export default function ReceberCargaForm({
   ]);
 
   if (
-    recebida ||
-    modalConcluido
+    (recebida || modalConcluido) &&
+    completoReal
   ) {
     return (
       <>
@@ -179,7 +188,7 @@ export default function ReceberCargaForm({
             <Resumo
               label="Confirmados"
               valor={
-                esperados
+                confirmados
               }
               ok
             />
