@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import {
   Bell,
+  ChevronDown,
   ChevronRight,
   CircleUserRound,
   Clock3,
@@ -34,6 +35,8 @@ import {
 import {
   getCargaAtiva,
 } from "@/services/cargas/get-carga-ativa";
+
+import { getEstoqueMovelMulticargas } from "@/services/cargas/get-estoque-movel-multicargas";
 
 export default async function MobileHome() {
   const usuario =
@@ -132,21 +135,23 @@ export default async function MobileHome() {
   const erroCarga =
     resultadoCarga.erro;
 
-  const saldoMovel =
-    cargaAtiva?.carga_itens.reduce(
-      (total, item) =>
-        total +
-        Math.max(
-          0,
-          item.quantidade_carregada -
-            item.quantidade_entregue -
-            item.quantidade_retornada -
-            item.quantidade_avariada,
-        ),
-      0,
-    ) ?? 0;
+  // V92: o painel inicial nao usa somente a carga em operacao.
+  const resultadoSaldo = podeVerCarga
+    ? await getEstoqueMovelMulticargas({
+        empresaId: usuario.empresa.id,
+        entregadorId: usuario.id,
+        exigeConferenciaFisica:
+          usuario.configuracao.modoControleCarga === "VOLUME" &&
+          usuario.configuracao.exigirBipagemCarga,
+      })
+    : null;
+  const saldoGeral = resultadoSaldo?.saldoTotal ?? null;
+  const erroSaldoTotal = Boolean(resultadoSaldo?.erro) || saldoGeral === null;
+  const cargaEmOperacao = resultadoSaldo?.cargas.find(
+    (item) => item.id === cargaAtiva?.id,
+  );
 
-  return (
+return (
     <main className="app-premium min-h-dvh text-[#142018]">
 
       <div className="relative mx-auto flex min-h-dvh w-full max-w-[480px] flex-col overflow-hidden bg-[#f7faf7]/90 shadow-[0_0_60px_rgba(17,63,33,0.12)]">
@@ -225,48 +230,89 @@ export default async function MobileHome() {
         {podeVerCarga && (
           <section className="relative z-10 -mt-16 px-5">
 
-            <Link
-              href="/mobile/carga"
-              className="card-premium animate-pop block rounded-[28px] p-5 shadow-[0_28px_60px_rgba(17,63,33,0.16)]"
-            >
-
-              <div className="flex items-center justify-between gap-3">
-
-                <div className="flex items-center gap-2">
-                  <div className="icon-emerald flex h-9 w-9 items-center justify-center rounded-[12px]">
-                    <Truck size={19} />
+            {/* V92.1: detalhamento recolhido por padrao; total sempre visivel. */}
+            <div className="card-premium animate-pop rounded-[28px] p-5 shadow-[0_28px_60px_rgba(17,63,33,0.16)]">
+              <Link
+                href="/mobile/carga"
+                className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="icon-emerald flex h-9 w-9 items-center justify-center rounded-[12px]">
+                      <Truck size={19} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#176b3a]">Minha carga</span>
                   </div>
-
-                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#176b3a]">
-                    Minha carga
+                  <span
+                    className={`shrink-0 rounded-full px-3 py-1.5 text-[9px] font-black ${
+                      erroSaldoTotal
+                        ? "bg-slate-100 text-slate-500"
+                        : (saldoGeral ?? 0) > 0
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {erroSaldoTotal ? "Total --" : `Total ${saldoGeral}`}
                   </span>
                 </div>
+                <h2 className="mt-4 text-xl font-black tracking-[-0.03em]">Estoque móvel</h2>
+                <p className="mt-2 text-xs leading-5 text-[#849085]">
+                  Saldo consolidado das cargas recebidas e ativas.
+                </p>
+              </Link>
 
-                <span
-                  className={`shrink-0 rounded-full px-3 py-1.5 text-[9px] font-black ${
-                    erroCarga
-                      ? "bg-slate-100 text-slate-500"
-                      : saldoMovel > 0
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-amber-50 text-amber-700"
-                  }`}
-                >
-                  {erroCarga
-                    ? "Saldo --"
-                    : `Saldo ${saldoMovel}`}
-                </span>
+              {erroSaldoTotal ? (
+                <p role="status" className="mt-3 rounded-xl bg-amber-50 p-3 text-[11px] font-semibold text-amber-900">
+                  Saldo total indisponível. Atualize a tela.
+                </p>
+              ) : (
+                <div className="mt-4 border-t border-emerald-100 pt-3">
+                  <div className="flex items-center justify-between gap-3 text-[11px]">
+                    <span className="font-bold text-[#176b3a]">Todas as cargas recebidas</span>
+                    <strong className="text-base font-black text-[#176b3a]">{saldoGeral} cestas</strong>
+                  </div>
 
-              </div>
-
-              <h2 className="mt-4 text-xl font-black tracking-[-0.03em]">
-                Estoque móvel
-              </h2>
-
-              <p className="mt-2 text-xs leading-5 text-[#849085]">
-                Consulte seu saldo atual, entregas e movimentações.
-              </p>
-
-            </Link>
+                  <details className="group mt-3 rounded-xl border border-emerald-100 bg-[#f5faf5]">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-[#176b3a] focus-visible:outline-2 focus-visible:outline-emerald-700 [&::-webkit-details-marker]:hidden">
+                      <span className="text-[11px] font-black">
+                        Ver cargas ({resultadoSaldo?.cargas.length ?? 0})
+                      </span>
+                      <ChevronDown aria-hidden="true" size={17} className="shrink-0 transition-transform duration-200 group-open:rotate-180" />
+                    </summary>
+                    <div className="space-y-2 border-t border-emerald-100 px-3 pb-3 pt-3">
+                      {(resultadoSaldo?.cargas ?? []).slice(0, 4).map((carga) => (
+                        <div key={carga.id} className="flex items-start justify-between gap-3 text-[10px] text-[#506454]">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">
+                              Carga nº {carga.id} · {carga.codigo}
+                            </p>
+                            {cargaEmOperacao?.id === carga.id && (
+                              <p className="font-bold text-emerald-700">Em operação</p>
+                            )}
+                          </div>
+                          <strong className="shrink-0 text-[#176b3a]">
+                            {carga.recebida ? `${carga.saldo} cestas` : "A conferir"}
+                          </strong>
+                        </div>
+                      ))}
+                      {(resultadoSaldo?.cargas.length ?? 0) > 4 && (
+                        <p className="text-[10px] font-semibold text-[#176b3a]">
+                          Mais {(resultadoSaldo?.cargas.length ?? 0) - 4} carga(s) no seletor.
+                        </p>
+                      )}
+                      {(resultadoSaldo?.pendentes ?? 0) > 0 && (
+                        <p className="text-[10px] text-amber-800">
+                          {(resultadoSaldo?.pendentes ?? 0)} carga(s) aguardando confirmação física; não incluídas no total.
+                        </p>
+                      )}
+                      <Link href="/mobile/carga/selecionar" className="inline-flex items-center gap-1 pt-1 text-[11px] font-bold text-[#176b3a] underline underline-offset-2">
+                        Gerenciar cargas <ChevronRight size={14} aria-hidden="true" />
+                      </Link>
+                    </div>
+                  </details>
+                </div>
+              )}
+            </div>
 
           </section>
         )}

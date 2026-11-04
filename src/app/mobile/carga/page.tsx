@@ -506,7 +506,31 @@ export default async function MinhaCargaPage() {
         <Header />
 
         <IdentificacaoCargaMobile numero={carga.id} codigo={carga.codigo} status={carga.status} />
-        <div className="px-4 pt-2 text-right"><Link href="/mobile/carga/selecionar" className="text-[11px] font-bold text-emerald-700 underline">Trocar carga em operacao</Link></div>
+
+        {/* V94_STATUS_ROTA_FINALIZADA: o estado EM_ROTA da carga permanece ate a conciliacao fisica. */}
+        {carga.status === "EM_ROTA" && temRotaFinalizadaDaCarga && !temRotaAtiva && (
+          <div role="status" className="mx-4 mt-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-amber-950 shadow-sm">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.09em]">Rota finalizada</p>
+              <p className="mt-0.5 text-[11px] font-semibold">Fechamento da carga nº {carga.id} pendente</p>
+              <p className="mt-0.5 text-[10px] text-amber-800">O saldo continua em posse até conferir retorno e avarias.</p>
+            </div>
+            {/* V96_UX_SELETOR_LIMPO: a acao principal de fechamento permanece no resumo. */}
+          </div>
+        )}
+        <div className="px-4 py-3">
+          <Link
+            href="/mobile/carga/selecionar"
+            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-300 bg-white px-4 py-3.5 text-emerald-950 shadow-sm transition-colors hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+          >
+            <span className="min-w-0">
+              <span className="block text-[9px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">Gestão de múltiplas cargas</span>
+              <span className="mt-1 block text-sm font-black">Selecionar ou trocar carga</span>
+              <span className="mt-0.5 block text-[10px] text-slate-600">Em operação: carga nº {carga.id}</span>
+            </span>
+            <span className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2.5 text-[11px] font-extrabold text-white">Trocar →</span>
+          </Link>
+        </div>
 
         <section className="px-5 py-6">
 

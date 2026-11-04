@@ -52,3 +52,8 @@ node_modules
 /_qa_v*/
 /FONTES_V90_*.zip
 /DIAGNOSTICO_V*.zip
+# CESTAS_APP_V91_TEMPORARIOS
+/_v*_fontes_*/
+/_qa_v*/
+/FONTES_V90_*.zip
+/DIAGNOSTICO_V*.zip
