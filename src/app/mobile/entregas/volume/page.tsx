@@ -830,6 +830,8 @@ export default async function EntregaVolumePage({
             />
           ) : (
             <EntregaVolumeForm
+              empresaId={usuario.empresa.id}
+              usuarioId={usuario.id}
               cargaId={
                 carga.id
               }

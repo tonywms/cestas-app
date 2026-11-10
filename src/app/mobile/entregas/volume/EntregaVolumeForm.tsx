@@ -14,6 +14,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { registrarEntregaVolume, type EntregaVolumeState } from "./actions";
+import { useRegistrarEntregaOffline } from "@/lib/mobile/use-registrar-entrega-offline";
+import SincronizadorOfflineEntregas from "@/components/mobile/SincronizadorOfflineEntregas";
 
 type Cliente = { id: number; codigo: string; nome: string; endereco: string };
 type TipoCesta = { id: number; codigo: string; nome: string; saldo: number; volumesDisponiveis: number };
@@ -29,6 +31,8 @@ const initialState: EntregaVolumeState = {
 };
 
 export default function EntregaVolumeForm({
+  empresaId,
+  usuarioId,
   cargaId,
   cargaCodigo,
   clientes,
@@ -39,6 +43,8 @@ export default function EntregaVolumeForm({
   habilitarFinanceiro,
   vendaObrigatoria,
 }: {
+  empresaId: string;
+  usuarioId: string;
   cargaId: number;
   cargaCodigo: string;
   clientes: Cliente[];
@@ -50,6 +56,12 @@ export default function EntregaVolumeForm({
   vendaObrigatoria: boolean;
 }) {
   const router = useRouter();
+  const { onSubmit: aoEnviar, salvandoOffline, jaSalvouOffline, avisoOffline, erroOffline } =
+    useRegistrarEntregaOffline({
+      empresaId, usuarioId, cargaId, cargaCodigo, modo: "VOLUME",
+      clientes, saldos: tipos.map(item => ({ id: item.id, saldo: item.saldo })),
+      exigirBipagem, vendaObrigatoria,
+    });
   const [state, formAction, pending] = useActionState(registrarEntregaVolume, initialState);
   const [modal, setModal] = useState(false);
   const [tipoId, setTipoId] = useState(tipos[0]?.id ? String(tipos[0].id) : "");
@@ -123,7 +135,7 @@ export default function EntregaVolumeForm({
         </section>
       )}
 
-      <form action={formAction} className="mt-4 space-y-4">
+      <form action={formAction} onSubmit={aoEnviar} className="mt-4 space-y-4">
         <input type="hidden" name="carga_id" value={cargaId} />
         {rotaClienteId && <input type="hidden" name="rota_cliente_id" value={rotaClienteId} />}
 
@@ -245,9 +257,10 @@ export default function EntregaVolumeForm({
           <input name="observacao" placeholder="Opcional" className="mt-2 h-[54px] w-full rounded-[16px] border border-slate-200 px-4 text-[11px] font-semibold outline-none focus:border-emerald-500" />
         </section>
 
-        <button type="submit" disabled={pending || !podeConfirmar} className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#176f3c] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.18)] disabled:opacity-40">
+        <button type="submit" disabled={pending || !podeConfirmar || salvandoOffline || jaSalvouOffline} className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#176f3c] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.18)] disabled:opacity-40">
           <PackageCheck size={18} />
-          {pending
+          {salvandoOffline ? "Salvando no aparelho..." : jaSalvouOffline
+            ? "Entrega aguardando sincronização" : pending
             ? "Concluindo entrega..."
             : vendaObrigatoria
               ? exigirBipagem
@@ -259,6 +272,13 @@ export default function EntregaVolumeForm({
         </button>
       </form>
 
+      {avisoOffline && (
+        <div role="status" aria-live="polite"
+          className={`my-4 rounded-2xl border p-4 text-[12px] font-semibold leading-6 ${erroOffline ? "border-red-200 bg-red-50 text-red-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
+          {avisoOffline}
+        </div>
+      )}
+      <SincronizadorOfflineEntregas empresaId={empresaId} usuarioId={usuarioId} />
       {modal && state.message && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#07150d]/55 p-4 backdrop-blur-[6px]">
           <div className="w-full max-w-[400px] rounded-[30px] bg-white p-7 text-center shadow-[0_30px_100px_rgba(15,50,30,0.28)]">

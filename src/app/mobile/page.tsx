@@ -1,6 +1,7 @@
 export const instant = false;
 
 import SincronizadorOfflineClientes from "@/components/mobile/SincronizadorOfflineClientes";
+import SincronizadorOfflineEntregas from "@/components/mobile/SincronizadorOfflineEntregas";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -158,6 +159,7 @@ return (
 
       <div className="relative mx-auto flex min-h-dvh w-full max-w-[480px] flex-col overflow-hidden bg-[#f7faf7]/90 shadow-[0_0_60px_rgba(17,63,33,0.12)]">
         <SincronizadorOfflineClientes empresaId={usuario.empresa.id} usuarioId={usuario.id} compacto />
+        <SincronizadorOfflineEntregas empresaId={usuario.empresa.id} usuarioId={usuario.id} compacto />
 
         <header className="hero-premium grain relative overflow-hidden px-5 pb-24 pt-5 text-white">
 

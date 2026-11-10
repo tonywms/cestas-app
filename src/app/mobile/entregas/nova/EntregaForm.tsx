@@ -17,9 +17,9 @@ import {
   useState,
 } from "react";
 
-import {
-  registrarEntrega,
-} from "./actions";
+import { registrarEntrega } from "./actions";
+import { useRegistrarEntregaOffline } from "@/lib/mobile/use-registrar-entrega-offline";
+import SincronizadorOfflineEntregas from "@/components/mobile/SincronizadorOfflineEntregas";
 
 const initialState = {
   success: false,
@@ -49,6 +49,8 @@ type ItemCarga = {
 };
 
 export default function EntregaForm({
+  empresaId,
+  usuarioId,
   cargaId,
   cargaCodigo,
   clientes,
@@ -57,6 +59,8 @@ export default function EntregaForm({
   clienteSelecionado,
   habilitarFinanceiro,
 }: {
+  empresaId: string;
+  usuarioId: string;
   cargaId: number;
   cargaCodigo: string;
   clientes: Cliente[];
@@ -84,6 +88,11 @@ export default function EntregaForm({
     modal,
     setModal,
   ] = useState(false);
+  const { onSubmit: aoEnviar, salvandoOffline, jaSalvouOffline, avisoOffline, erroOffline } =
+    useRegistrarEntregaOffline({
+      empresaId, usuarioId, cargaId, cargaCodigo, modo: "QUANTIDADE",
+      clientes, saldos: itens.map(item => ({ id: item.tipoCestaId, saldo: item.saldo })),
+    });
 
   useEffect(() => {
     if (state.message) {
@@ -95,6 +104,7 @@ export default function EntregaForm({
     <>
       <form
         action={formAction}
+        onSubmit={aoEnviar}
         className="space-y-4"
       >
 
@@ -319,20 +329,28 @@ export default function EntregaForm({
 
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || salvandoOffline || jaSalvouOffline}
           className="flex h-[56px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#176f3c] text-sm font-black text-white shadow-[0_12px_30px_rgba(23,111,60,0.18)] disabled:opacity-60"
         >
           <Save
             size={18}
           />
 
-          {pending
-            ? "Registrando..."
-            : "Confirmar entrega"}
+          {salvandoOffline
+            ? "Salvando no aparelho..."
+            : jaSalvouOffline ? "Entrega aguardando sincronização"
+            : pending ? "Registrando..." : "Confirmar entrega"}
         </button>
 
       </form>
 
+      {avisoOffline && (
+        <div role="status" aria-live="polite"
+          className={`my-4 rounded-2xl border p-4 text-[12px] font-semibold leading-6 ${erroOffline ? "border-red-200 bg-red-50 text-red-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
+          {avisoOffline}
+        </div>
+      )}
+      <SincronizadorOfflineEntregas empresaId={empresaId} usuarioId={usuarioId} />
       {/* MODAL */}
       {modal &&
         state.message && (

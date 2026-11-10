@@ -759,6 +759,8 @@ export default async function NovaEntregaPage({
             </div>
           ) : (
             <EntregaForm
+              empresaId={usuario.empresa.id}
+              usuarioId={usuario.id}
               cargaId={
                 carga.id
               }
