@@ -349,6 +349,8 @@ export default async function ReceberCargaPage() {
           ) : (
             <ReceberCargaForm
               key={`${carga.id}-${esperados}-${confirmados}-${recebida ? "1" : "0"}`}
+              entregadorId={usuario.id}
+              entregadorNome={usuario.nome}
               cargaId={
                 carga.id
               }

@@ -38,6 +38,8 @@ type Bipagem = {
 };
 
 export default function ReceberCargaForm({
+  entregadorId,
+  entregadorNome,
   cargaId,
   cargaCodigo,
   esperadosInicial,
@@ -45,6 +47,8 @@ export default function ReceberCargaForm({
   recebida,
   bipagens,
 }: {
+  entregadorId: string;
+  entregadorNome: string;
   cargaId: number;
   cargaCodigo: string;
   esperadosInicial: number;
@@ -278,6 +282,10 @@ export default function ReceberCargaForm({
             name="carga_id"
             value={cargaId}
           />
+          <input type="hidden" name="entregador_esperado_id" value={entregadorId} />
+          <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-[10px] font-semibold text-emerald-800">
+            Conferência autorizada para: <strong>{entregadorNome}</strong>
+          </div>
 
           <label className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-400">
             Código do volume

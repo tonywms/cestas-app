@@ -42,6 +42,17 @@ export async function biparVolumeCarga(
     return estado(false, "Sessão inválida. Entre novamente.");
   }
 
+  // V105.1: detecta login alterado em outra aba depois da tela carregada.
+  // A verificação no RPC continua obrigatória e é a autoridade de segurança.
+  const idDaTela = String(formData.get("entregador_esperado_id") ?? "");
+  if (idDaTela && idDaTela !== usuario.id) {
+    return estado(false,
+      "A sessão do navegador mudou desde que esta carga foi aberta. " +
+      `Esta aba agora está autenticada como ${usuario.nome}. ` +
+      "Para receber os volumes, entre como o entregador responsável em uma janela separada e abra novamente a carga.",
+    );
+  }
+
   const autorizado =
     usuario.isPlatformAdmin ||
     (
@@ -120,8 +131,10 @@ export async function biparVolumeCarga(
 
     return estado(
       false,
-      error.message ||
-        "Não foi possível confirmar este volume.",
+      error.message?.includes("Carga não encontrada para este entregador")
+        ? "Este usuário não é o entregador responsável pela carga selecionada ou a sessão mudou em outra aba. " +
+          "Abra a carga no acesso de Tony teste; use outra janela/perfil do navegador para o administrador."
+        : error.message || "Não foi possível confirmar este volume.",
     );
   }
 
