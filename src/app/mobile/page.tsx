@@ -1,3 +1,4 @@
+// CESTAS_V105_5_1_SESSAO: prefetch desabilitado para sessao SSR
 export const instant = false;
 
 import CentralNotificacoesMobile from "@/components/mobile/CentralNotificacoesMobile";
@@ -227,7 +228,7 @@ return (
 
             {/* V92.1: detalhamento recolhido por padrao; total sempre visivel. */}
             <div className="card-premium animate-pop rounded-[28px] p-5 shadow-[0_28px_60px_rgba(17,63,33,0.16)]">
-              <Link
+              <Link prefetch={false}
                 href="/mobile/carga"
                 className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700"
               >
@@ -300,7 +301,7 @@ return (
                           {(resultadoSaldo?.pendentes ?? 0)} carga(s) aguardando confirmação física; não incluídas no total.
                         </p>
                       )}
-                      <Link href="/mobile/carga/selecionar" className="inline-flex items-center gap-1 pt-1 text-[11px] font-bold text-[#176b3a] underline underline-offset-2">
+                      <Link prefetch={false} href="/mobile/carga/selecionar" className="inline-flex items-center gap-1 pt-1 text-[11px] font-bold text-[#176b3a] underline underline-offset-2">
                         Gerenciar cargas <ChevronRight size={14} aria-hidden="true" />
                       </Link>
                     </div>
@@ -423,7 +424,7 @@ return (
         {podeVerRota && (
           <section className="px-5 pb-28">
 
-            <Link
+            <Link prefetch={false}
               href="/mobile/rota"
               className="card-premium animate-fade-up block w-full rounded-[24px] p-5"
               style={{ animationDelay: "380ms" }}
@@ -596,7 +597,7 @@ function ActionCard({
 
   if (href) {
     return (
-      <Link
+      <Link prefetch={false}
         href={href}
         className={classes}
         style={style}
@@ -651,7 +652,7 @@ function NavItem({
 
   if (href) {
     return (
-      <Link
+      <Link prefetch={false}
         href={href}
         className={classes}
       >

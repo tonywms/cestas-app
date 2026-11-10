@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -21,8 +20,6 @@ type LoginScreenProps = {
 };
 
 export default function LoginScreen({ onBack }: LoginScreenProps) {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -107,13 +104,9 @@ export default function LoginScreen({ onBack }: LoginScreenProps) {
         .single();
 
       if (usuarioError) {
-        console.error("Erro ao carregar usuário:", usuarioError);
-
-        await supabase.auth.signOut();
-
-        setErro(
-          "Seu acesso foi autenticado, mas o perfil do usuário não foi encontrado."
-        );
+        // CESTAS_V105_5_1_SESSAO: erro de banco nao deve efetuar logout global.
+        console.error("Erro ao consultar perfil apos login:", usuarioError);
+        setErro("Nao foi possivel consultar seu perfil agora. Sua sessao foi preservada. Tente novamente.");
         return;
       }
 
@@ -133,8 +126,9 @@ export default function LoginScreen({ onBack }: LoginScreenProps) {
         })
         .eq("id", data.user.id);
 
-      router.push("/app");
-      router.refresh();
+      // CESTAS_V105_5_1_SESSAO: navegacao completa apos o cliente persistir os cookies.
+      // Evita usar payload de prefetch gerado antes da autenticacao.
+      window.location.assign("/app");
     } catch (error) {
       console.error("Erro inesperado no login:", error);
 

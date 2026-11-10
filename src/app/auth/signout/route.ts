@@ -13,7 +13,8 @@ export async function POST(
   const supabase =
     await createClient();
 
-  await supabase.auth.signOut();
+  // CESTAS_V105_5_1_SESSAO: logout explicito encerra apenas esta sessao/dispositivo.
+  await supabase.auth.signOut({ scope: "local" });
 
   return NextResponse.redirect(
     new URL("/", request.url),

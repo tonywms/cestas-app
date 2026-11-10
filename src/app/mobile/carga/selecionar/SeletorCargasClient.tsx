@@ -1,3 +1,4 @@
+// CESTAS_V105_5_1_SESSAO: prefetch desabilitado para sessao SSR
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -207,7 +208,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
           {atual.fechamentoPendente && !atual.conferenciaPendente && (
             <p role="status" className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-[11px] font-semibold text-amber-950">Rota finalizada · fechamento pendente</p>
           )}
-          <Link href={atual.conferenciaPendente ? `/mobile/carga/receber?cargaId=${atual.id}` : atual.fechamentoPendente ? "/mobile/carga/fechar" : "/mobile/carga"}
+          <Link prefetch={false} href={atual.conferenciaPendente ? `/mobile/carga/receber?cargaId=${atual.id}` : atual.fechamentoPendente ? "/mobile/carga/fechar" : "/mobile/carga"}
             className="mt-3 block rounded-xl bg-emerald-800 px-4 py-3 text-center text-xs font-black text-white">
             {atual.conferenciaPendente ? "Receber volumes" : atual.fechamentoPendente ? "Revisar fechamento" : "Continuar nesta carga"}
           </Link>
@@ -357,7 +358,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
                 </div>
               </details>
               {selecionada ? (
-                <Link href={carga.conferenciaPendente ? `/mobile/carga/receber?cargaId=${carga.id}` : "/mobile/carga"} className="mt-3 block rounded-xl bg-emerald-800 px-4 py-3 text-center text-xs font-black text-white">
+                <Link prefetch={false} href={carga.conferenciaPendente ? `/mobile/carga/receber?cargaId=${carga.id}` : "/mobile/carga"} className="mt-3 block rounded-xl bg-emerald-800 px-4 py-3 text-center text-xs font-black text-white">
                   {carga.conferenciaPendente ? `Receber volumes da carga nº ${carga.id}` : `Continuar com a carga nº ${carga.id}`}
                 </Link>
               ) : (
@@ -369,7 +370,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
               )}
               {carga.conferenciaPendente && (
                 <div className="mt-3 space-y-2">
-                  <Link
+                  <Link prefetch={false}
                     href={`/mobile/carga/receber?cargaId=${carga.id}`}
                     className="block rounded-xl border border-emerald-600 bg-emerald-50 px-4 py-3 text-center text-[11px] font-black text-emerald-900"
                   >

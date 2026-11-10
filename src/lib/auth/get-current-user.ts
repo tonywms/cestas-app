@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { cookies } from "next/headers"; // CESTAS_V105_5_1_SESSAO
 import { assertRemoteRead, isConnectivityFailure } from "@/lib/auth/connectivity-error";
 // V102_1_OFFLINE_SEM_LOGOUT
 
@@ -79,6 +80,16 @@ export async function getCurrentUserProfile():
       : null;
 
   if (claimsError || !userId) {
+    // CESTAS_V105_5_1_SESSAO: nao confundir cookie existente com logout concluido.
+    // Em caso de JWT inconsistente, bloquear acesso SEM apagar a sessao.
+    const cookieStore = await cookies();
+    const possuiCookieAuth = cookieStore.getAll().some(({ name }) =>
+      /^sb-[a-z0-9_-]+-auth-token(?:\.\d+)?$/i.test(name)
+    );
+    if (possuiCookieAuth) {
+      console.warn("[CESTAS_V105_5_1_SESSAO] JWT nao validado com cookie presente; acesso bloqueado, sem encerrar sessao.");
+      throw new Error("CESTAS_SESSAO_REVALIDACAO_NECESSARIA");
+    }
     return null;
   }
 
@@ -100,10 +111,11 @@ export async function getCurrentUserProfile():
     .maybeSingle();
 
   assertRemoteRead(usuarioError);
-  if (
-    !usuario ||
-    !usuario.ativo
-  ) {
+  if (!usuario) {
+    console.warn("[CESTAS_V105_5_1_SESSAO] JWT validado, mas cadastro do usuario indisponivel.");
+    throw new Error("CESTAS_CADASTRO_TEMPORARIAMENTE_INDISPONIVEL");
+  }
+  if (!usuario.ativo) {
     return null;
   }
 
@@ -135,12 +147,8 @@ export async function getCurrentUserProfile():
   if (
     !vinculo
   ) {
-    console.error(
-      "Usuario sem empresa ativa:",
-      vinculoError,
-    );
-
-    return null;
+    console.warn("[CESTAS_V105_5_1_SESSAO] Vinculo ativo nao encontrado para sessao validada.");
+    throw new Error("CESTAS_VINCULO_INDISPONIVEL");
   }
 
   /*
@@ -217,24 +225,16 @@ export async function getCurrentUserProfile():
     !empresa.ativo ||
     empresa.status !== "ATIVA"
   ) {
-    console.error(
-      "Empresa invalida ou inativa:",
-      empresaResult.error,
-    );
-
-    return null;
+    console.warn("[CESTAS_V105_5_1_SESSAO] Empresa nao elegivel para operacao; acesso bloqueado.");
+    throw new Error("CESTAS_EMPRESA_INDISPONIVEL");
   }
 
   if (
     perfilResult.error ||
     !perfil
   ) {
-    console.error(
-      "Perfil nao encontrado:",
-      perfilResult.error,
-    );
-
-    return null;
+    console.warn("[CESTAS_V105_5_1_SESSAO] Perfil nao encontrado para sessao validada.");
+    throw new Error("CESTAS_PERFIL_INDISPONIVEL");
   }
 
   /*

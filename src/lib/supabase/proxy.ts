@@ -90,12 +90,17 @@ export async function updateSession(
   /*
    * A área global nunca deve ser armazenada em cache intermediário.
    */
-  if (
-    request.nextUrl.pathname
-      .startsWith(
-        "/admin/plataforma",
-      )
-  ) {
+  // CESTAS_V105_5_1_SESSAO: nunca armazenar HTML/RSC autenticado ou Set-Cookie no cache.
+  // O Supabase usa cookies que podem ser atualizados pelo proxy.
+  const rotaProtegida = /^\/(?:app|admin|mobile)(?:\/|$)/.test(request.nextUrl.pathname);
+  const possuiCookieAuth = request.cookies.getAll().some(({ name }) =>
+    /^sb-[a-z0-9_-]+-auth-token(?:\.\d+)?$/i.test(name)
+  );
+  if (rotaProtegida || possuiCookieAuth) {
+    const vary = response.headers.get("Vary");
+    if (!(vary || "").split(",").some((item) => item.trim().toLowerCase() === "cookie")) {
+      response.headers.set("Vary", vary ? vary + ", Cookie" : "Cookie");
+    }
     response.headers.set(
       "Cache-Control",
       "private, no-store, no-cache, must-revalidate, max-age=0",

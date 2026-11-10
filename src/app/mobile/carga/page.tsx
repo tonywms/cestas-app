@@ -1,3 +1,4 @@
+// CESTAS_V105_5_1_SESSAO: prefetch desabilitado para sessao SSR
 export const instant = false;
 
 import {
@@ -164,8 +165,8 @@ export default async function MinhaCargaPage() {
                 </div>
               </div>
 
-              <Link href="/mobile/carga/selecionar" className="mt-4 flex h-12 items-center justify-center rounded-xl bg-emerald-700 text-xs font-bold text-white">Selecionar carga</Link>
-              <Link
+              <Link prefetch={false} href="/mobile/carga/selecionar" className="mt-4 flex h-12 items-center justify-center rounded-xl bg-emerald-700 text-xs font-bold text-white">Selecionar carga</Link>
+              <Link prefetch={false}
                 href="/mobile/carga"
                 className="mt-5 flex h-[48px] w-full items-center justify-center gap-2 rounded-[15px] bg-red-600 text-xs font-black text-white"
               >
@@ -247,7 +248,7 @@ export default async function MinhaCargaPage() {
               </div>
             </div>
 
-            <Link
+            <Link prefetch={false}
               href="/mobile"
               className="mt-4 flex h-[52px] items-center justify-center gap-2 rounded-[17px] border border-[#dce8de] bg-white text-xs font-black text-[#176b3a]"
             >
@@ -519,7 +520,7 @@ export default async function MinhaCargaPage() {
           </div>
         )}
         <div className="px-4 py-3">
-          <Link
+          <Link prefetch={false}
             href="/mobile/carga/selecionar"
             className="flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-300 bg-white px-4 py-3.5 text-emerald-950 shadow-sm transition-colors hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
           >
@@ -868,7 +869,7 @@ export default async function MinhaCargaPage() {
 
               {!recebimentoCompleto &&
                 podeBiparCarga && (
-                <Link
+                <Link prefetch={false}
                   href="/mobile/carga/receber"
                   className="mt-4 flex h-[48px] w-full items-center justify-center gap-2 rounded-[15px] bg-[#176b3a] text-[10px] font-black text-white"
                 >
@@ -904,7 +905,7 @@ export default async function MinhaCargaPage() {
                   </div>
                 </div>
 
-                <Link
+                <Link prefetch={false}
                   href="/mobile/rota"
                   replace
                   className="mt-4 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-amber-600 text-[11px] font-black text-white shadow-[0_14px_30px_rgba(180,120,10,0.18)]"
@@ -936,7 +937,7 @@ export default async function MinhaCargaPage() {
                   </div>
                 </div>
 
-                <Link
+                <Link prefetch={false}
                   href="/mobile/rota"
                   className="mt-4 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176b3a] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,107,58,0.18)]"
                 >
@@ -959,7 +960,7 @@ export default async function MinhaCargaPage() {
             recebimentoCompleto &&
             !temRotaAtiva &&
             temRotaFinalizadaDaCarga && (
-              <Link
+              <Link prefetch={false}
                 href="/mobile/carga/fechar"
                 replace
                 className="mt-5 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176b3a] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,107,58,0.18)]"
@@ -975,7 +976,7 @@ export default async function MinhaCargaPage() {
           {usuario.configuracao.modoControleCarga === "VOLUME" &&
             usuario.configuracao.exigirBipagemCarga &&
             !recebimentoCompleto && (
-              <Link
+              <Link prefetch={false}
                 href="/mobile/carga/receber"
                 className="mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-[18px] border border-emerald-200 bg-emerald-50 text-[11px] font-black text-[#176f3c] shadow-[0_10px_28px_rgba(17,63,33,0.06)] transition active:scale-[0.99]"
               >
@@ -1016,7 +1017,7 @@ function Header() {
 
       <div className="relative z-10 flex items-center justify-between">
 
-        <Link
+        <Link prefetch={false}
           href="/mobile"
           className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/10"
         >
@@ -1037,7 +1038,7 @@ function Header() {
 
         </div>
 
-        <Link
+        <Link prefetch={false}
           href="/mobile/carga"
           className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/10"
         >
