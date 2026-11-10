@@ -153,6 +153,7 @@ export default async function FecharCargaPage({
       "entregador_id",
       usuario.id,
     )
+    .eq("carga_id", carga.id)
     .in(
       "status",
       [
@@ -224,6 +225,7 @@ export default async function FecharCargaPage({
       "entregador_id",
       usuario.id,
     )
+    .eq("carga_id", carga.id)
     .eq(
       "status",
       "AGUARDANDO_ENTREGA",
@@ -392,6 +394,16 @@ export default async function FecharCargaPage({
 
   const bloqueios:
     Bloqueio[] = [];
+
+  if (rotaAtivaError) {
+    bloqueios.push({
+      id: "erro-verificacao-rota",
+      titulo: "Não foi possível verificar a rota desta carga",
+      detalhe: "Atualize a tela antes de fechar. Nenhuma movimentação foi registrada.",
+      href: "/mobile/carga/fechar",
+      acao: "Atualizar",
+    });
+  }
 
   if (rotaAtiva) {
     bloqueios.push({
