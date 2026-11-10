@@ -177,7 +177,7 @@ export default async function SelecionarCargaMobilePage({ searchParams }: Props)
             <span className="h-11 w-11" aria-hidden="true" />
           </div>
           <p className="mt-4 text-xs leading-relaxed text-emerald-100">
-            Escolha a carga que será usada na conferência, rota e fechamento. Cada uma mantém seu próprio estoque.
+            Receba qualquer carga atribuída ao seu usuário, mesmo com uma rota aberta. Cada carga mantém o próprio saldo e histórico; a rota não bloqueia o seu estoque.
           </p>
         </header>
         <section className="space-y-3 p-4">

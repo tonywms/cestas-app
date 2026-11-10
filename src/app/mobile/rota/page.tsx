@@ -168,7 +168,7 @@ export default async function MinhaRotaPage({
     if ((count ?? 0) > 1) redirect("/mobile/carga/selecionar");
   }
 
-  const {
+  let {
     data: cargaAtiva,
     error: cargaAtivaError,
   } =
@@ -213,7 +213,7 @@ export default async function MinhaRotaPage({
     );
   }
 
-  const cargaPronta =
+  let cargaPronta =
     !!cargaAtiva &&
     (
       !usuario.configuracao
@@ -260,6 +260,27 @@ export default async function MinhaRotaPage({
       "Erro ao consultar rota ativa:",
       rotaAtivaError,
     );
+  }
+
+  // V105.4 — rota nao controla qual carga pode ser recebida.
+  // Ao trocar a carga selecionada, preservar a carga ORIGINAL da rota
+  // para nao transferir o itinerario nem confundir saldos entre cargas.
+  if (rotaAtiva?.carga_id != null && Number(rotaAtiva.carga_id) !== cargaAtiva?.id) {
+    const { data: cargaVinculada, error: erroCargaVinculada } = await supabase
+      .from("cargas")
+      .select("id,codigo,status,recebida_at")
+      .eq("empresa_id", usuario.empresa.id)
+      .eq("entregador_id", usuario.id)
+      .eq("id", rotaAtiva.carga_id)
+      .in("status", ["ABERTA", "EM_ROTA"])
+      .maybeSingle();
+
+    if (erroCargaVinculada) {
+      console.error("Nao foi possivel consultar a carga vinculada a rota:", erroCargaVinculada);
+    }
+    cargaAtiva = cargaVinculada ?? null;
+    cargaPronta = !!cargaAtiva &&
+      (!usuario.configuracao.exigirBipagemCarga || !!cargaAtiva.recebida_at);
   }
 
     /* =========================================================

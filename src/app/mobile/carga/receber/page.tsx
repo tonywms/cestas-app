@@ -44,7 +44,17 @@ function formatarDataHora(
   ).format(data);
 }
 
-export default async function ReceberCargaPage() {
+type ReceberCargaPageProps = {
+  searchParams?: Promise<{ cargaId?: string }>;
+};
+
+export default async function ReceberCargaPage({ searchParams }: ReceberCargaPageProps) {
+  const parametros = searchParams ? await searchParams : {};
+  const cargaIdExplicita = parametros.cargaId === undefined ? null : Number(parametros.cargaId);
+  if (cargaIdExplicita !== null &&
+      (!Number.isSafeInteger(cargaIdExplicita) || cargaIdExplicita < 1)) {
+    redirect("/mobile/carga/selecionar?erro=Carga%20invalida");
+  }
   const usuario =
     await getCurrentUserProfile();
 
@@ -84,16 +94,17 @@ export default async function ReceberCargaPage() {
   const supabase =
     await createClient();
 
-  const { data: cargaEscolhida, error: escolhaError } = await supabase.rpc(
-    "mobile_obter_carga_escolhida", { p_empresa_id: usuario.empresa.id },
-  );
-  if (escolhaError) redirect("/mobile/carga/selecionar");
-  if (!cargaEscolhida) {
-    const { count } = await supabase.from("cargas").select("id", { count: "exact", head: true })
-      .eq("empresa_id", usuario.empresa.id).eq("entregador_id", usuario.id)
-      .in("status", ["ABERTA", "EM_ROTA"]);
-    if ((count ?? 0) > 1) redirect("/mobile/carga/selecionar");
+  // Conferência direcionada: independe da carga escolhida e de rotas.
+  // A query abaixo mantém a validação de empresa, entregador e estado.
+  let cargaEscolhida: number | null = cargaIdExplicita;
+  if (cargaEscolhida === null) {
+    const { data, error: escolhaError } = await supabase.rpc(
+      "mobile_obter_carga_escolhida", { p_empresa_id: usuario.empresa.id },
+    );
+    if (escolhaError) redirect("/mobile/carga/selecionar");
+    cargaEscolhida = data == null ? null : Number(data);
   }
+  if (!cargaEscolhida) redirect("/mobile/carga/selecionar");
 
   const {
     data: carga,
@@ -124,7 +135,7 @@ export default async function ReceberCargaPage() {
           "EM_ROTA",
         ],
       )
-      .eq("id", Number(cargaEscolhida ?? 0))
+      .eq("id", cargaEscolhida)
       .order(
         "created_at",
         {
@@ -271,7 +282,7 @@ export default async function ReceberCargaPage() {
           <div className="relative z-10 flex items-center justify-between">
 
             <Link
-              href="/mobile/carga"
+              href="/mobile/carga/selecionar"
               className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/10"
             >
               <ArrowLeft
@@ -337,8 +348,8 @@ export default async function ReceberCargaPage() {
             />
           ) : !carga ? (
             <Mensagem
-              titulo="Nenhuma carga ativa"
-              texto="Quando uma nova carga for atribuída ao seu usuário, ela aparecerá aqui para conferência."
+              titulo="Carga indisponível para conferência"
+              texto="Esta carga não está disponível para o entregador autenticado ou já foi encerrada. Consulte Minhas Cargas."
             />
           ) : esperados <= 0 ? (
             <Mensagem

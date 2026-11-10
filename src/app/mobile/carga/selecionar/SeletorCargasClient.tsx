@@ -51,14 +51,13 @@ function correspondeAoFiltro(carga: CargaOperacionalResumo, filtro: Filtro, term
 }
 
 // V102_CONECTIVIDADE_SELETOR_SEGURO: protecao de UX. A autorizacao da troca continua exclusivamente no servidor.
-function BotaoEscolherCarga({ id, rotaBloqueada, conferenciaPendente, conectado }: {
+function BotaoEscolherCarga({ id, conferenciaPendente, conectado }: {
   id: number;
-  rotaBloqueada: boolean;
   conferenciaPendente: boolean;
   conectado: boolean;
 }) {
   const { pending } = useFormStatus();
-  const desabilitado = rotaBloqueada || !conectado || pending;
+  const desabilitado = !conectado || pending;
   return (
     <button
       type="submit"
@@ -69,13 +68,11 @@ function BotaoEscolherCarga({ id, rotaBloqueada, conferenciaPendente, conectado 
     >
       {!conectado
         ? "Sem conexão para trocar de carga"
-        : rotaBloqueada
-          ? "Concluir rota atual para trocar"
-          : pending
-            ? "Selecionando carga..."
-            : conferenciaPendente
-              ? `Selecionar e receber carga nº ${id}`
-              : `Usar carga nº ${id}`}
+        : pending
+          ? "Selecionando carga..."
+          : conferenciaPendente
+            ? `Selecionar e receber carga nº ${id}`
+            : `Usar carga nº ${id}`}
     </button>
   );
 }
@@ -141,7 +138,6 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
   const totalNoFiltro = filtradas.length + (atualNoFiltro ? 1 : 0);
 
   const exibidas = filtradas.slice(0, limite);
-  const bloqueioRota = rotaEmAndamento && rotaEmAndamento.cargaId !== cargaAtualId;
 
   return (
     <div className="space-y-4" onClickCapture={(event) => {
@@ -189,7 +185,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
       {/* V93: pendencias de recebimento visiveis antes de iniciar uma operacao. */}
       {aguardandoBipagem > 0 && (
         <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">
-          <strong>{aguardandoBipagem} carga(s) aguardando recebimento.</strong> Ao escolher uma delas, o aplicativo abre a conferência física antes da jornada.
+          <strong>{aguardandoBipagem} carga(s) aguardando recebimento.</strong> Você pode conferir qualquer carga atribuída ao seu usuário, mesmo com uma rota em andamento.
         </div>
       )}
 
@@ -197,7 +193,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
         <section aria-label="Carga selecionada" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 shadow-sm">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-700">Carga em operação</p>
+              <p className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-700">Carga selecionada para consulta</p>
               <p className="text-base font-black text-emerald-950">Carga nº {atual.id}</p>
               <p className="break-all text-[11px] text-emerald-800">{atual.codigo}</p>
             </div>
@@ -211,7 +207,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
           {atual.fechamentoPendente && !atual.conferenciaPendente && (
             <p role="status" className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-[11px] font-semibold text-amber-950">Rota finalizada · fechamento pendente</p>
           )}
-          <Link href={atual.conferenciaPendente ? "/mobile/carga/receber" : atual.fechamentoPendente ? "/mobile/carga/fechar" : "/mobile/carga"}
+          <Link href={atual.conferenciaPendente ? `/mobile/carga/receber?cargaId=${atual.id}` : atual.fechamentoPendente ? "/mobile/carga/fechar" : "/mobile/carga"}
             className="mt-3 block rounded-xl bg-emerald-800 px-4 py-3 text-center text-xs font-black text-white">
             {atual.conferenciaPendente ? "Receber volumes" : atual.fechamentoPendente ? "Revisar fechamento" : "Continuar nesta carga"}
           </Link>
@@ -221,7 +217,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
       {rotaEmAndamento && (
         <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">
           <strong>Rota ativa ou planejada:</strong> {rotaEmAndamento.codigo} (carga nº {rotaEmAndamento.cargaId}).
-          {bloqueioRota ? " O banco pode impedir a troca até a rota ser encerrada." : " Para trocar de carga, conclua a rota vinculada quando necessário."}
+          {" Essa rota permanece vinculada à sua carga original e não impede receber ou utilizar outras cargas do estoque móvel."}
         </div>
       )}
 
@@ -296,7 +292,6 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
       <div id="lista-outras-cargas" className="space-y-3">
         {exibidas.map((carga) => {
           const selecionada = carga.id === cargaAtualId;
-          const rotaEmOutraCarga = rotaEmAndamento && rotaEmAndamento.cargaId !== carga.id;
           const saldoAtual = saldosDisponiveis ? saldo(carga) : null;
           return (
             <form
@@ -362,26 +357,28 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
                 </div>
               </details>
               {selecionada ? (
-                <Link href={carga.conferenciaPendente ? "/mobile/carga/receber" : "/mobile/carga"} className="mt-3 block rounded-xl bg-emerald-800 px-4 py-3 text-center text-xs font-black text-white">
+                <Link href={carga.conferenciaPendente ? `/mobile/carga/receber?cargaId=${carga.id}` : "/mobile/carga"} className="mt-3 block rounded-xl bg-emerald-800 px-4 py-3 text-center text-xs font-black text-white">
                   {carga.conferenciaPendente ? `Receber volumes da carga nº ${carga.id}` : `Continuar com a carga nº ${carga.id}`}
                 </Link>
               ) : (
                 <BotaoEscolherCarga
                   id={carga.id}
-                  rotaBloqueada={Boolean(rotaEmOutraCarga)}
                   conferenciaPendente={carga.conferenciaPendente}
                   conectado={operacoesLiberadas}
                 />
               )}
-              {carga.conferenciaPendente && !rotaEmOutraCarga && (
-                <p className="mt-2 text-[10px] leading-relaxed text-amber-800">
-                  Conferência física obrigatória: os volumes precisam ser bipados antes de iniciar a jornada.
-                </p>
-              )}
-              {rotaEmOutraCarga && (
-                <p className="mt-2 text-[10px] leading-relaxed text-amber-800">
-                  Há uma rota ativa/planejada vinculada à carga nº {rotaEmAndamento.cargaId}. Finalize-a antes de escolher esta carga.
-                </p>
+              {carga.conferenciaPendente && (
+                <div className="mt-3 space-y-2">
+                  <Link
+                    href={`/mobile/carga/receber?cargaId=${carga.id}`}
+                    className="block rounded-xl border border-emerald-600 bg-emerald-50 px-4 py-3 text-center text-[11px] font-black text-emerald-900"
+                  >
+                    Receber volumes da carga nº {carga.id} sem trocar de rota
+                  </Link>
+                  <p className="text-[10px] leading-relaxed text-amber-800">
+                    A conferência desta carga é independente de qualquer rota. A bipagem só confirma volumes atribuídos a você.
+                  </p>
+                </div>
               )}
             </form>
           );
