@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useConectividadeMobile } from "@/lib/mobile/use-conectividade";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { escolherCargaMobile } from "./actions";
@@ -83,18 +84,8 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
   const [filtro, setFiltro] = useState<Filtro>("TODAS");
   const [ordenacao, setOrdenacao] = useState<Ordenacao>("PRIORIDADE");
   const [limite, setLimite] = useState(LOTE);
-  // Estado inicial estavel para SSR/hidratacao; atualizado no cliente.
-  const [conectado, setConectado] = useState(true);
-  useEffect(() => {
-    const atualizar = () => setConectado(navigator.onLine);
-    atualizar();
-    window.addEventListener("online", atualizar);
-    window.addEventListener("offline", atualizar);
-    return () => {
-      window.removeEventListener("online", atualizar);
-      window.removeEventListener("offline", atualizar);
-    };
-  }, []);
+  // V102_2_HEARTBEAT_REAL: nao depender apenas de navigator.onLine; verificar resposta REAL do Supabase.
+  const { conectado, verificando, marcarIndisponivel, revalidar } = useConectividadeMobile();
 
   const quantidadeAbertas = cargas.filter((c) => c.status === "ABERTA").length;
   // V96_UX_SELETOR_LIMPO: contabiliza estados operacionais reais.
@@ -134,11 +125,17 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
   const bloqueioRota = rotaEmAndamento && rotaEmAndamento.cargaId !== cargaAtualId;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onClickCapture={(event) => {
+      // Mesmo links de outras telas nao devem iniciar navegacao sem acesso ao servidor.
+      if (!conectado && event.target instanceof Element && event.target.closest("a[href]")) event.preventDefault();
+    }}>
       {!conectado && (
-        <div role="alert" aria-live="assertive" className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm">
-          <p className="text-xs font-black">Sem conexão com a internet</p>
-          <p className="mt-1 text-[11px] leading-relaxed">Você pode consultar as informações já exibidas, mas não é possível trocar de carga até restabelecer a conexão. Os saldos podem estar desatualizados.</p>
+        <div role="alert" aria-live="assertive" className="fixed inset-x-3 bottom-4 z-[90] mx-auto max-w-[460px] rounded-2xl border border-amber-400 bg-amber-50 px-4 py-3 text-amber-950 shadow-[0_12px_40px_rgba(88,57,0,0.22)]">
+          <p className="text-xs font-black">{verificando ? "Verificando conexão com o servidor..." : "Sem conexão com o Supabase"}</p>
+          <p className="mt-1 text-[11px] leading-relaxed">{verificando ? "Confirmando disponibilidade antes de liberar operações." : "Operações e filtros bloqueados. Os saldos exibidos são da última consulta e podem estar desatualizados. Não atualize a página enquanto estiver sem internet."}</p>
+          <button type="button" onClick={revalidar} disabled={verificando} className="mt-2 rounded-lg border border-amber-500 bg-white px-3 py-1.5 text-[11px] font-bold text-amber-950 disabled:opacity-50">
+            {verificando ? "Aguardando verificação" : "Verificar conexão novamente"}
+          </button>
         </div>
       )}
       {/* V97_FILTROS_POR_INDICADORES: indicadores funcionam como filtros, sem uma segunda barra de botoes. */}
@@ -152,6 +149,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
           <button
             key={tipo}
             type="button"
+            disabled={!conectado}
             aria-pressed={filtro === tipo}
             aria-controls="lista-outras-cargas"
             aria-label={`Filtrar por ${rotulo.toLowerCase()}, ${valor} carga(s)`}
@@ -209,6 +207,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
         </label>
         <input
           id="busca-carga"
+          disabled={!conectado}
           value={busca}
           onChange={(event) => { setBusca(event.target.value); setLimite(LOTE); }}
           type="search"
@@ -241,6 +240,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
             <label htmlFor="ordenar-cargas" className="sr-only">Ordenar cargas</label>
             <select
               id="ordenar-cargas"
+              disabled={!conectado}
               aria-label="Ordenar outras cargas"
               value={ordenacao}
               onChange={(event) => { setOrdenacao(event.target.value as Ordenacao); setLimite(LOTE); }}
@@ -281,7 +281,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
               onSubmit={(event) => {
                 if (!conectado || !navigator.onLine) {
                   event.preventDefault();
-                  setConectado(false);
+                  marcarIndisponivel();
                 }
               }}
               className={`rounded-2xl border p-4 shadow-sm ${selecionada ? "border-emerald-400 bg-emerald-50" : "border-emerald-100 bg-white"}`}
