@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useConectividadeMobile } from "@/lib/mobile/use-conectividade";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
@@ -86,6 +87,24 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
   const [limite, setLimite] = useState(LOTE);
   // V102_2_HEARTBEAT_REAL: nao depender apenas de navigator.onLine; verificar resposta REAL do Supabase.
   const { conectado, verificando, marcarIndisponivel, revalidar } = useConectividadeMobile();
+  // V103_RECONCILIACAO_POS_REDE: reconsultar dados do servidor uma unica vez
+  // por queda real, sem armazenar saldos locais ou reenviar transacoes.
+  const router = useRouter();
+  const [reconciliando, iniciarReconciliacao] = useTransition();
+  const houveQueda = useRef(false);
+  useEffect(() => {
+    // A verificacao inicial nao equivale a uma queda confirmada.
+    if (!conectado) {
+      if (!verificando) houveQueda.current = true;
+      return;
+    }
+    if (!houveQueda.current) return;
+    houveQueda.current = false;
+    iniciarReconciliacao(() => {
+      router.refresh();
+    });
+  }, [conectado, verificando, router]);
+  const operacoesLiberadas = conectado && !reconciliando;
 
   const quantidadeAbertas = cargas.filter((c) => c.status === "ABERTA").length;
   // V96_UX_SELETOR_LIMPO: contabiliza estados operacionais reais.
@@ -127,7 +146,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
   return (
     <div className="space-y-4" onClickCapture={(event) => {
       // Mesmo links de outras telas nao devem iniciar navegacao sem acesso ao servidor.
-      if (!conectado && event.target instanceof Element && event.target.closest("a[href]")) event.preventDefault();
+      if (!operacoesLiberadas && event.target instanceof Element && event.target.closest("a[href]")) event.preventDefault();
     }}>
       {!conectado && (
         <div role="alert" aria-live="assertive" className="fixed inset-x-3 bottom-4 z-[90] mx-auto max-w-[460px] rounded-2xl border border-amber-400 bg-amber-50 px-4 py-3 text-amber-950 shadow-[0_12px_40px_rgba(88,57,0,0.22)]">
@@ -136,6 +155,11 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
           <button type="button" onClick={revalidar} disabled={verificando} className="mt-2 rounded-lg border border-amber-500 bg-white px-3 py-1.5 text-[11px] font-bold text-amber-950 disabled:opacity-50">
             {verificando ? "Aguardando verificação" : "Verificar conexão novamente"}
           </button>
+        </div>
+      )}
+      {reconciliando && (
+        <div role="status" aria-live="polite" className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-[11px] font-semibold text-sky-900">
+          Conexão restabelecida. Atualizando as cargas e os saldos no servidor...
         </div>
       )}
       {/* V97_FILTROS_POR_INDICADORES: indicadores funcionam como filtros, sem uma segunda barra de botoes. */}
@@ -149,7 +173,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
           <button
             key={tipo}
             type="button"
-            disabled={!conectado}
+            disabled={!operacoesLiberadas}
             aria-pressed={filtro === tipo}
             aria-controls="lista-outras-cargas"
             aria-label={`Filtrar por ${rotulo.toLowerCase()}, ${valor} carga(s)`}
@@ -207,7 +231,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
         </label>
         <input
           id="busca-carga"
-          disabled={!conectado}
+          disabled={!operacoesLiberadas}
           value={busca}
           onChange={(event) => { setBusca(event.target.value); setLimite(LOTE); }}
           type="search"
@@ -240,7 +264,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
             <label htmlFor="ordenar-cargas" className="sr-only">Ordenar cargas</label>
             <select
               id="ordenar-cargas"
-              disabled={!conectado}
+              disabled={!operacoesLiberadas}
               aria-label="Ordenar outras cargas"
               value={ordenacao}
               onChange={(event) => { setOrdenacao(event.target.value as Ordenacao); setLimite(LOTE); }}
@@ -279,7 +303,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
               key={carga.id}
               action={escolherCargaMobile}
               onSubmit={(event) => {
-                if (!conectado || !navigator.onLine) {
+                if (!operacoesLiberadas || !navigator.onLine) {
                   event.preventDefault();
                   marcarIndisponivel();
                 }
@@ -346,7 +370,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
                   id={carga.id}
                   rotaBloqueada={Boolean(rotaEmOutraCarga)}
                   conferenciaPendente={carga.conferenciaPendente}
-                  conectado={conectado}
+                  conectado={operacoesLiberadas}
                 />
               )}
               {carga.conferenciaPendente && !rotaEmOutraCarga && (
