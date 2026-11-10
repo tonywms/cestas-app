@@ -137,6 +137,10 @@ export default function FecharCargaForm({
   ] =
     useState("");
 
+  // V105.5.6: classificacao de avaria e excecao, nao etapa obrigatoria
+  // de recebimento do CD. Exibir detalhes apenas por iniciativa do operador.
+  const [exibirAvarias, setExibirAvarias] = useState(false);
+
   // O modal somente abre apos resposta desta tentativa de fechamento.
   // Nao reutilizar respostas de uma carga anterior ao trocar de carga.
 
@@ -495,8 +499,9 @@ export default function FecharCargaForm({
               <h2 className="mt-1 text-[16px] font-black">
                 O que voltou?
               </h2>
-              <p className="mt-1 text-[8px] leading-4 text-slate-400">
-                Por padrão tudo retorna ao estoque. Ajuste somente se houver avaria.
+              <p className="mt-1 text-[9px] leading-5 text-slate-500">
+                Esta é a devolução ao CD no fim da operação, não o recebimento inicial.
+                O saldo permanece no estoque móvel até a confirmação final.
               </p>
             </div>
 
@@ -539,8 +544,22 @@ export default function FecharCargaForm({
 
         </section>
 
+        {modoVolume && totalEmPosse > 0 && totalAvaria === 0 && !exibirAvarias && !erroVolumeAvaria && (
+          <div className="flex items-center justify-between gap-3 rounded-[18px] border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+            <p className="text-[10px] font-semibold text-emerald-800">Nenhuma avaria informada.</p>
+            <button
+              type="button"
+              onClick={() => setExibirAvarias(true)}
+              className="shrink-0 rounded-[13px] border border-emerald-200 bg-white px-3 py-2 text-[10px] font-black text-emerald-800 transition hover:bg-emerald-50"
+            >
+              Registrar avaria
+            </button>
+          </div>
+        )}
+
         {modoVolume &&
-          totalEmPosse > 0 && (
+          totalEmPosse > 0 &&
+          (exibirAvarias || totalAvaria > 0 || !!erroVolumeAvaria) && (
             <section className="rounded-[20px] border border-amber-200 bg-white p-4 shadow-[0_12px_30px_rgba(120,78,12,0.06)]">
               <div className="flex items-start gap-3">
                 <AlertTriangle
@@ -552,9 +571,19 @@ export default function FecharCargaForm({
                     Identifique somente os volumes avariados
                   </p>
                   <p className="mt-1 text-[9px] leading-4 text-slate-500">
-                    Bipe ou digite o código físico de cada avaria. Todo volume não marcado continuará como retorno ao estoque central.
+                    Use apenas se algum volume apresentar dano no encerramento da operação.
+                    Os demais volumes serão retornados normalmente ao CD quando a carga for finalizada.
                   </p>
                 </div>
+                {totalAvaria === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { setExibirAvarias(false); setErroVolumeAvaria(""); setCodigoVolumeAvaria(""); }}
+                    className="shrink-0 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-[9px] font-black text-amber-800"
+                  >
+                    Recolher
+                  </button>
+                )}
               </div>
 
               <div className="mt-4 flex gap-2">
