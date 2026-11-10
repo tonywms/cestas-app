@@ -438,6 +438,12 @@ export default async function PrepararVendaPage({
           </section>
 
           <PrepararVendaForm
+            empresaId={usuario.empresa.id}
+            usuarioId={usuario.id}
+            clienteId={cliente.id}
+            clienteNome={cliente.nome}
+            cargaId={carga.id}
+            modoControle={usuario.configuracao.modoControleCarga}
             rotaClienteId={rotaClienteId}
             opcoes={opcoes}
             primeiroVencimento={dataMais30Dias()}

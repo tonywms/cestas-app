@@ -6,11 +6,13 @@ import {
   Save,
   WalletCards,
 } from "lucide-react";
+import { useActionState, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useConectividadeMobile } from "@/lib/mobile/use-conectividade";
 import {
-  useActionState,
-  useMemo,
-  useState,
-} from "react";
+  EVENTO_VENDAS_OFFLINE, salvarRascunhoVendaOffline, concluirRascunhoVendaOffline,
+  listarVendasRotaOffline, type VendaRotaOffline, type VendaRotaOfflineDados,
+} from "@/lib/mobile/offline-vendas-rota";
+import SincronizadorVendasRotaOffline from "@/components/mobile/SincronizadorVendasRotaOffline";
 
 import {
   prepararVendaCampo,
@@ -40,17 +42,15 @@ function moeda(valor: number) {
 }
 
 export default function PrepararVendaForm({
-  rotaClienteId,
-  opcoes,
-  primeiroVencimento,
-  proximaEtapa,
+  empresaId, usuarioId, clienteId, clienteNome, cargaId, modoControle,
+  rotaClienteId, opcoes, primeiroVencimento, proximaEtapa,
 }: {
+  empresaId: string; usuarioId: string; clienteId: number; clienteNome: string;
+  cargaId: number; modoControle: "QUANTIDADE" | "VOLUME";
   rotaClienteId: number;
   opcoes: OpcaoCesta[];
   primeiroVencimento: string;
-  proximaEtapa:
-    | "BIPAGEM"
-    | "CONFIRMACAO";
+  proximaEtapa: "BIPAGEM" | "CONFIRMACAO";
 }) {
   const [
     state,
@@ -163,9 +163,167 @@ export default function PrepararVendaForm({
         ),
     );
 
+  const { conectado }=useConectividadeMobile();
+  const [registroOffline,setRegistroOffline]=useState<VendaRotaOffline|null>(null);
+  const [codigoBipado,setCodigoBipado]=useState("");
+  const [codigosBipados,setCodigosBipados]=useState<string[]>([]);
+  const [salvandoLocal,setSalvandoLocal]=useState(false);
+  const [mensagemLocal,setMensagemLocal]=useState("");
+  const [falhaLocal,setFalhaLocal]=useState(false);
+
+  useEffect(()=>{
+    let ativo=true;
+    const verificar=()=>{
+      void listarVendasRotaOffline(empresaId,usuarioId).then(itens=>{
+        if(!ativo)return;
+        const item=itens.find(x=>x.dados.rotaClienteId===rotaClienteId);
+        setRegistroOffline(item??null);
+        if(item&&item.status==="rascunho")setCodigosBipados(item.dados.codigosVolume);
+      }).catch(()=>{
+        if(ativo)setMensagemLocal("Não foi possível acessar os dados locais deste navegador.");
+      });
+    };
+    verificar();
+    window.addEventListener(EVENTO_VENDAS_OFFLINE,verificar);
+    return()=>{ativo=false;window.removeEventListener(EVENTO_VENDAS_OFFLINE,verificar)};
+  },[empresaId,usuarioId,rotaClienteId]);
+
+  async function salvarOffline(evento:FormEvent<HTMLFormElement>){
+    if (conectado && navigator.onLine!==false && !registroOffline) return;
+    evento.preventDefault();
+    if(salvandoLocal||registroOffline)return;
+    const formulario=evento.currentTarget;
+    const form=new FormData(formulario);
+    setSalvandoLocal(true);
+    setFalhaLocal(false);
+    try {
+      const tipo=opcoes.find(x=>x.id===Number(form.get("tipo_cesta_id")));
+      const qtd=Number(form.get("quantidade"));
+      const valor=Number((tipo?.valorVenda??0)*qtd);
+      if(!tipo||!Number.isSafeInteger(qtd)||qtd<1||qtd>100||qtd>tipo.saldo||valor<=0){
+        throw new Error("Quantidade inválida ou superior ao saldo previamente consultado.");
+      }
+      const forma=String(form.get("forma_pagamento")??"").trim();
+      const observado=String(form.get("observacao")??"").trim();
+      const parcelas=tipoVenda==="CREDIARIO"?Number(form.get("quantidade_parcelas")):null;
+      const vencimento=tipoVenda==="AVISTA"?null:String(form.get("primeiro_vencimento")??"");
+      if((tipoVenda!=="AVISTA"&&(!vencimento||entradaNumero>=valor))||
+        (tipoVenda==="CREDIARIO"&&(!parcelas||parcelas<1||parcelas>120))||
+        entradaNumero<0||observado.length>500){
+        throw new Error("Revise as condições de pagamento antes de salvar offline.");
+      }
+      const dados:VendaRotaOfflineDados={
+        rotaClienteId,clienteId,cargaId,tipoCestaId:tipo.id,
+        quantidade:qtd,valorTotalEsperado:Math.round(valor*100)/100,
+        tipoVenda,formaPagamento:forma,valorEntrada:tipoVenda==="AVISTA"?0:Math.round(entradaNumero*100)/100,
+        quantidadeParcelas:parcelas,primeiroVencimento:vencimento,
+        observacao:observado,modoControle,
+        exigirBipagem:proximaEtapa==="BIPAGEM",codigosVolume:[],
+      };
+      const item:VendaRotaOffline={
+        id:crypto.randomUUID(),empresaId,usuarioId,criadoEm:new Date().toISOString(),
+        status:"rascunho",erro:null,clienteNome,dados,
+      };
+      await salvarRascunhoVendaOffline(item);
+      setRegistroOffline(item);
+      setMensagemLocal("Negociação salva neste aparelho. Conclua a conferência física abaixo; o banco ainda não foi alterado.");
+    }catch(e){
+      setFalhaLocal(true);
+      setMensagemLocal(e instanceof Error?e.message:"Não foi possível armazenar a venda. Dados não enviados.");
+    }finally{setSalvandoLocal(false)}
+  }
+
+  async function adicionarVolume(){
+    if(!registroOffline||registroOffline.status!=="rascunho")return;
+    const codigo=codigoBipado.trim().toUpperCase();
+    if(!codigo||codigo.length>120||codigosBipados.includes(codigo)||
+       codigosBipados.length>=registroOffline.dados.quantidade){
+      setFalhaLocal(true);setMensagemLocal("Código vazio, duplicado ou acima do limite.");
+      return;
+    }
+    const proximos=[...codigosBipados,codigo];
+    try{
+      const {atualizarCodigosRascunhoVendaOffline}=await import("@/lib/mobile/offline-vendas-rota");
+      await atualizarCodigosRascunhoVendaOffline(registroOffline.id,proximos);
+      setCodigosBipados(proximos);
+      setCodigoBipado("");
+      setFalhaLocal(false);
+      setMensagemLocal("Volume gravado no aparelho, aguardando conclusão da operação.");
+    }catch{
+      setFalhaLocal(true);
+      setMensagemLocal("Não foi possível salvar este volume no aparelho.");
+    }
+  }
+
+  async function concluirOffline(){
+    if(!registroOffline||registroOffline.status!=="rascunho")return;
+    setSalvandoLocal(true);
+    try{
+      await concluirRascunhoVendaOffline(registroOffline.id,
+        registroOffline.dados.exigirBipagem?codigosBipados:[]);
+      setRegistroOffline({...registroOffline,status:"pendente",dados:{
+        ...registroOffline.dados,codigosVolume:registroOffline.dados.exigirBipagem?codigosBipados:[],
+      }});
+      setFalhaLocal(false);
+      setMensagemLocal("Operação offline concluída no aparelho. Venda, pagamento e estoque ainda não foram lançados no banco. O envio ocorrerá automaticamente quando a conexão voltar.");
+    }catch{
+      setFalhaLocal(true);
+      setMensagemLocal("Não foi possível concluir o registro local. Confira os volumes.");
+    }finally{setSalvandoLocal(false)}
+  }
+
+
+  if(registroOffline){
+    const rascunho=registroOffline.status==="rascunho";
+    const precisaBipar=registroOffline.dados.exigirBipagem;
+    const disponivel= !precisaBipar || codigosBipados.length===registroOffline.dados.quantidade;
+    return (
+      <section className="space-y-4">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
+          <p className="text-xs font-black">Operação registrada no aparelho</p>
+          <p className="mt-2 text-[11px]">Cliente: {registroOffline.clienteNome}</p>
+          <p className="mt-1 text-[11px]">Quantidade: {registroOffline.dados.quantidade} cesta(s) · {moeda(registroOffline.dados.valorTotalEsperado)}</p>
+          <p className="mt-2 text-[11px] font-bold">
+            {rascunho?"Aguardando conferência física offline":registroOffline.status==="pendente"?"Aguardando sincronização com Supabase":"Revisão obrigatória"}
+          </p>
+          {registroOffline.erro&&<p className="mt-2 text-xs text-red-700">{registroOffline.erro}</p>}
+        </div>
+        {rascunho&&(
+          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 className="text-sm font-black">{precisaBipar?"Bipagem de volumes offline":"Confirmação da entrega offline"}</h3>
+            <p className="mt-2 text-[11px] leading-5 text-slate-600">
+              A confirmação local não baixa estoque nem registra recebimentos no banco.
+              Essa validação ocorrerá quando voltar o Wi-Fi ou o 5G.
+            </p>
+            {precisaBipar&&<>
+              <p className="mt-3 text-xs font-bold">{codigosBipados.length} de {registroOffline.dados.quantidade} volumes</p>
+              <div className="mt-3 flex gap-2">
+                <input value={codigoBipado} onChange={e=>setCodigoBipado(e.target.value)}
+                  onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();void adicionarVolume()}}}
+                  placeholder="Bipe ou informe o código" autoComplete="off"
+                  className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-3 text-xs"/>
+                <button type="button" onClick={()=>void adicionarVolume()}
+                  className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white">Adicionar</button>
+              </div>
+              {codigosBipados.map(c=><p key={c} className="mt-2 rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs">{c}</p>)}
+            </>}
+            <button type="button" disabled={!disponivel||salvandoLocal} onClick={()=>void concluirOffline()}
+              className="mt-4 w-full rounded-xl bg-emerald-700 px-4 py-4 text-xs font-black text-white disabled:opacity-40">
+              {salvandoLocal?"Gravando...":"Concluir e guardar operação offline"}
+            </button>
+          </div>
+        )}
+        {mensagemLocal&&<div role="status" className={`rounded-xl border p-4 text-[11px] font-semibold ${falhaLocal?"border-red-200 bg-red-50 text-red-900":"border-emerald-200 bg-emerald-50 text-emerald-900"}`}>{mensagemLocal}</div>}
+        <SincronizadorVendasRotaOffline empresaId={empresaId} usuarioId={usuarioId}/>
+      </section>
+    );
+  }
   return (
+    <>
+    <SincronizadorVendasRotaOffline empresaId={empresaId} usuarioId={usuarioId}/>
     <form
       action={formAction}
+      onSubmit={salvarOffline}
       className="space-y-4"
     >
       <input
@@ -523,11 +681,13 @@ export default function PrepararVendaForm({
           {state.message}
         </div>
       )}
+      {mensagemLocal&&<div role="status" className={`rounded-xl border p-4 text-[11px] font-semibold ${falhaLocal?"border-red-200 bg-red-50 text-red-900":"border-emerald-200 bg-emerald-50 text-emerald-900"}`}>{mensagemLocal}</div>}
 
       <button
         type="submit"
         disabled={
           pending ||
+          salvandoLocal ||
           !opcao ||
           valorTotal <= 0
         }
@@ -536,14 +696,16 @@ export default function PrepararVendaForm({
         <Save
           size={18}
         />
-        {pending
-          ? "Salvando operação..."
+        {salvandoLocal
+          ? "Gravando no aparelho..."
+          : pending ? "Salvando operação..."
           : proximaEtapa ===
               "BIPAGEM"
             ? "Salvar e ir para bipagem"
             : "Salvar e confirmar entrega"}
       </button>
     </form>
+    </>
   );
 }
 
