@@ -403,6 +403,7 @@ export async function fecharCarga(
       "entregador_id",
       usuario.id,
     )
+    .eq("carga_id", carga.id)
     .in(
       "status",
       [
@@ -532,6 +533,7 @@ export async function fecharCarga(
       "entregador_id",
       usuario.id,
     )
+    .eq("carga_id", carga.id)
     .eq(
       "status",
       "AGUARDANDO_ENTREGA",
