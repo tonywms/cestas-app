@@ -12,67 +12,51 @@ import {
 
 import Link from "next/link";
 
-import {
-  useActionState,
-  useEffect,
-  useState,
-} from "react";
+import { useState, type FormEvent } from "react";
+import { CAMPOS_CLIENTE, salvarClienteOffline, type DadosCliente } from "@/lib/mobile/offline-clientes";
+import SincronizadorOfflineClientes from "@/components/mobile/SincronizadorOfflineClientes";
 
-import {
-  criarClienteCampo,
-  type ClienteCampoState,
-} from "../actions";
+export default function NovoClienteMobileForm({
+  empresaId, usuarioId,
+}: { empresaId: string; usuarioId: string }) {
+  const [salvando, setSalvando] = useState(false);
+  const [mensagemLocal, setMensagemLocal] = useState("");
 
-const initialState:
-  ClienteCampoState = {
-    success: false,
-    message: "",
-    clienteId: null,
-    codigo: null,
-  };
-
-export default function NovoClienteMobileForm() {
-  const [
-    state,
-    action,
-    pending,
-  ] =
-    useActionState(
-      criarClienteCampo,
-      initialState,
-    );
-
-  const [
-    modal,
-    setModal,
-  ] =
-    useState(
-      false,
-    );
-
-  useEffect(
-    () => {
-      if (
-        state.message
-      ) {
-        setModal(
-          true,
-        );
-      }
-    },
-    [
-      state,
-    ],
-  );
+  async function salvar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (salvando) return;
+    const form = evento.currentTarget;
+    const dadosFormulario = new FormData(form);
+    const dados = {} as DadosCliente;
+    for (const campo of CAMPOS_CLIENTE) {
+      dados[campo] = String(dadosFormulario.get(campo) ?? "").trim();
+    }
+    if (dados.nome.length < 3) {
+      setMensagemLocal("Informe um nome com pelo menos 3 caracteres.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      await salvarClienteOffline({
+        id: crypto.randomUUID(),
+        empresaId, usuarioId,
+        criadoEm: new Date().toISOString(),
+        status: "pendente", erro: null, dados,
+      });
+      form.reset();
+      setMensagemLocal(
+        "Cadastro salvo no aparelho. Será enviado ao Supabase automaticamente quando houver conexão. Até a confirmação, ele ainda não está disponível para venda.",
+      );
+    } catch {
+      setMensagemLocal("Não foi possível salvar no aparelho. Os dados continuam no formulário; tente novamente.");
+    } finally {
+      setSalvando(false);
+    }
+  }
 
   return (
     <>
-      <form
-        action={
-          action
-        }
-        className="space-y-4"
-      >
+      <form onSubmit={salvar} className="space-y-4">
         <Card
           icon={
             <UserRound
@@ -164,85 +148,30 @@ export default function NovoClienteMobileForm() {
 
         <button
           type="submit"
-          disabled={
-            pending
-          }
+          disabled={salvando}
           className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#176f3c] text-[12px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.22)] disabled:opacity-50"
         >
           <Save
             size={18}
           />
 
-          {pending
-            ? "Cadastrando..."
-            : "Cadastrar cliente"}
+          {salvando ? "Salvando no aparelho..." : "Salvar cadastro"}
         </button>
       </form>
 
-      {modal &&
-        state.message ? (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#07150d]/55 p-4 backdrop-blur-[6px]">
-          <div className="w-full max-w-[400px] rounded-[30px] bg-white p-7 text-center shadow-[0_30px_100px_rgba(15,50,30,0.28)]">
-            {state.success ? (
-              <CheckCircle2
-                size={42}
-                className="mx-auto text-emerald-600"
-              />
-            ) : (
-              <XCircle
-                size={42}
-                className="mx-auto text-red-600"
-              />
-            )}
 
-            <h3 className="mt-4 text-[20px] font-black">
-              {state.success
-                ? "Cliente cadastrado"
-                : "Cadastro não concluído"}
-            </h3>
-
-            <p className="mt-3 text-[11px] leading-5 text-slate-500">
-              {
-                state.message
-              }
-            </p>
-
-            {state.success &&
-            state.clienteId ? (
-              <div className="mt-6 grid gap-2">
-                <Link
-                  href={`/mobile/clientes?clienteId=${state.clienteId}&modo=venda`}
-                  className="flex h-[50px] items-center justify-center gap-2 rounded-[16px] bg-[#176f3c] text-[11px] font-black text-white"
-                >
-                  <ShoppingBag
-                    size={16}
-                  />
-                  Vender para este cliente
-                </Link>
-
-                <Link
-                  href="/mobile/clientes"
-                  className="flex h-[48px] items-center justify-center rounded-[16px] border border-slate-200 text-[10px] font-black text-slate-600"
-                >
-                  Voltar aos clientes
-                </Link>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() =>
-                  setModal(
-                    false,
-                  )
-                }
-                className="mt-6 h-[50px] w-full rounded-[16px] bg-[#176f3c] text-[11px] font-black text-white"
-              >
-                Corrigir
-              </button>
-            )}
-          </div>
+      {mensagemLocal && (
+        <div role="status" aria-live="polite"
+          className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-[12px] font-semibold leading-relaxed text-emerald-900">
+          {mensagemLocal}
         </div>
-      ) : null}
+      )}
+      <SincronizadorOfflineClientes empresaId={empresaId} usuarioId={usuarioId} />
+      <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
+        Cadastros pendentes ficam neste navegador, inclusive sem internet. Não limpe os dados do
+        site nem use modo anônimo durante a operação. O cadastro só é confirmado após a
+        sincronização no Supabase.
+      </p>
     </>
   );
 }

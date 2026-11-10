@@ -89,7 +89,7 @@ export default async function NovoClienteMobilePage() {
         </header>
 
         <section className="px-5 py-5">
-          <NovoClienteMobileForm />
+          <NovoClienteMobileForm empresaId={usuario.empresa.id} usuarioId={usuario.id} />
         </section>
       </div>
     </main>
