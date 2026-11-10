@@ -133,7 +133,7 @@ export async function biparVolumeCarga(
       false,
       error.message?.includes("Carga não encontrada para este entregador")
         ? "Este usuário não é o entregador responsável pela carga selecionada ou a sessão mudou em outra aba. " +
-          "Abra a carga no acesso de Tony teste; use outra janela/perfil do navegador para o administrador."
+          "Entre como o entregador responsável e use outro perfil do navegador para o administrador."
         : error.message || "Não foi possível confirmar este volume.",
     );
   }
