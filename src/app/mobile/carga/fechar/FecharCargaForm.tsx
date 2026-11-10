@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 
 import {
   useEffect,
@@ -917,9 +918,9 @@ export default function FecharCargaForm({
 
       </form>
 
-      {confirmacaoAberta && (
+      {confirmacaoAberta && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-[#07150d]/60 p-4 backdrop-blur-[7px]">
-          <div className="w-full max-w-[390px] rounded-[30px] bg-white p-7 shadow-[0_30px_100px_rgba(15,50,30,0.30)]">
+          <div role="dialog" aria-modal="true" aria-label="Confirmacao operacional de fechamento de carga" className="max-h-[90dvh] w-full max-w-[390px] overflow-y-auto rounded-[30px] bg-white p-7 shadow-[0_30px_100px_rgba(15,50,30,0.30)]">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-700">
               <AlertTriangle size={31} />
             </div>
@@ -1004,13 +1005,14 @@ export default function FecharCargaForm({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {modal && (
+      {modal && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#07150d]/55 p-4 backdrop-blur-[6px]">
 
-          <div className="w-full max-w-[390px] rounded-[30px] bg-white p-7 text-center shadow-[0_30px_100px_rgba(15,50,30,0.28)]">
+          <div role="dialog" aria-modal="true" aria-label="Resultado do fechamento de carga" className="max-h-[90dvh] w-full max-w-[390px] overflow-y-auto rounded-[30px] bg-white p-7 text-center shadow-[0_30px_100px_rgba(15,50,30,0.28)]">
 
             <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${
               state.success
@@ -1117,7 +1119,8 @@ export default function FecharCargaForm({
 
           </div>
 
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
