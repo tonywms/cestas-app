@@ -43,7 +43,7 @@ export default function SincronizadorOfflineClientes({
       let sincronizados = 0;
       for (const item of itens) {
         if (item.status !== "pendente") continue;
-        if (navigator.onLine === false) break;
+        // Falhas durante a troca de rede sao tratadas pelo fetch com retry seguro.
         let resposta: Response;
         try {
           resposta = await fetch("/api/mobile/offline/clientes", {
