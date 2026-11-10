@@ -1,7 +1,5 @@
 // V102_2_HEARTBEAT_REAL: status de conectividade do backend, sem consultar dados do usuario.
 // Endpoint publico de diagnostico: usa somente a chave publicavel Supabase e nao retorna segredos.
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 const headers = { "Cache-Control": "no-store, max-age=0", "Content-Type": "application/json" };
 
