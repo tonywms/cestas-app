@@ -1,4 +1,6 @@
 import { connection } from "next/server";
+import { assertRemoteRead, isConnectivityFailure } from "@/lib/auth/connectivity-error";
+// V102_1_OFFLINE_SEM_LOGOUT
 
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -62,7 +64,14 @@ export async function getCurrentUserProfile():
   const {
     data: claimsData,
     error: claimsError,
-  } = await supabase.auth.getClaims();
+  } = await supabase.auth.getClaims().catch(() => {
+    throw new Error("CESTAS_AUTENTICACAO_TEMPORARIAMENTE_INDISPONIVEL");
+  });
+
+  // Falha de transporte nao invalida a sessao nem autoriza novo login.
+  if (claimsError && isConnectivityFailure(claimsError)) {
+    throw new Error("CESTAS_AUTENTICACAO_TEMPORARIAMENTE_INDISPONIVEL");
+  }
 
   const userId =
     typeof claimsData?.claims?.sub === "string"
@@ -90,8 +99,8 @@ export async function getCurrentUserProfile():
     .eq("id", userId)
     .maybeSingle();
 
+  assertRemoteRead(usuarioError);
   if (
-    usuarioError ||
     !usuario ||
     !usuario.ativo
   ) {
@@ -122,8 +131,8 @@ export async function getCurrentUserProfile():
     .limit(1)
     .maybeSingle();
 
+  assertRemoteRead(vinculoError);
   if (
-    vinculoError ||
     !vinculo
   ) {
     console.error(
@@ -193,6 +202,11 @@ export async function getCurrentUserProfile():
       .eq("ativo", true)
       .maybeSingle(),
   ]);
+
+  // Nenhuma falha remota pode se transformar em redirect("/").
+  [empresaResult, perfilResult, configuracaoResult, platformAdminResult].forEach((resultado) => {
+    assertRemoteRead(resultado.error);
+  });
 
   const empresa = empresaResult.data;
   const perfil = perfilResult.data;
@@ -283,14 +297,10 @@ export async function getCurrentUserProfile():
       ),
   ]);
 
-  if (permissoesResult.error) {
-    console.error(
-      "Erro catalogo permissoes:",
-      permissoesResult.error,
-    );
-
-    return null;
-  }
+  // Falha da consulta de permissoes impede operacao, sem encerrar a sessao.
+  [permissoesResult, perfilPermissoesResult, usuarioPermissoesResult].forEach((resultado) => {
+    assertRemoteRead(resultado.error);
+  });
 
   /*
    * permissao_id -> codigo

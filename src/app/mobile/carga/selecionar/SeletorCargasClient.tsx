@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { escolherCargaMobile } from "./actions";
 
@@ -47,11 +48,53 @@ function correspondeAoFiltro(carga: CargaOperacionalResumo, filtro: Filtro, term
   return termo.length === 0 || `${carga.id} ${carga.codigo}`.toLocaleLowerCase("pt-BR").includes(termo);
 }
 
+// V102_CONECTIVIDADE_SELETOR_SEGURO: protecao de UX. A autorizacao da troca continua exclusivamente no servidor.
+function BotaoEscolherCarga({ id, rotaBloqueada, conferenciaPendente, conectado }: {
+  id: number;
+  rotaBloqueada: boolean;
+  conferenciaPendente: boolean;
+  conectado: boolean;
+}) {
+  const { pending } = useFormStatus();
+  const desabilitado = rotaBloqueada || !conectado || pending;
+  return (
+    <button
+      type="submit"
+      disabled={desabilitado}
+      aria-disabled={desabilitado}
+      aria-busy={pending}
+      className="mt-3 w-full rounded-xl bg-[#116b38] px-4 py-3 text-xs font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+    >
+      {!conectado
+        ? "Sem conexão para trocar de carga"
+        : rotaBloqueada
+          ? "Concluir rota atual para trocar"
+          : pending
+            ? "Selecionando carga..."
+            : conferenciaPendente
+              ? `Selecionar e receber carga nº ${id}`
+              : `Usar carga nº ${id}`}
+    </button>
+  );
+}
+
 export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndamento, saldosDisponiveis }: Props) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("TODAS");
   const [ordenacao, setOrdenacao] = useState<Ordenacao>("PRIORIDADE");
   const [limite, setLimite] = useState(LOTE);
+  // Estado inicial estavel para SSR/hidratacao; atualizado no cliente.
+  const [conectado, setConectado] = useState(true);
+  useEffect(() => {
+    const atualizar = () => setConectado(navigator.onLine);
+    atualizar();
+    window.addEventListener("online", atualizar);
+    window.addEventListener("offline", atualizar);
+    return () => {
+      window.removeEventListener("online", atualizar);
+      window.removeEventListener("offline", atualizar);
+    };
+  }, []);
 
   const quantidadeAbertas = cargas.filter((c) => c.status === "ABERTA").length;
   // V96_UX_SELETOR_LIMPO: contabiliza estados operacionais reais.
@@ -92,6 +135,12 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
 
   return (
     <div className="space-y-4">
+      {!conectado && (
+        <div role="alert" aria-live="assertive" className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm">
+          <p className="text-xs font-black">Sem conexão com a internet</p>
+          <p className="mt-1 text-[11px] leading-relaxed">Você pode consultar as informações já exibidas, mas não é possível trocar de carga até restabelecer a conexão. Os saldos podem estar desatualizados.</p>
+        </div>
+      )}
       {/* V97_FILTROS_POR_INDICADORES: indicadores funcionam como filtros, sem uma segunda barra de botoes. */}
       <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Filtrar cargas por situação">
         {([
@@ -229,6 +278,12 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
             <form
               key={carga.id}
               action={escolherCargaMobile}
+              onSubmit={(event) => {
+                if (!conectado || !navigator.onLine) {
+                  event.preventDefault();
+                  setConectado(false);
+                }
+              }}
               className={`rounded-2xl border p-4 shadow-sm ${selecionada ? "border-emerald-400 bg-emerald-50" : "border-emerald-100 bg-white"}`}
             >
               <input type="hidden" name="carga_id" value={carga.id} />
@@ -287,13 +342,12 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
                   {carga.conferenciaPendente ? `Receber volumes da carga nº ${carga.id}` : `Continuar com a carga nº ${carga.id}`}
                 </Link>
               ) : (
-                <button
-                  type="submit"
-                  disabled={Boolean(rotaEmOutraCarga)}
-                  className="mt-3 w-full rounded-xl bg-[#116b38] px-4 py-3 text-xs font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                >
-                  {rotaEmOutraCarga ? "Concluir rota atual para trocar" : carga.conferenciaPendente ? `Selecionar e receber carga nº ${carga.id}` : `Usar carga nº ${carga.id}`}
-                </button>
+                <BotaoEscolherCarga
+                  id={carga.id}
+                  rotaBloqueada={Boolean(rotaEmOutraCarga)}
+                  conferenciaPendente={carga.conferenciaPendente}
+                  conectado={conectado}
+                />
               )}
               {carga.conferenciaPendente && !rotaEmOutraCarga && (
                 <p className="mt-2 text-[10px] leading-relaxed text-amber-800">

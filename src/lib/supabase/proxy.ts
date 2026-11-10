@@ -1,4 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
+import { isConnectivityFailure } from "@/lib/auth/connectivity-error";
+// V102_1_OFFLINE_SEM_LOGOUT
 import {
   NextResponse,
   type NextRequest,
@@ -13,6 +15,9 @@ export async function updateSession(
       request,
     });
 
+  // Atualizacoes de cookie so sao efetivadas apos confirmar ausencia de falha de rede.
+  const cookieWrites: Array<() => void> = [];
+
   const supabase =
     createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,61 +28,40 @@ export async function updateSession(
             return request.cookies.getAll();
           },
 
-          setAll(
-            cookiesToSet,
-            headers,
-          ) {
-            cookiesToSet.forEach(
-              ({
-                name,
-                value,
-              }) => {
-                request.cookies.set(
-                  name,
-                  value,
-                );
-              },
-            );
-
-            response =
-              NextResponse.next({
-                request,
+          setAll(cookiesToSet, headers) {
+            // O Supabase pode tentar apagar cookies ao falhar refresh offline.
+            // Uma indisponibilidade de rede nao deve apagar a sessao do navegador.
+            cookieWrites.push(() => {
+              cookiesToSet.forEach(({ name, value }) => {
+                request.cookies.set(name, value);
               });
-
-            cookiesToSet.forEach(
-              ({
-                name,
-                value,
-                options,
-              }) => {
-                response.cookies.set(
-                  name,
-                  value,
-                  options,
-                );
-              },
-            );
-
-            Object.entries(
-              headers,
-            ).forEach(
-              ([
-                key,
-                value,
-              ]) => {
-                response.headers.set(
-                  key,
-                  value,
-                );
-              },
-            );
+              response = NextResponse.next({ request });
+              cookiesToSet.forEach(({ name, value, options }) => {
+                response.cookies.set(name, value, options);
+              });
+              Object.entries(headers ?? {}).forEach(([key, value]) => {
+                response.headers.set(key, value);
+              });
+            });
           },
         },
       },
     );
 
-  await supabase.auth
-    .getClaims();
+  let claimsError: unknown = null;
+  try {
+    const result = await supabase.auth.getClaims();
+    claimsError = result.error;
+  } catch (error) {
+    claimsError = error;
+  }
+  if (isConnectivityFailure(claimsError)) {
+    // Preserva a sessao existente; paginas protegidas fazem sua propria verificacao.
+    // Nenhum cookie e criado nem removido nesta falha temporaria.
+    response.headers.set("Cache-Control", "private, no-store");
+  } else {
+    for (const applyCookies of cookieWrites) applyCookies();
+  }
 
   /*
    * Cabeçalhos de segurança básicos.
