@@ -39,6 +39,7 @@ type Props = {
     Promise<{
       q?: string;
       modo?: string;
+      tipoCestaId?: string;
       clienteId?: string;
     }>;
 };
@@ -151,6 +152,10 @@ export default async function ClientesMobilePage({
 
   const modoVendaDireta = params.modo === "venda-direta";
   const modoVenda = params.modo === "venda" || modoVendaDireta;
+  const tipoVendaId = Number(params.tipoCestaId ?? 0);
+  if (modoVendaDireta && (!Number.isSafeInteger(tipoVendaId) || tipoVendaId < 1)) {
+    redirect("/mobile/estoque?erro=tipo");
+  }
 
   if (modoVendaDireta && !podeVender) {
     redirect("/mobile/sem-acesso");
@@ -288,7 +293,9 @@ export default async function ClientesMobilePage({
 
             {podeCadastrar ? (
               <Link
-                href={modoVendaDireta ? "/mobile/clientes/novo?modo=venda-direta" : "/mobile/clientes/novo"}
+                href={modoVendaDireta
+                  ? `/mobile/clientes/novo?modo=venda-direta&tipoCestaId=${tipoVendaId}`
+                  : "/mobile/clientes/novo"}
                 className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-white text-[#176f3c]"
                 aria-label="Novo cliente"
               >
@@ -339,11 +346,10 @@ export default async function ClientesMobilePage({
         <section className="px-5 py-5">
           <form className="rounded-[22px] bg-white p-3 shadow-sm">
             {modoVenda ? (
-              <input
-                type="hidden"
-                name="modo"
-                value={modoVendaDireta ? "venda-direta" : "venda"}
-              />
+              <>
+                <input type="hidden" name="modo" value={modoVendaDireta ? "venda-direta" : "venda"} />
+                {modoVendaDireta && <input type="hidden" name="tipoCestaId" value={tipoVendaId} />}
+              </>
             ) : null}
 
             <div className="relative">
@@ -376,7 +382,9 @@ export default async function ClientesMobilePage({
 
             {podeCadastrar ? (
               <Link
-                href={modoVendaDireta ? "/mobile/clientes/novo?modo=venda-direta" : "/mobile/clientes/novo"}
+                href={modoVendaDireta
+                  ? `/mobile/clientes/novo?modo=venda-direta&tipoCestaId=${tipoVendaId}`
+                  : "/mobile/clientes/novo"}
                 className="flex items-center gap-2 rounded-[14px] bg-[#176f3c] px-4 py-3 text-[10px] font-black text-white"
               >
                 <UserPlus
@@ -496,7 +504,7 @@ export default async function ClientesMobilePage({
                         {podeVender ? (
                           modoVendaDireta ? (
                             <Link
-                              href={`/mobile/entregas/nova?clienteId=${cliente.id}`}
+                              href={`/mobile/entregas/nova?clienteId=${cliente.id}&tipoCestaId=${tipoVendaId}`}
                               className="flex h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#176f3c] text-[10px] font-black text-white"
                             >
                               <ShoppingBag size={15} />
