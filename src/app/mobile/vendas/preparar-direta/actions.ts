@@ -46,6 +46,20 @@ export async function prepararVendaDireta(
   if (observacao.length>500) return falha("Observação maior que 500 caracteres.");
 
   const supabase = await createClient();
+  // Se o CD alterar o destino durante o atendimento, impedir que a tela
+  // antiga induza o vendedor a cobrar em conta/maquineta errada.
+  const temRecebimento=tipoVenda==="AVISTA"||entrada>0;
+  if(temRecebimento && (formaPagamento==="PIX"||formaPagamento==="CARTAO")){
+    const destinoExibido=String(formData.get("destino_exibido")??"");
+    const {data:config,error:erroConfig}=await supabase.from("empresa_configuracoes")
+      .select("destino_pix_v108,destino_cartao_v108")
+      .eq("empresa_id",usuario.empresa.id).maybeSingle();
+    const destinoAtual=formaPagamento==="PIX"?config?.destino_pix_v108:config?.destino_cartao_v108;
+    if(erroConfig || !["EMPRESA","ENTREGADOR"].includes(destinoAtual??"") ||
+      destinoAtual!==destinoExibido){
+      return falha("A conta/maquineta destinatária foi alterada ou não pôde ser conferida. Atualize a tela antes de continuar.");
+    }
+  }
   const {data,error} = await supabase.rpc("mobile_preparar_venda_direta_v107",{
     p_empresa_id:usuario.empresa.id,
     p_cliente_id:clienteId,
