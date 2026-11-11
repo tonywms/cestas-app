@@ -155,6 +155,7 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
       valor:moeda(repasseConfirmado.valor),
       identificacao:`Prestação nº ${idPrestacao} · ${repasseConfirmado.forma}`,
       detalhe:"O valor consta nos repasses confirmados e não pode ser recebido novamente como saldo pendente.",
+      comprovanteUrl:`/admin/financeiro/prestacoes/repasses/comprovante?prestacao=${idPrestacao}&repasse=${idRepasse}`,
     }:null):
     evento==="CREDITO"?{
       titulo:"Crédito conciliado pelo CD",
@@ -192,6 +193,7 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
         valor={"valor" in modal ? modal.valor : undefined}
         identificacao={"identificacao" in modal ? modal.identificacao : undefined}
         detalhe={"detalhe" in modal ? modal.detalhe : undefined}
+        comprovanteUrl={"comprovanteUrl" in modal ? modal.comprovanteUrl : undefined}
       />}
       {params.erro&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-900">{params.erro.slice(0,320)}</p>}
 
@@ -383,11 +385,19 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
             </details>
             {(p.repasses??[]).length>0&&<details className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
               <summary className="cursor-pointer text-[12px] font-black text-emerald-900">Repasses já confirmados pelo CD ({p.repasses.length})</summary>
-              <div className="mt-3 space-y-2">{p.repasses.map(r=><p key={r.id} className="text-[10px] text-emerald-900">
-                {dataHora(r.confirmado_at)} · {r.forma} · {moeda(r.valor)}
-                {n(r.taxa_cartao_autorizada)>0?` · taxa autorizada ${moeda(r.taxa_cartao_autorizada)}`:""}
-                {r.referencia?` · ${r.referencia}`:""}
-              </p>)}</div>
+              <div className="mt-3 space-y-2">{p.repasses.map(r=>
+                <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-white p-3">
+                  <div className="text-[11px] text-emerald-950">
+                    <p className="font-black">{r.forma} · {moeda(r.valor)}</p>
+                    <p className="mt-1 text-[10px] text-slate-600">Confirmado em {dataHora(r.confirmado_at)} · Protocolo RP-{String(r.id).padStart(6,"0")}</p>
+                    {n(r.taxa_cartao_autorizada)>0&&<p className="mt-1 text-[10px]">Taxa autorizada: {moeda(r.taxa_cartao_autorizada)}</p>}
+                  </div>
+                  <Link href={`/admin/financeiro/prestacoes/repasses/comprovante?prestacao=${p.id}&repasse=${r.id}`}
+                    className="inline-flex min-h-10 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-[11px] font-black text-emerald-900">
+                    Ver comprovante
+                  </Link>
+                </div>
+              )}</div>
             </details>}
             {encerrada&&<p className="flex items-center gap-2 text-[11px] font-black text-emerald-800">
               <ShieldCheck size={18}/> Saldo do entregador quitado e créditos corporativos conciliados
