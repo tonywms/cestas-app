@@ -330,7 +330,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.classificar_recebimento_v108(
  p_empresa_id uuid,p_origem text,p_id bigint,p_destino text
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
-AS $
+AS $$
 DECLARE v_uid uuid:=auth.uid();v_forma text;v_linhas integer;
 BEGIN
  IF v_uid IS NULL OR NOT app_private.is_empresa_member(p_empresa_id) OR
@@ -363,13 +363,15 @@ BEGIN
    jsonb_build_object('origem',p_origem,'id',p_id,'titular',p_destino));
  RETURN jsonb_build_object('classificado',true,'origem',p_origem,'id',p_id,'titular',p_destino);
 END;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.resumo_prestacao_v108(uuid,date,uuid),
  public.enviar_prestacao_v108(uuid,date,numeric,numeric,numeric,text,text,text),
  public.conferir_prestacao_v108(uuid,bigint,numeric,numeric,numeric,numeric,numeric,numeric,text,boolean),
- public.configurar_destinos_v108(uuid,text,text) FROM PUBLIC,anon;
+ public.configurar_destinos_v108(uuid,text,text),
+ public.classificar_recebimento_v108(uuid,text,bigint,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.resumo_prestacao_v108(uuid,date,uuid),
  public.enviar_prestacao_v108(uuid,date,numeric,numeric,numeric,text,text,text),
  public.conferir_prestacao_v108(uuid,bigint,numeric,numeric,numeric,numeric,numeric,numeric,text,boolean),
- public.configurar_destinos_v108(uuid,text,text) TO authenticated;
+ public.configurar_destinos_v108(uuid,text,text),
+ public.classificar_recebimento_v108(uuid,text,bigint,text) TO authenticated;
