@@ -1,1222 +1,169 @@
-// CESTAS_V105_5_1_SESSAO: prefetch desabilitado para sessao SSR
 export const instant = false;
 
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Barcode,
-  Boxes,
-  CheckCircle2,
-  CircleAlert,
-  PackageCheck,
-  RefreshCw,
-  RotateCcw,
-  ShieldCheck,
-  Truck,
-} from "lucide-react";
-
+// V106 — Carga = recebimento do CD. Nao e uma tela de venda nem de estoque.
+// O detalhamento de origem continua persistido em cargas/cesta_volumes.
 import Link from "next/link";
-import IdentificacaoCargaMobile from "@/components/mobile/IdentificacaoCargaMobile";
+import { redirect } from "next/navigation";
+import { ArrowLeft, Barcode, CheckCircle2, PackageCheck, AlertTriangle } from "lucide-react";
+import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
+import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
+import { createClient } from "@/lib/supabase/server";
 
-import {
-  PERMISSOES,
-  temPermissao,
-} from "@/lib/auth/permissions";
-
-import {
-  requirePermission,
-} from "@/lib/auth/require-permission";
-
-import {
-  createClient,
-} from "@/lib/supabase/server";
-
-import {
-  getCargaAtiva,
-} from "@/services/cargas/get-carga-ativa";
-
-import DevolverCargaSemJornadaButton from "./DevolverCargaSemJornadaButton";
-
-function formatarData(
-  data: string,
-) {
-  if (!data) {
-    return "-";
-  }
-
-  const [
-    ano,
-    mes,
-    dia,
-  ] = data.split("-");
-
-  if (
-    !ano ||
-    !mes ||
-    !dia
-  ) {
-    return data;
-  }
-
-  return `${dia}/${mes}/${ano}`;
-}
-
-function StatusCarga({
-  status,
-}: {
+type Registro = {
+  id: number;
+  codigo: string;
+  data_carga: string | null;
   status: string;
-}) {
-  if (
-    status === "EM_ROTA"
-  ) {
-    return (
-      <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-emerald-700">
-        Em rota
-      </span>
-    );
+  recebida_at: string | null;
+};
+
+const formato = (data: string | null) => {
+  if (!data) return "—";
+  const d = data.substring(0, 10).split("-");
+  return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : data;
+};
+
+export default async function CargasRecebimentoPage() {
+  const usuario = await getCurrentUserProfile();
+  if (!usuario || !usuario.ativo) redirect("/");
+  if (!usuario.isPlatformAdmin && !temPermissao(usuario.permissoes, PERMISSOES.CARGA_VISUALIZAR)) {
+    redirect("/mobile/sem-acesso");
   }
 
-  return (
-    <span className="rounded-full bg-amber-100 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-amber-700">
-      Aberta
-    </span>
-  );
-}
+  const supabase = await createClient();
+  const { data: cargas, error: erroCargas, count } = await supabase.from("cargas")
+    .select("id,codigo,data_carga,status,recebida_at", { count: "exact" })
+    .eq("empresa_id", usuario.empresa.id)
+    .eq("entregador_id", usuario.id)
+    .order("created_at", { ascending: false })
+    .limit(100);
 
-export default async function MinhaCargaPage() {
-  /*
-   * =========================================================
-   * PERMISSÃO
-   * =========================================================
-   */
+  const registros: Registro[] = cargas ?? [];
+  const ids = registros.map(c => Number(c.id));
+  const { data: itens, error: erroItens } = ids.length
+    ? await supabase.from("carga_itens")
+        .select("carga_id,quantidade_carregada", { count: "exact" })
+        .eq("empresa_id", usuario.empresa.id)
+        .in("carga_id", ids)
+        .limit(1000)
+    : { data: [], error: null };
 
-  const usuario =
-    await requirePermission(
-      PERMISSOES.CARGA_VISUALIZAR,
-    );
-
-  /*
-   * =========================================================
-   * IDENTIDADE DO TENANT
-   * =========================================================
-   *
-   * Aqui NÃO usamos:
-   *
-   * usuario.empresaId
-   * usuario.empresa_id
-   *
-   * O formato correto retornado por
-   * getCurrentUserProfile é:
-   *
-   * usuario.empresa.id
-   */
-
-  const entregadorId =
-    usuario.id;
-
-  const empresaId =
-    usuario.empresa.id;
-
-  /*
-   * =========================================================
-   * CARGA
-   * =========================================================
-   */
-
-  const {
-    carga,
-    erro,
-  } = await getCargaAtiva({
-    entregadorId,
-    empresaId,
-  });
-
-  /*
-   * =========================================================
-   * ERRO
-   * =========================================================
-   */
-
-  if (erro) {
-    return (
-      <main className="min-h-dvh bg-[#eaf2ec] text-[#142018]">
-        <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-[#f7faf7]">
-
-          <Header />
-
-          <section className="px-4 py-5">
-            <div className="rounded-[24px] border border-red-200 bg-red-50 p-5">
-
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-red-100 text-red-600">
-                  <CircleAlert
-                    size={20}
-                  />
-                </div>
-
-                <div>
-                  <h2 className="text-sm font-black text-red-700">
-                    Não foi possível carregar os dados
-                  </h2>
-
-                  <p className="mt-2 text-[11px] leading-5 text-red-600">
-                    {erro}
-                  </p>
-                </div>
-              </div>
-
-              <Link prefetch={false} href="/mobile/carga/selecionar" className="mt-4 flex h-12 items-center justify-center rounded-xl bg-emerald-700 text-xs font-bold text-white">Selecionar carga</Link>
-              <Link prefetch={false}
-                href="/mobile/carga"
-                className="mt-5 flex h-[48px] w-full items-center justify-center gap-2 rounded-[15px] bg-red-600 text-xs font-black text-white"
-              >
-                <RefreshCw
-                  size={16}
-                />
-
-                Tentar novamente
-              </Link>
-
-            </div>
-          </section>
-
-        </div>
-      </main>
-    );
+  const totalPorCarga = new Map<number, number>();
+  for (const item of itens ?? []) {
+    const id = Number(item.carga_id);
+    totalPorCarga.set(id, (totalPorCarga.get(id) ?? 0) + Number(item.quantidade_carregada ?? 0));
   }
 
-  /*
-   * =========================================================
-   * SEM CARGA
-   * =========================================================
-   */
-
-  if (!carga) {
-    return (
-      <main className="min-h-dvh bg-[#eaf2ec] text-[#142018]">
-        <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-[#f7faf7]">
-
-          <Header />
-
-          <section className="flex flex-1 flex-col px-5 py-7">
-
-            <div className="rounded-[28px] border border-black/[0.04] bg-white p-6 shadow-[0_18px_45px_rgba(17,63,33,0.07)]">
-
-              <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#eaf5ed] text-[#176b3a]">
-                <Truck
-                  size={26}
-                />
-              </div>
-
-              <p className="mt-6 text-[9px] font-black uppercase tracking-[0.18em] text-[#18834a]">
-                Estoque móvel
-              </p>
-
-              <h2 className="mt-2 text-[22px] font-black tracking-[-0.04em]">
-                Nenhuma carga ativa
-              </h2>
-
-              <p className="mt-3 text-[12px] leading-6 text-slate-500">
-                Quando uma carga for atribuída ao seu
-                usuário, ela aparecerá automaticamente
-                aqui.
-              </p>
-
-              <div className="mt-6 rounded-[18px] bg-[#f5f8f5] px-4 py-4">
-
-                <div className="flex items-center gap-3">
-
-                  <ShieldCheck
-                    size={18}
-                    className="shrink-0 text-[#176b3a]"
-                  />
-
-                  <div>
-                    <p className="text-[11px] font-black text-[#176b3a]">
-                      Ambiente isolado
-                    </p>
-
-                    <p className="mt-1 text-[10px] leading-5 text-slate-400">
-                      Você visualiza apenas cargas
-                      vinculadas ao seu usuário e à sua
-                      empresa.
-                    </p>
-                  </div>
-
-                </div>
-
-              </div>
-            </div>
-
-            <Link prefetch={false}
-              href="/mobile"
-              className="mt-4 flex h-[52px] items-center justify-center gap-2 rounded-[17px] border border-[#dce8de] bg-white text-xs font-black text-[#176b3a]"
-            >
-              <ArrowLeft
-                size={17}
-              />
-
-              Voltar ao início
-            </Link>
-</section>
-        </div>
-      </main>
-    );
-  }
-
-  /*
-   * =========================================================
-   * MÉTRICAS
-   * =========================================================
-   */
-
-  const totalCarregado =
-    carga.carga_itens.reduce(
-      (
-        total,
-        item,
-      ) =>
-        total +
-        item.quantidade_carregada,
-      0,
-    );
-
-  const totalEntregue =
-    carga.carga_itens.reduce(
-      (
-        total,
-        item,
-      ) =>
-        total +
-        item.quantidade_entregue,
-      0,
-    );
-
-  const totalRetornado =
-    carga.carga_itens.reduce(
-      (
-        total,
-        item,
-      ) =>
-        total +
-        item.quantidade_retornada,
-      0,
-    );
-
-  const totalAvariado =
-    carga.carga_itens.reduce(
-      (
-        total,
-        item,
-      ) =>
-        total +
-        item.quantidade_avariada,
-      0,
-    );
-
-  const saldo =
-    Math.max(
-      0,
-      totalCarregado -
-        totalEntregue -
-        totalRetornado -
-        totalAvariado,
-    );
-
-  const percentual =
-    totalCarregado > 0
-      ? Math.min(
-          100,
-          Math.round(
-            (
-              totalEntregue /
-              totalCarregado
-            ) *
-              100,
-          ),
-        )
-      : 0;
-
-  // V105.5.9: a carga selecionada e o contexto de venda, nunca a primeira rota global.
-  const podeVenderDaCarga =
-    usuario.isPlatformAdmin ||
-    temPermissao(usuario.permissoes, PERMISSOES.ENTREGA_REALIZAR);
-  const podeRegistrarVenda =
-    usuario.configuracao.permitirPagamentoMobile &&
-    (usuario.isPlatformAdmin ||
-      temPermissao(usuario.permissoes, PERMISSOES.PAGAMENTO_REGISTRAR));
-  const podeVerRota =
-    usuario.isPlatformAdmin ||
-    temPermissao(usuario.permissoes, PERMISSOES.ROTA_VISUALIZAR);
-  const podeCadastrarCliente =
-    usuario.isPlatformAdmin ||
-    temPermissao(usuario.permissoes, PERMISSOES.CLIENTE_MOBILE_CADASTRAR);
-  const podeEditarCliente =
-    usuario.isPlatformAdmin ||
-    temPermissao(usuario.permissoes, PERMISSOES.CLIENTE_MOBILE_EDITAR);
-
-  const podeFecharCarga =
-    usuario.isPlatformAdmin ||
-    temPermissao(
-      usuario.permissoes,
-      PERMISSOES.CARGA_RETORNAR,
-    );
-
-  const modoVolume =
-    usuario.configuracao
-      .modoControleCarga ===
-    "VOLUME";
-
-  const exigeBipagemCarga =
-    modoVolume &&
-    usuario.configuracao
-      .exigirBipagemCarga;
-
-  const podeBiparCarga =
-    usuario.isPlatformAdmin ||
-    (
-      temPermissao(
-        usuario.permissoes,
-        PERMISSOES.CARGA_RECEBER,
-      ) &&
-      temPermissao(
-        usuario.permissoes,
-        PERMISSOES.CARGA_BIPAR_VOLUME,
-      )
-    );
-
-  const supabaseRota =
-    await createClient();
-
-  // V61_4_GATE_FECHAMENTO_POS_JORNADA
-  const [
-    {
-      data: rotaAtiva,
-      error: rotaAtivaError,
-    },
-    {
-      data: rotaFinalizadaDaCarga,
-      error: rotaFinalizadaError,
-    },
-  ] = await Promise.all([
-    supabaseRota
-      .from("rotas")
-      .select("id, codigo, status, carga_id, finalizada_at")
-      .eq("empresa_id", empresaId)
-      .eq("entregador_id", entregadorId)
-      .eq("carga_id", carga.id)
-      .in("status", [
-        "PLANEJADA",
-        "EM_ROTA",
-      ])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-
-    supabaseRota
-      .from("rotas")
-      .select("id, codigo, status, carga_id, finalizada_at")
-      .eq("empresa_id", empresaId)
-      .eq("entregador_id", entregadorId)
-      .eq("carga_id", carga.id)
-      .eq("status", "FINALIZADA")
-      .not("finalizada_at", "is", null)
-      .order("finalizada_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
-
-  if (rotaAtivaError) {
-    console.error(
-      "Erro ao consultar rota ativa na carga:",
-      rotaAtivaError,
-    );
-  }
-
-  if (rotaFinalizadaError) {
-    console.error(
-      "Erro ao consultar jornada finalizada da carga:",
-      rotaFinalizadaError,
-    );
-  }
-
-  // V105.5.10: venda SEM rota utiliza o formulario de entrega direta
-  // e nao chama mobile_iniciar_rota_propria. A baixa fica sempre na
-  // carga escolhida, validada novamente pelo servidor da entrega.
-  const temRotaAtiva =
-    !!rotaAtiva;
-
-  const temRotaFinalizadaDaCarga =
-    !!rotaFinalizadaDaCarga;
-
-  let volumesEsperados = 0;
-  let volumesConfirmados = 0;
-
-  if (exigeBipagemCarga) {
-    const supabase =
-      await createClient();
-
-    const [
-      esperadosResult,
-      confirmadosResult,
-    ] = await Promise.all([
-      supabase
-        .from(
-          "cesta_volumes",
-        )
-        .select(
-          "id",
-          {
-            count: "exact",
-            head: true,
-          },
-        )
-        .eq(
-          "empresa_id",
-          empresaId,
-        )
-        .eq(
-          "carga_id",
-          carga.id,
-        ),
-
-      supabase
-        .from(
-          "carga_volume_bipagens",
-        )
-        .select(
-          "id",
-          {
-            count: "exact",
-            head: true,
-          },
-        )
-        .eq(
-          "empresa_id",
-          empresaId,
-        )
-        .eq(
-          "carga_id",
-          carga.id,
-        ),
-    ]);
-
-    volumesEsperados =
-      esperadosResult.count ?? 0;
-
-    volumesConfirmados =
-      confirmadosResult.count ?? 0;
-  }
-
-  const recebimentoCompleto =
-    !exigeBipagemCarga ||
-    (
-      volumesEsperados > 0 &&
-      volumesConfirmados >=
-        volumesEsperados
-    );
-
-  /*
-   * =========================================================
-   * TELA COM CARGA
-   * =========================================================
-   */
+  const exigeBipagem = usuario.configuracao.modoControleCarga === "VOLUME" &&
+    usuario.configuracao.exigirBipagemCarga;
+  const podeReceber = usuario.isPlatformAdmin ||
+    temPermissao(usuario.permissoes, PERMISSOES.CARGA_RECEBER);
+  const podeBipar = usuario.isPlatformAdmin ||
+    temPermissao(usuario.permissoes, PERMISSOES.CARGA_BIPAR_VOLUME);
+  const pendentes = registros.filter(c => c.recebida_at == null && ["ABERTA", "EM_ROTA"].includes(c.status));
+  const recebidas = registros.filter(c => c.recebida_at != null);
 
   return (
     <main className="min-h-dvh bg-[#eaf2ec] text-[#142018]">
-      <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-[#f7faf7] pb-28">
-
-        <Header />
-
-        <IdentificacaoCargaMobile numero={carga.id} codigo={carga.codigo} status={recebimentoCompleto ? (saldo > 0 ? "COM ESTOQUE" : "SEM SALDO") : "A RECEBER"} />
-
-
-        {/* V105.5.8: estoque em posse, sem confundir com devolucao ao CD. */}
-        <section aria-label="Saldo da carga em uso" className="mx-4 mt-3 rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.13em] text-emerald-800">{recebimentoCompleto ? "Seu estoque nesta carga" : "Carga aguardando recebimento"}</p>
-          <div className="mt-2 flex items-center justify-between gap-3">
+      <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-[#f7faf7] pb-10">
+        <header className="bg-[#0c6637] px-5 pb-7 pt-5 text-white">
+          <div className="flex items-center gap-3">
+            <Link href="/mobile" aria-label="Voltar" className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-white/20 bg-white/10">
+              <ArrowLeft size={19}/>
+            </Link>
             <div>
-              <p className="text-[31px] font-black leading-none tabular-nums text-emerald-950">{saldo}</p>
-              <p className="mt-1 text-[11px] font-semibold text-emerald-800">{recebimentoCompleto ? "cestas em posse" : "cestas a conferir"}</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-200">Centro de Distribuição</p>
+              <h1 className="text-xl font-black">Receber cargas</h1>
             </div>
-            <span className="rounded-full bg-white px-3 py-2 text-[10px] font-bold text-emerald-800">
-              {recebimentoCompleto ? "Recebimento confirmado" : "Conferência pendente"}
-            </span>
           </div>
-          <p className="mt-3 text-[10px] leading-5 text-emerald-800">
-            {recebimentoCompleto
-              ? "O saldo permanece com você até uma entrega ou devolução confirmada. Finalizar uma rota não devolve cestas automaticamente."
-              : "Primeiro confirme os volumes recebidos do CD. A bipagem não realiza nenhuma devolução."}
+          <p className="mt-4 text-[12px] leading-5 text-emerald-100">
+            Receba as cestas enviadas pelo CD. Confira os volumes quando a empresa exigir.
+            Venda, entrega e devolução não são realizadas nesta rotina.
           </p>
-          <Link prefetch={false} href={recebimentoCompleto ? "#acoes-carga" : "/mobile/carga/receber"} className="mt-3 flex min-h-[44px] items-center justify-center rounded-[13px] bg-emerald-800 px-4 py-2.5 text-[12px] font-black text-white">
-            {recebimentoCompleto ? "O que posso fazer com esta carga?" : "Receber volumes do CD"}
-          </Link>
-        </section>
-        <div className="px-4 py-3">
-          <Link prefetch={false}
-            href="/mobile/carga/selecionar"
-            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-300 bg-white px-4 py-3.5 text-emerald-950 shadow-sm transition-colors hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
-          >
-            <span className="min-w-0">
-              <span className="block text-[9px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">Trocar de estoque</span>
-              <span className="mt-1 block text-sm font-black">Escolher outra carga</span>
-              <span className="mt-0.5 block text-[10px] text-slate-600">Em operação: carga nº {carga.id}</span>
-            </span>
-            <span className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2.5 text-[11px] font-extrabold text-white">Trocar →</span>
-          </Link>
-        </div>
+        </header>
 
-        <section id="acoes-carga" aria-label="Ações da carga selecionada" className="scroll-mt-6 px-4 pt-3">
-          <div className="rounded-[24px] border border-emerald-200 bg-white p-4 shadow-[0_10px_30px_rgba(17,63,33,0.06)]">
-            <p className="text-[10px] font-black uppercase tracking-[0.13em] text-emerald-800">Trabalhar com a carga nº {carga.id}</p>
-            <h2 className="mt-1 text-[18px] font-black text-slate-900">O que deseja fazer?</h2>
-            <p className="mt-2 text-[11px] leading-5 text-slate-600">
-              {recebimentoCompleto
-                ? `Você tem ${saldo} cesta(s) desta carga. Use os atalhos abaixo para atender seus clientes.`
-                : "Primeiro confira o recebimento dos volumes do CD para liberar o estoque."}
-            </p>
+        <section className="space-y-4 p-4">
+          {erroCargas || erroItens || (count ?? 0) > registros.length ? (
+            <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+              {!erroCargas && !erroItens ? "A lista foi limitada às 100 cargas mais recentes. Consulte o administrador para o histórico completo."
+                : "Não foi possível consultar todas as informações. Atualize a página antes de confirmar qualquer recebimento."}
+            </div>
+          ) : null}
 
-            {!recebimentoCompleto ? (
-              <Link prefetch={false} href="/mobile/carga/receber"
-                className="mt-4 flex min-h-[52px] items-center justify-center rounded-[15px] bg-emerald-800 px-4 text-[12px] font-black text-white">
-                Receber e bipar os volumes
-              </Link>
-            ) : (
-              <div className="mt-4 space-y-2">
-                {saldo > 0 && podeVenderDaCarga && podeRegistrarVenda ? (
-                  <Link prefetch={false} href="/mobile/clientes?modo=venda-direta"
-                    className="flex min-h-[56px] items-center justify-center gap-2 rounded-[16px] bg-emerald-800 px-4 text-[13px] font-black text-white">
-                    Vender cesta da carga nº {carga.id}
-                  </Link>
-                ) : saldo > 0 && podeVenderDaCarga ? (
-                  <Link prefetch={false} href="/mobile/entregas/nova"
-                    className="flex min-h-[56px] items-center justify-center gap-2 rounded-[16px] bg-emerald-800 px-4 text-[13px] font-black text-white">
-                    Entregar cesta desta carga
-                  </Link>
-                ) : saldo === 0 ? (
-                  <p className="rounded-xl bg-slate-50 p-3 text-[11px] font-semibold text-slate-700">
-                    Sem cestas disponíveis nesta carga para novas entregas.
-                  </p>
-                ) : (
-                  <p className="rounded-xl bg-amber-50 p-3 text-[11px] font-semibold text-amber-900">
-                    Seu perfil não tem permissão para realizar entregas desta carga.
-                  </p>
-                )}
-                {saldo > 0 && podeVenderDaCarga && !podeRegistrarVenda && (
-                  <p className="text-[10px] leading-5 text-slate-500">
-                    O registro financeiro da venda depende da permissão de pagamentos da empresa.
-                  </p>
-                )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-[20px] bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-extrabold text-slate-500">A receber do CD</p>
+              <p className="mt-1 text-3xl font-black text-amber-800">{pendentes.length}</p>
+            </div>
+            <div className="rounded-[20px] bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-extrabold text-slate-500">Recebimentos confirmados</p>
+              <p className="mt-1 text-3xl font-black text-emerald-800">{recebidas.length}</p>
+            </div>
+          </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  {(podeCadastrarCliente || podeEditarCliente || podeVenderDaCarga) && (
-                    <Link prefetch={false} href="/mobile/clientes"
-                      className="flex min-h-[48px] items-center justify-center rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 text-center text-[11px] font-black text-emerald-900">
-                      Clientes / cadastro
-                    </Link>
-                  )}
-                  {podeVerRota && temRotaAtiva && !rotaAtivaError && (
-                    <Link prefetch={false} href="/mobile/rota"
-                      className="flex min-h-[48px] items-center justify-center rounded-[14px] border border-emerald-200 bg-white px-3 text-center text-[11px] font-black text-emerald-900">
-                      Atender rota desta carga
-                    </Link>
-                  )}
-                  <Link prefetch={false} href="/mobile/carga/selecionar"
-                    className="flex min-h-[48px] items-center justify-center rounded-[14px] border border-emerald-200 bg-white px-3 text-center text-[11px] font-black text-emerald-900">
-                    Usar outra carga
-                  </Link>
+          <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-[12px] font-black text-emerald-950">Depois de receber, as cestas ficam no seu estoque móvel.</p>
+            <p className="mt-1 text-[11px] leading-5 text-emerald-800">Você não precisa manter uma carga selecionada para vender. A carga original fica somente para rastrear os volumes.</p>
+            <Link href="/mobile/estoque" className="mt-3 flex min-h-[44px] items-center justify-center rounded-xl bg-emerald-800 text-[12px] font-black text-white">
+              Consultar meu estoque móvel
+            </Link>
+          </div>
+
+          <h2 className="pt-2 text-sm font-black">Cargas aguardando recebimento</h2>
+          {pendentes.length === 0 && !erroCargas ? (
+            <p className="rounded-2xl bg-white p-4 text-[12px] text-slate-600">Nenhuma carga pendente nesta lista.</p>
+          ) : null}
+          {pendentes.map(carga => (
+            <article key={carga.id} className="rounded-[22px] border border-amber-100 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-[16px] font-black">Carga nº {carga.id}</h3>
+                  <p className="mt-1 text-[10px] text-slate-500">{carga.codigo}</p>
+                  <p className="mt-1 text-[10px] text-slate-500">Emitida em {formato(carga.data_carga)}</p>
                 </div>
+                <span className="rounded-full bg-amber-50 px-2.5 py-1.5 text-[10px] font-black text-amber-900">A conferir</span>
               </div>
-            )}
-            <p className="mt-3 text-[10px] leading-5 text-slate-500">
-              Selecionar uma carga, consultar clientes e abrir telas não movimenta o estoque.
-              A baixa só ocorre quando uma entrega é confirmada.
-            </p>
-          </div>
-        </section>
-
-        <section className="px-5 py-6">
-
-          {/* RESUMO */}
-          <div className="rounded-[28px] border border-black/[0.04] bg-white p-5 shadow-[0_18px_45px_rgba(17,63,33,0.07)]">
-
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#18834a]">
-                  Resumo operacional
+              <p className="mt-3 text-[12px] font-semibold text-slate-700">Enviadas pelo CD: {erroItens ? "—" : totalPorCarga.get(carga.id) ?? 0} cesta(s)</p>
+              {exigeBipagem && podeReceber && podeBipar ? (
+                <Link href={`/mobile/carga/receber?cargaId=${carga.id}`}
+                  className="mt-4 flex min-h-[50px] items-center justify-center gap-2 rounded-[14px] bg-emerald-800 px-3 text-[12px] font-black text-white">
+                  <Barcode size={17}/> Bipar volumes recebidos
+                </Link>
+              ) : exigeBipagem ? (
+                <p className="mt-3 rounded-xl bg-amber-50 p-3 text-[11px] text-amber-900">A empresa exige bipagem. Solicite a permissão de recebimento ao responsável.</p>
+              ) : (
+                <p className="mt-3 rounded-xl bg-slate-50 p-3 text-[11px] text-slate-600">
+                  Conferência sem bipagem configurada. A confirmação explícita e as recusas parciais serão habilitadas com a atualização segura do recebimento no banco.
                 </p>
-                <p className="mt-1 text-[10px] font-semibold text-slate-500">
-                  {formatarData(carga.data_carga)}
-                </p>
-              </div>
-            </div>
-
-            {/* PROGRESSO */}
-            <div className="mt-6">
-
-              <div className="flex items-center justify-between">
-
-                <span className="text-[10px] font-bold text-slate-400">
-                  Progresso das entregas
-                </span>
-
-                <span className="text-[11px] font-black text-[#176b3a]">
-                  {percentual}%
-                </span>
-
-              </div>
-
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e7eee8]">
-
-                <div
-                  className="h-full rounded-full bg-[#18834a]"
-                  style={{
-                    width:
-                      `${percentual}%`,
-                  }}
-                />
-
-              </div>
-            </div>
-
-            {/* INDICADORES */}
-            <div className="mt-5 grid grid-cols-3 gap-2">
-
-              <Indicador
-                valor={
-                  totalCarregado
-                }
-                label="Carregadas"
-              />
-
-              <Indicador
-                valor={
-                  totalEntregue
-                }
-                label="Entregues"
-              />
-
-              <Indicador
-                valor={
-                  saldo
-                }
-                label="Em posse"
-              />
-
-            </div>
-
-          </div>
-
-          {/* COMPOSIÇÃO */}
-          <div className="mt-5">
-
-            <div className="flex items-end justify-between">
-
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#18834a]">
-                  Composição
-                </p>
-
-                <h2 className="mt-1 text-lg font-black">
-                  Cestas da carga
-                </h2>
-              </div>
-
-              <div className="rounded-full bg-[#eaf5ed] px-3 py-1.5 text-[9px] font-black text-[#176b3a]">
-                {
-                  carga.carga_itens
-                    .length
-                }{" "}
-                tipos
-              </div>
-
-            </div>
-
-            {carga.carga_itens.length ===
-            0 ? (
-              <div className="mt-4 rounded-[24px] border border-dashed border-slate-200 bg-white p-6 text-center">
-
-                <Boxes
-                  size={26}
-                  className="mx-auto text-slate-300"
-                />
-
-                <p className="mt-3 text-xs font-black">
-                  Carga sem itens
-                </p>
-
-                <p className="mt-1 text-[10px] text-slate-400">
-                  Ainda não existem cestas vinculadas
-                  a esta carga.
-                </p>
-
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-
-                {carga.carga_itens.map(
-                  (item) => {
-                    const saldoItem =
-                      Math.max(
-                        0,
-                        item.quantidade_carregada -
-                          item.quantidade_entregue -
-                          item.quantidade_retornada -
-                          item.quantidade_avariada,
-                      );
-
-                    return (
-                      <div
-                        key={
-                          item.id
-                        }
-                        className="rounded-[22px] border border-black/[0.04] bg-white p-4 shadow-[0_10px_28px_rgba(17,63,33,0.045)]"
-                      >
-
-                        <div className="flex items-start justify-between gap-4">
-
-                          <div className="flex min-w-0 items-center gap-3">
-
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[#eaf5ed] text-[#176b3a]">
-                              <PackageCheck
-                                size={21}
-                              />
-                            </div>
-
-                            <div className="min-w-0">
-
-                              <p className="truncate text-[12px] font-black">
-                                {
-                                  item
-                                    .tipos_cesta
-                                    ?.nome ??
-                                  "Tipo de cesta"
-                                }
-                              </p>
-
-                              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                                {
-                                  item
-                                    .tipos_cesta
-                                    ?.codigo ??
-                                  "-"
-                                }
-                              </p>
-
-                            </div>
-                          </div>
-
-                          <div className="text-right">
-
-                            <p className="text-xl font-black text-[#176b3a]">
-                              {
-                                saldoItem
-                              }
-                            </p>
-
-                            <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
-                              Saldo
-                            </p>
-
-                          </div>
-
-                        </div>
-
-                        <div className="mt-4 grid grid-cols-3 gap-2">
-
-                          <MiniInfo
-                            label="Carga"
-                            valor={
-                              item.quantidade_carregada
-                            }
-                          />
-
-                          <MiniInfo
-                            label="Entregues"
-                            valor={
-                              item.quantidade_entregue
-                            }
-                          />
-
-                          <MiniInfo
-                            label="Retorno"
-                            valor={
-                              item.quantidade_retornada
-                            }
-                          />
-
-                        </div>
-
-                        {item.quantidade_avariada >
-                          0 && (
-                          <div className="mt-3 flex items-center gap-2 rounded-[14px] bg-amber-50 px-3 py-2 text-[9px] font-bold text-amber-700">
-
-                            <AlertTriangle
-                              size={14}
-                            />
-
-                            {
-                              item.quantidade_avariada
-                            }{" "}
-                            cesta(s) avariada(s)
-
-                          </div>
-                        )}
-                      </div>
-                    );
-                  },
-                )}
-
-              </div>
-            )}
-          </div>
-
-
-          {/* Movimentacoes excepcionais so aparecem quando realmente ocorreram. */}
-          {(totalRetornado > 0 || totalAvariado > 0) && (
-            <div className={`mt-5 grid gap-3 ${totalRetornado > 0 && totalAvariado > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
-              {totalRetornado > 0 && (
-                <div className="rounded-[22px] bg-[#eff8f2] p-4">
-                  <RotateCcw size={20} className="text-[#176b3a]" />
-                  <p className="mt-3 text-2xl font-black">{totalRetornado}</p>
-                  <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">Devolvidas ao CD</p>
-                </div>
               )}
-              {totalAvariado > 0 && (
-                <div className="rounded-[22px] bg-amber-50 p-4">
-                  <AlertTriangle size={20} className="text-amber-600" />
-                  <p className="mt-3 text-2xl font-black">{totalAvariado}</p>
-                  <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-800">Avariadas</p>
-                </div>
-              )}
-            </div>
+              <p className="mt-3 text-[10px] leading-5 text-slate-500">
+                Se houver avaria, divergência ou recebimento parcial, não confirme volumes que você não recebeu.
+                A finalização com justificativa depende da nova transação de recebimento.
+              </p>
+            </article>
+          ))}
+
+          <h2 className="pt-2 text-sm font-black">Recebimentos registrados</h2>
+          {recebidas.length === 0 && !erroCargas && (
+            <p className="rounded-2xl bg-white p-4 text-xs text-slate-600">Ainda não há cargas com recebimento confirmado.</p>
           )}
-
-          {exigeBipagemCarga && (
-            <div className={`mt-5 overflow-hidden rounded-[22px] border p-4 ${
-              recebimentoCompleto
-                ? "border-emerald-200 bg-emerald-50"
-                : "border-amber-200 bg-amber-50"
-            }`}>
-
-              <div className="flex items-start gap-3">
-
-                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] ${
-                  recebimentoCompleto
-                    ? "bg-emerald-600 text-white"
-                    : "bg-amber-500 text-white"
-                }`}>
-                  <Barcode
-                    size={20}
-                  />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-400">
-                    Conferência da carga
-                  </p>
-
-                  <div className="mt-1 flex items-end justify-between gap-3">
-                    <p className="text-[13px] font-black">
-                      {recebimentoCompleto
-                        ? "Carga conferida"
-                        : "Bipagem pendente"}
-                    </p>
-
-                    <p className="text-[13px] font-black text-[#176b3a]">
-                      {volumesConfirmados}/{volumesEsperados}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
-                    <div
-                      className={`h-full rounded-full ${
-                        recebimentoCompleto
-                          ? "bg-emerald-600"
-                          : "bg-amber-500"
-                      }`}
-                      style={{
-                        width:
-                          `${volumesEsperados > 0
-                            ? Math.min(
-                                100,
-                                Math.round(
-                                  (volumesConfirmados / volumesEsperados) * 100,
-                                ),
-                              )
-                            : 0}%`,
-                      }}
-                    />
-                  </div>
-                </div>
+          {recebidas.slice(0,30).map(carga => (
+            <article key={carga.id} className="flex items-center justify-between gap-3 rounded-[20px] bg-white p-4 shadow-sm">
+              <div>
+                <p className="text-[13px] font-black">Carga nº {carga.id}</p>
+                <p className="mt-1 text-[10px] text-slate-500">{formato(carga.data_carga)} · {erroItens ? "—" : totalPorCarga.get(carga.id) ?? 0} cesta(s) enviadas</p>
               </div>
-
-              {recebimentoCompleto && (
-                <p role="status" className="mt-3 text-[10px] font-semibold leading-5 text-emerald-800">
-                  Recebimento do CD 100% conferido. O saldo não entregue permanece no estoque móvel. Nenhuma devolução foi realizada.
-                </p>
-              )}
-
-              {!recebimentoCompleto &&
-                podeBiparCarga && (
-                <Link prefetch={false}
-                  href="/mobile/carga/receber"
-                  className="mt-4 flex h-[48px] w-full items-center justify-center gap-2 rounded-[15px] bg-[#176b3a] text-[10px] font-black text-white"
-                >
-                  <Barcode
-                    size={16}
-                  />
-                  Bipar volumes da carga
-                </Link>
-              )}
-            </div>
-          )}
-
-          {podeFecharCarga &&
-            recebimentoCompleto &&
-            temRotaAtiva && (
-              <div className="mt-5 rounded-[20px] border border-amber-200 bg-amber-50 p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle
-                    size={18}
-                    className="mt-0.5 shrink-0 text-amber-700"
-                  />
-
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-700">
-                      Rota ainda ativa
-                    </p>
-
-                    <p className="mt-1 text-[10px] leading-5 text-amber-800">
-                      {rotaAtiva?.codigo
-                        ? `A rota ${rotaAtiva.codigo} precisa ser finalizada antes do fechamento da carga.`
-                        : "Finalize a rota ativa antes do fechamento da carga."}
-                    </p>
-                  </div>
-                </div>
-
-                <Link prefetch={false}
-                  href="/mobile/rota"
-                  replace
-                  className="mt-4 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-amber-600 text-[11px] font-black text-white shadow-[0_14px_30px_rgba(180,120,10,0.18)]"
-                >
-                  <Truck size={17} />
-                  Ir para minha rota / finalizar atendimentos
-                </Link>
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle2 size={18} />
+                <span className="text-[10px] font-black">Recebida</span>
               </div>
-            )}
-
-
-          {recebimentoCompleto &&
-            !temRotaAtiva &&
-            !temRotaFinalizadaDaCarga && (
-              <section className="mt-5 rounded-[20px] border border-emerald-200 bg-white p-4">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-700" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-black text-emerald-800">Carga recebida e disponível</p>
-                    <p className="mt-1 text-[10px] leading-5 text-slate-600">
-                      Você pode usar suas cestas no estoque móvel, com ou sem uma rota planejada.
-                      Receber uma carga não exige que ela seja devolvida.
-                    </p>
-                  </div>
-                </div>
-                <Link prefetch={false}
-                  href="/mobile/rota"
-                  className="mt-3 flex min-h-[42px] w-full items-center justify-center gap-2 rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-bold text-emerald-900"
-                >
-                  <Truck size={15} />
-                  Consultar minha rota (opcional)
-                </Link>
-                {podeFecharCarga && (
-                  <details className="mt-3 rounded-[16px] border border-slate-200 bg-slate-50 p-3">
-                    <summary className="cursor-pointer text-[10px] font-black text-slate-700">
-                      Precisa devolver esta carga sem iniciar uma rota?
-                    </summary>
-                    <p className="mt-2 text-[10px] leading-5 text-slate-600">
-                      Use somente para a devolução física ao CD, nunca para confirmar o recebimento.
-                    </p>
-                    <DevolverCargaSemJornadaButton
-                      cargaId={Number(carga.id)}
-                      codigo={String(carga.codigo)}
-                      totalEmPosse={saldo}
-                    />
-                  </details>
-                )}
-              </section>
-            )}
-
-          {podeFecharCarga &&
-            recebimentoCompleto &&
-            !rotaAtivaError &&
-            !temRotaAtiva &&
-            temRotaFinalizadaDaCarga && (
-              <details className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer text-[11px] font-black text-slate-700">
-                  Precisa devolver o saldo desta carga ao CD?
-                </summary>
-                <p className="mt-3 text-[10px] leading-5 text-slate-600">
-                  Esta é uma operação separada do recebimento e das vendas.
-                  Use somente quando for encerrar esta carga e devolver as cestas.
-                  Nada será movimentado antes da confirmação final.
-                </p>
-                <Link prefetch={false}
-                  href="/mobile/carga/fechar"
-                  className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[15px] border border-amber-300 bg-amber-50 px-3 text-[11px] font-black text-amber-900"
-                >
-                  <RotateCcw size={16} />
-                  Conferir devolução ao CD
-                </Link>
-              </details>
-            )}
-
-          {/* SEGURANÇA */}
-          
-          {/* VOLUME_RECEBIMENTO_PATCH_OK */}
-          {usuario.configuracao.modoControleCarga === "VOLUME" &&
-            usuario.configuracao.exigirBipagemCarga &&
-            !recebimentoCompleto && (
-              <Link prefetch={false}
-                href="/mobile/carga/receber"
-                className="mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-[18px] border border-emerald-200 bg-emerald-50 text-[11px] font-black text-[#176f3c] shadow-[0_10px_28px_rgba(17,63,33,0.06)] transition active:scale-[0.99]"
-              >
-                Receber carga / bipar volumes
-              </Link>
-            )}
-          {/* FIM_VOLUME_RECEBIMENTO_PATCH_OK */}
-<div className="mt-5 flex items-start gap-3 rounded-[20px] border border-emerald-100 bg-emerald-50 px-4 py-4">
-
-            <ShieldCheck
-              size={18}
-              className="mt-0.5 shrink-0 text-emerald-700"
-            />
-
-            <p className="text-[10px] leading-5 text-emerald-800">
-              Esta carga pertence à sua empresa e está
-              vinculada ao seu usuário. As regras de
-              segurança do banco impedem acesso a cargas
-              de outros fornecedores.
-            </p>
-
-          </div>
-</section>
+            </article>
+          ))}
+          <p className="text-[10px] leading-5 text-slate-500">
+            Históricos de entrega e movimentos de volume continuam rastreáveis pela carga de origem.
+          </p>
+        </section>
       </div>
     </main>
-  );
-}
-
-/* =========================================================
-   HEADER
-========================================================= */
-
-function Header() {
-  return (
-    <header className="relative overflow-hidden bg-[linear-gradient(155deg,#176b3a,#0d5a30)] px-5 pb-8 pt-5 text-white">
-
-      <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full border-[28px] border-white/[0.04]" />
-
-      <div className="relative z-10 flex items-center justify-between">
-
-        <Link prefetch={false}
-          href="/mobile"
-          className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/10"
-        >
-          <ArrowLeft
-            size={19}
-          />
-        </Link>
-
-        <div className="text-center">
-
-          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">
-            Operação
-          </p>
-
-          <h1 className="mt-1 text-lg font-black">
-            Minha Carga
-          </h1>
-
-        </div>
-
-        <Link prefetch={false}
-          href="/mobile/carga"
-          className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/10"
-        >
-          <RefreshCw
-            size={18}
-          />
-        </Link>
-
-      </div>
-
-      <div className="relative z-10 mt-6">
-
-        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#a8d8b7]">
-          Acompanhamento de estoque
-        </p>
-
-        <h2 className="mt-2 text-[26px] font-black tracking-[-0.04em]">
-          Estoque do entregador
-        </h2>
-
-        <p className="mt-2 text-[12px] text-white/65">
-          Cestas disponíveis para vender e entregar
-        </p>
-
-      </div>
-
-    </header>
-  );
-}
-
-/* =========================================================
-   INDICADOR
-========================================================= */
-
-function Indicador({
-  valor,
-  label,
-}: {
-  valor: number;
-  label: string;
-}) {
-  return (
-    <div className="rounded-[16px] bg-[#f4f7f4] px-3 py-3 text-center">
-
-      <p className="text-lg font-black">
-        {valor}
-      </p>
-
-      <p className="mt-1 text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
-        {label}
-      </p>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   MINI INFO
-========================================================= */
-
-function MiniInfo({
-  label,
-  valor,
-}: {
-  label: string;
-  valor: number;
-}) {
-  return (
-    <div className="rounded-[13px] bg-[#f6f8f6] px-2 py-2 text-center">
-
-      <p className="text-[12px] font-black">
-        {valor}
-      </p>
-
-      <p className="mt-0.5 text-[7px] font-black uppercase tracking-[0.08em] text-slate-400">
-        {label}
-      </p>
-
-    </div>
   );
 }
