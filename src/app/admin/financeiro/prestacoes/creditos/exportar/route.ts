@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
   const cabecalho=["CESTAS APP | FECHAMENTO FINANCEIRO DO CD","", "", "", ""];
   const resumoAoa:(string|number)[][]=[
     cabecalho,
-    ["Empresa",tipoTexto(usuario.empresa.nome??"Empresa")],
+    ["Empresa",tipoTexto(usuario.empresa.nomeFantasia??"Empresa")],
     ["Data inicial",inicio],
     ["Data final",fim],
     ["Situação",situacao],
