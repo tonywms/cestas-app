@@ -8,6 +8,7 @@ import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { confirmarCreditoCorporativoV110 } from "./actions";
+import ConfirmacaoFinanceiraModal from "@/components/admin/ConfirmacaoFinanceiraModal";
 
 type Movimento={
   origem:"VENDA"|"COBRANCA"|"PARCELA"; origem_id:number; cliente_nome:string;
@@ -25,7 +26,7 @@ type Confirmacao = {
 };
 type Props={searchParams:Promise<{
   inicio?:string;fim?:string;erro?:string;conciliado?:string;
-  situacao?:string;forma?:string;busca?:string;
+  situacao?:string;forma?:string;busca?:string;origemConfirmada?:string;idConfirmado?:string;
 }>};
 const real=(v:unknown)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v??0));
 function hojeFortaleza(){
@@ -70,6 +71,12 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
   const valorFiltrado=filtrados.reduce((acc,m)=>acc+Number(m.valor),0);
   const query=new URLSearchParams({inicio,fim,situacao,forma,busca});
   const exportHref=`/admin/financeiro/prestacoes/creditos/exportar?${query.toString()}`;
+  const idConfirmado=Number(params.idConfirmado??0);
+  const registroConcluido=(params.conciliado==="1" && !error && Number.isSafeInteger(idConfirmado)&&idConfirmado>0)
+    ?movimentos.find(m=>m.origem===params.origemConfirmada&&m.origem_id===idConfirmado&&m.conciliado)
+    :undefined;
+  const auditoriaConfirmada=registroConcluido?porOrigem.get(`${registroConcluido.origem}-${registroConcluido.origem_id}`):undefined;
+  const fecharModal=`/admin/financeiro/prestacoes/creditos?${query.toString()}`;
   return <main className="min-h-dvh bg-[#eef4ef] text-[#142018]">
     <div className="mx-auto max-w-[1060px] space-y-5 p-4 md:p-8">
       <header className="rounded-[27px] bg-[linear-gradient(140deg,#0c5732,#138448)] p-6 text-white">
@@ -84,9 +91,14 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
           Confira os créditos que entram diretamente na conta ou maquineta da empresa. Não é necessário o entregador enviar um acerto de R$ 0.
         </p>
       </header>
-      {params.conciliado&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold text-emerald-950">
-        Recebimento confirmado manualmente pelo CD. O responsável, a data e o protocolo foram registrados. Nenhum repasse adicional foi cobrado do entregador.
-      </p>}
+      {registroConcluido&&<ConfirmacaoFinanceiraModal
+        titulo="Recebimento confirmado pelo CD"
+        descricao="A conferência manual foi concluída e o crédito aparece como confirmado no extrato financeiro."
+        destinoAposFechar={fecharModal}
+        valor={real(registroConcluido.valor)}
+        identificacao={registroConcluido.cliente_nome}
+        detalhe={`${registroConcluido.forma} · ${auditoriaConfirmada?.protocolo??"Conferência registrada"} · Nenhum repasse adicional do entregador.`}
+      />}
       {params.erro&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-900">{params.erro.slice(0,260)}</p>}
       <form method="get" className="grid items-end gap-3 rounded-[22px] bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-6">
         <label className="text-[11px] font-bold text-slate-700">Data inicial
