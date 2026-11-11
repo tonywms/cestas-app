@@ -3,6 +3,9 @@
 import { useActionState, useMemo, useState } from "react";
 import { ArrowRight, Banknote, CalendarDays, CreditCard, ReceiptText, WalletCards } from "lucide-react";
 import { prepararVendaDireta } from "./actions";
+import DestinoRecebimentoV118, {
+  titularPrevistoV118, type DestinoV118
+} from "@/components/mobile/DestinoRecebimentoV118";
 
 function moeda(valor: number) {
   return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(valor);
@@ -21,9 +24,11 @@ const formas = [
 
 export default function VendaDiretaFinanceiroForm({
   clienteId,tipoCestaId,nomeCesta,valorUnitario,limite,primeiroVencimento,
+  destinoPix,destinoCartao,
 }:{
   clienteId:number;tipoCestaId:number;nomeCesta:string;valorUnitario:number;
   limite:number;primeiroVencimento:string;
+  destinoPix:DestinoV118;destinoCartao:DestinoV118;
 }){
   const [state,action,pending] = useActionState(prepararVendaDireta,{success:false,message:""});
   const [quantidade,setQuantidade] = useState(1);
@@ -35,7 +40,10 @@ export default function VendaDiretaFinanceiroForm({
   const entradaValor = numeroMoeda(entrada);
   const recebido = modalidade==="AVISTA" ? total : entradaValor;
   const saldo = Number.isFinite(recebido) ? Math.max(0,Math.round((total-recebido)*100)/100) : NaN;
-  const valido = limite>0 && quantidade>=1 && quantidade<=limite && total>0 &&
+  const temPagamento=Number.isFinite(recebido)&&recebido>0;
+  const destinatario=titularPrevistoV118(forma,destinoPix,destinoCartao);
+  const semConfiguracao=temPagamento&&["PIX","CARTAO"].includes(forma)&&!destinatario;
+  const valido = !semConfiguracao && limite>0 && quantidade>=1 && quantidade<=limite && total>0 &&
     (modalidade==="AVISTA" || (Number.isFinite(entradaValor) && entradaValor>=0 && entradaValor<total)) &&
     (modalidade!=="CREDIARIO" || (parcelas>=1 && parcelas<=120));
   const parcela = modalidade==="CREDIARIO"&&parcelas>0 ? saldo/parcelas : 0;
@@ -45,6 +53,7 @@ export default function VendaDiretaFinanceiroForm({
       <input type="hidden" name="cliente_id" value={clienteId}/>
       <input type="hidden" name="tipo_cesta_id" value={tipoCestaId}/>
       <input type="hidden" name="tipo_venda" value={modalidade}/>
+      <input type="hidden" name="destino_exibido" value={temPagamento?destinatario??"":""}/>
 
       <section className="rounded-[23px] bg-white p-5 shadow-sm">
         <div className="flex items-center gap-2 text-emerald-800">
@@ -94,6 +103,11 @@ export default function VendaDiretaFinanceiroForm({
           className="mt-2 h-[52px] w-full rounded-[14px] border border-slate-200 bg-white px-4 text-[12px] font-bold">
           {formas.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
         </select>
+        <DestinoRecebimentoV118 forma={forma} destinoPix={destinoPix}
+          destinoCartao={destinoCartao} semPagamento={!temPagamento}/>
+        {semConfiguracao&&<p role="alert" className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-bold text-amber-950">
+          O destinatário não está disponível. Solicite ao CD revisar a configuração antes de concluir.
+        </p>}
 
         {modalidade!=="AVISTA"&&(
           <>
