@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS public.prestacoes_contas_v108 (
   dinheiro_conferido numeric(12,2) CHECK (dinheiro_conferido>=0),
   pix_conferido numeric(12,2) CHECK (pix_conferido>=0),
   cartao_conferido numeric(12,2) CHECK (cartao_conferido>=0),
+  pix_empresa_conciliado numeric(12,2) CHECK (pix_empresa_conciliado>=0),
+  cartao_empresa_conciliado numeric(12,2) CHECK (cartao_empresa_conciliado>=0),
   taxa_cartao_autorizada numeric(12,2) NOT NULL DEFAULT 0 CHECK (taxa_cartao_autorizada>=0),
   observacao_cd text,
   conferido_por uuid REFERENCES public.usuarios(id),
@@ -264,6 +266,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.conferir_prestacao_v108(
  p_empresa_id uuid,p_id bigint,p_dinheiro numeric,p_pix numeric,p_cartao numeric,
+ p_pix_empresa numeric DEFAULT 0,p_cartao_empresa numeric DEFAULT 0,
  p_taxa_cartao numeric DEFAULT 0,p_observacao text DEFAULT NULL,
  p_devolver boolean DEFAULT false
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
@@ -276,7 +279,9 @@ BEGIN
   RAISE EXCEPTION 'Sem permissão para conferir prestação.';
  END IF;
  IF p_dinheiro IS NULL OR p_pix IS NULL OR p_cartao IS NULL OR p_taxa_cartao IS NULL
- OR p_dinheiro<0 OR p_pix<0 OR p_cartao<0 OR p_taxa_cartao<0 THEN
+ OR p_pix_empresa IS NULL OR p_cartao_empresa IS NULL OR
+ p_dinheiro<0 OR p_pix<0 OR p_cartao<0 OR p_taxa_cartao<0 OR
+ p_pix_empresa<0 OR p_cartao_empresa<0 THEN
   RAISE EXCEPTION 'Conferência com valores inválidos.';
  END IF;
  IF length(coalesce(p_observacao,''))>1500 THEN RAISE EXCEPTION 'Observação muito longa.';END IF;
@@ -297,7 +302,9 @@ BEGIN
  IF v_esperado_cartao<0 THEN RAISE EXCEPTION 'Taxa acima do cartão esperado.';END IF;
  v_div:=abs(p_dinheiro - (v_res->>'dinheiro')::numeric)
       +abs(p_pix - (v_res->>'pix_entregador')::numeric)
-      +abs(p_cartao - v_esperado_cartao);
+      +abs(p_cartao - v_esperado_cartao)
+      +abs(p_pix_empresa - (v_res->>'pix_empresa')::numeric)
+      +abs(p_cartao_empresa - (v_res->>'cartao_empresa')::numeric);
  v_status:=CASE WHEN p_devolver THEN 'DEVOLVIDA'
    WHEN v_div<=0.009 THEN 'CONFERIDA'
    ELSE 'COM_DIVERGENCIA' END;
@@ -306,6 +313,8 @@ BEGIN
    dinheiro_conferido=CASE WHEN p_devolver THEN NULL ELSE round(p_dinheiro,2) END,
    pix_conferido=CASE WHEN p_devolver THEN NULL ELSE round(p_pix,2) END,
    cartao_conferido=CASE WHEN p_devolver THEN NULL ELSE round(p_cartao,2) END,
+   pix_empresa_conciliado=CASE WHEN p_devolver THEN NULL ELSE round(p_pix_empresa,2) END,
+   cartao_empresa_conciliado=CASE WHEN p_devolver THEN NULL ELSE round(p_cartao_empresa,2) END,
    taxa_cartao_autorizada=CASE WHEN p_devolver THEN 0 ELSE round(p_taxa_cartao,2) END,
    observacao_cd=nullif(trim(coalesce(p_observacao,'')),''),
    conferido_por=v_uid,conferido_at=now(),updated_at=now()
@@ -319,9 +328,9 @@ $$;
 
 REVOKE ALL ON FUNCTION public.resumo_prestacao_v108(uuid,date,uuid),
  public.enviar_prestacao_v108(uuid,date,numeric,numeric,numeric,text,text,text),
- public.conferir_prestacao_v108(uuid,bigint,numeric,numeric,numeric,numeric,text,boolean),
+ public.conferir_prestacao_v108(uuid,bigint,numeric,numeric,numeric,numeric,numeric,numeric,text,boolean),
  public.configurar_destinos_v108(uuid,text,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.resumo_prestacao_v108(uuid,date,uuid),
  public.enviar_prestacao_v108(uuid,date,numeric,numeric,numeric,text,text,text),
- public.conferir_prestacao_v108(uuid,bigint,numeric,numeric,numeric,numeric,text,boolean),
+ public.conferir_prestacao_v108(uuid,bigint,numeric,numeric,numeric,numeric,numeric,numeric,text,boolean),
  public.configurar_destinos_v108(uuid,text,text) TO authenticated;
