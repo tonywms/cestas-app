@@ -68,10 +68,10 @@ export async function classificarRecebimentoAnterior(form:FormData){
   const origem=String(form.get("origem")??"");
   const id=Number(form.get("id"));
   const destino=String(form.get("destino")??"");
-  if(!["VENDA","COBRANCA"].includes(origem) || !Number.isSafeInteger(id) || id<1 ||
+  if(!["VENDA","COBRANCA","PARCELA"].includes(origem) || !Number.isSafeInteger(id) || id<1 ||
     !["EMPRESA","ENTREGADOR"].includes(destino))redirect(aviso("Selecione origem, lançamento e titular corretos."));
   const supabase=await createClient();
-  const {error}=await supabase.rpc("classificar_recebimento_v108",{
+  const {error}=await supabase.rpc("classificar_recebimento_origem_v109",{
     p_empresa_id:usuario.empresa.id,p_origem:origem,p_id:id,p_destino:destino,
   });
   if(error){
