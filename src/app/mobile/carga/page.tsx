@@ -780,44 +780,26 @@ export default async function MinhaCargaPage() {
             )}
           </div>
 
-          {/* RETORNO */}
-          <div className="mt-5 grid grid-cols-2 gap-3">
 
-            <div className="rounded-[22px] bg-[#eff8f2] p-4">
-
-              <RotateCcw
-                size={20}
-                className="text-[#176b3a]"
-              />
-
-              <p className="mt-4 text-2xl font-black">
-                {totalRetornado}
-              </p>
-
-              <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
-                Retornadas
-              </p>
-
+          {/* Movimentacoes excepcionais so aparecem quando realmente ocorreram. */}
+          {(totalRetornado > 0 || totalAvariado > 0) && (
+            <div className={`mt-5 grid gap-3 ${totalRetornado > 0 && totalAvariado > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
+              {totalRetornado > 0 && (
+                <div className="rounded-[22px] bg-[#eff8f2] p-4">
+                  <RotateCcw size={20} className="text-[#176b3a]" />
+                  <p className="mt-3 text-2xl font-black">{totalRetornado}</p>
+                  <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">Devolvidas ao CD</p>
+                </div>
+              )}
+              {totalAvariado > 0 && (
+                <div className="rounded-[22px] bg-amber-50 p-4">
+                  <AlertTriangle size={20} className="text-amber-600" />
+                  <p className="mt-3 text-2xl font-black">{totalAvariado}</p>
+                  <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-800">Avariadas</p>
+                </div>
+              )}
             </div>
-
-            <div className="rounded-[22px] bg-amber-50 p-4">
-
-              <AlertTriangle
-                size={20}
-                className="text-amber-600"
-              />
-
-              <p className="mt-4 text-2xl font-black">
-                {totalAvariado}
-              </p>
-
-              <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-700/60">
-                Avariadas
-              </p>
-
-            </div>
-
-          </div>
+          )}
 
           {exigeBipagemCarga && (
             <div className={`mt-5 overflow-hidden rounded-[22px] border p-4 ${
@@ -975,16 +957,26 @@ export default async function MinhaCargaPage() {
 
           {podeFecharCarga &&
             recebimentoCompleto &&
+            !rotaAtivaError &&
             !temRotaAtiva &&
             temRotaFinalizadaDaCarga && (
-              <Link prefetch={false}
-                href="/mobile/carga/fechar"
-                replace
-                className="mt-5 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176b3a] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,107,58,0.18)]"
-              >
-                <RotateCcw size={17} />
-                Encerrar carga / devolver saldo ao CD
-              </Link>
+              <details className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4">
+                <summary className="cursor-pointer text-[11px] font-black text-slate-700">
+                  Precisa devolver o saldo desta carga ao CD?
+                </summary>
+                <p className="mt-3 text-[10px] leading-5 text-slate-600">
+                  Esta é uma operação separada do recebimento e das vendas.
+                  Use somente quando for encerrar esta carga e devolver as cestas.
+                  Nada será movimentado antes da confirmação final.
+                </p>
+                <Link prefetch={false}
+                  href="/mobile/carga/fechar"
+                  className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[15px] border border-amber-300 bg-amber-50 px-3 text-[11px] font-black text-amber-900"
+                >
+                  <RotateCcw size={16} />
+                  Conferir devolução ao CD
+                </Link>
+              </details>
             )}
 
           {/* SEGURANÇA */}
