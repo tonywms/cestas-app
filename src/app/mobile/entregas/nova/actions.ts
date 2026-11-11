@@ -170,6 +170,53 @@ export async function registrarEntrega(
     };
   }
 
+  // V105.5.10: somente a carga escolhida pode sofrer baixa de entrega.
+  const supabase = await createClient();
+  const { data: cargaEscolhida, error: erroEscolha } = await supabase.rpc(
+    "mobile_obter_carga_escolhida",
+    { p_empresa_id: usuario.empresa.id },
+  );
+  if (erroEscolha || Number(cargaEscolhida) !== cargaId) {
+    return {
+      success: false,
+      message: "A carga em uso mudou ou não pôde ser confirmada. Selecione sua carga e tente novamente.",
+      saldoAnterior: null,
+      saldoAtual: null,
+    };
+  }
+
+  if (rotaClienteId !== null) {
+    const { data: parada, error: erroParada } = await supabase
+      .from("rota_clientes")
+      .select("rota_id")
+      .eq("empresa_id", usuario.empresa.id)
+      .eq("id", rotaClienteId)
+      .maybeSingle();
+    if (erroParada || !parada) {
+      return {
+        success: false,
+        message: "Parada da rota não encontrada na empresa.",
+        saldoAnterior: null,
+        saldoAtual: null,
+      };
+    }
+    const { data: rota, error: erroRota } = await supabase
+      .from("rotas")
+      .select("carga_id")
+      .eq("empresa_id", usuario.empresa.id)
+      .eq("entregador_id", usuario.id)
+      .eq("id", parada.rota_id)
+      .maybeSingle();
+    if (erroRota || !rota || Number(rota.carga_id) !== cargaId) {
+      return {
+        success: false,
+        message: "A parada pertence a outra carga. Nenhuma cesta foi baixada.",
+        saldoAnterior: null,
+        saldoAtual: null,
+      };
+    }
+  }
+
   const validacaoCredito =
     await validarCreditoCliente({
       empresaId:
@@ -209,9 +256,6 @@ export async function registrarEntrega(
         null,
     };
   }
-
-  const supabase =
-    await createClient();
 
   const {
     data,
