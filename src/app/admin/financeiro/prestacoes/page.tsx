@@ -82,8 +82,15 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
   const podeConfigurar=usuario.isPlatformAdmin ||
     temPermissao(usuario.permissoes,PERMISSOES.EMPRESA_CONFIGURAR);
   const params=await searchParams;
+  const partesHoje=new Intl.DateTimeFormat("en-CA",{
+    timeZone:"America/Fortaleza",year:"numeric",month:"2-digit",day:"2-digit"
+  }).formatToParts(new Date());
+  const partes=Object.fromEntries(partesHoje.map(x=>[x.type,x.value]));
+  const hoje=`${partes.year}-${partes.month}-${partes.day}`;
+  const inicioCredito=/^\d{4}-\d{2}-\d{2}$/.test(params.inicio??"")?String(params.inicio):hoje;
+  const fimCredito=/^\d{4}-\d{2}-\d{2}$/.test(params.fim??"")?String(params.fim):hoje;
   const supabase=await createClient();
-  const [configResp,prestResp,vendasResp,cobrancasResp,parcelasResp,usuariosResp,historicoResp] = await Promise.all([
+  const [configResp,prestResp,vendasResp,cobrancasResp,parcelasResp,usuariosResp,historicoResp,creditosResp] = await Promise.all([
     supabase.from("empresa_configuracoes").select("destino_pix_v108,destino_cartao_v108")
       .eq("empresa_id",usuario.empresa.id).maybeSingle(),
     supabase.rpc("listar_prestacoes_v109",{p_empresa_id:usuario.empresa.id}),
@@ -103,8 +110,11 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
     supabase.from("usuarios").select("id,nome").eq("ativo",true).limit(200),
     supabase.from("prestacoes_contas_v108").select("id,status,data_referencia,valores_esperados")
       .eq("empresa_id",usuario.empresa.id).order("id",{ascending:false}).limit(10),
+    supabase.rpc("listar_creditos_corporativos_v110",{
+      p_empresa_id:usuario.empresa.id,p_inicio:inicioCredito,p_fim:fimCredito,
+    }),
   ]);
-  if(configResp.error||prestResp.error||vendasResp.error||cobrancasResp.error||parcelasResp.error||usuariosResp.error||historicoResp.error) {
+  if(configResp.error||prestResp.error||vendasResp.error||cobrancasResp.error||parcelasResp.error||usuariosResp.error||historicoResp.error||creditosResp.error) {
     return <main className="min-h-screen bg-slate-50 p-6 text-sm">
       <Link href="/admin/financeiro" className="font-bold text-emerald-800">Voltar ao Financeiro</Link>
       <h1 className="mt-4 text-xl font-black">Prestação de contas</h1>
@@ -114,6 +124,7 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
     </main>;
   }
   const prestacoes=(Array.isArray(prestResp.data)?prestResp.data:[]) as Prestacao[];
+  const creditosResumo=(creditosResp.data??{}) as {pendentes?:number;valor_pendente?:number};
   const nomes=new Map((usuariosResp.data??[]).map(u=>[u.id,u.nome]));
   const pendentes:Antigo[]=[
     ...(vendasResp.data??[]).map(v=>({...v,origem:"VENDA" as const})),
@@ -163,8 +174,8 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
       <section className="grid gap-3 md:grid-cols-3">
         <Metrica titulo="Prestações encontradas" valor={visiveis.length} quantidade detalhe="Protocolos de prestação de contas"/>
         <Metrica titulo="A repassar pelos entregadores" valor={saldos} detalhe="Somente saldos que o CD ainda não confirmou"/>
-        <Metrica titulo="PIX/cartão corporativos não conciliados" valor={visiveis.reduce((a,p)=>a+n(p.itens_empresa_pendentes),0)} quantidade
-          detalhe="Transações que aguardam conferência"/>
+        <Metrica titulo="PIX/cartão corporativos não conciliados" valor={creditosResumo.pendentes??0} quantidade
+          detalhe={`Créditos diretos no período · ${moeda(creditosResumo.valor_pendente??0)}`}/>
       </section>
 
       <section className="rounded-[25px] bg-white p-5 shadow-sm">
