@@ -155,6 +155,21 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
         <p role="status" className="rounded-xl bg-emerald-50 p-4 text-xs font-bold text-emerald-900">Operação registrada. O histórico e os saldos foram atualizados.</p>}
       {params.erro&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-900">{params.erro.slice(0,320)}</p>}
 
+      <Link href="/admin/financeiro/prestacoes/fechamento"
+        className="flex flex-wrap items-center justify-between gap-4 rounded-[23px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-emerald-800">
+            <FileCheck2 size={22}/>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Visão gerencial do CD · V114</p>
+            <h2 className="mt-1 text-[15px] font-black text-emerald-950">Fechamento financeiro geral</h2>
+            <p className="mt-1 text-[11px] text-slate-600">Créditos da empresa, repasses dos entregadores, pendências e Excel por período.</p>
+          </div>
+        </div>
+        <span className="rounded-xl bg-emerald-800 px-5 py-3 text-[11px] font-black text-white">Abrir fechamento</span>
+      </Link>
+
       <Link href="/admin/financeiro/prestacoes/creditos"
         className="flex flex-wrap items-center justify-between gap-4 rounded-[23px] border border-emerald-200 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-3">
