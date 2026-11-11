@@ -170,11 +170,11 @@ export default function ReceberCargaForm({
               </p>
 
               <h2 className="mt-2 text-[22px] font-black tracking-[-0.04em]">
-                Recebimento concluído
+                Recebimento do CD concluído
               </h2>
 
               <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                Todos os {esperados} volumes foram conferidos.
+                Todos os {esperados} volumes foram conferidos no recebimento do CD. O saldo não entregue permanece no seu estoque móvel; nenhuma devolução ou avaria foi registrada por esta conferência.
               </p>
             </div>
 
@@ -476,11 +476,11 @@ export default function ReceberCargaForm({
             </div>
 
             <h3 className="mt-2 text-[21px] font-black">
-              Carga recebida
+              Recebimento 100% confirmado
             </h3>
 
             <p className="mt-3 text-[11px] leading-5 text-slate-500">
-              Os {state.esperados} volumes da carga nº {cargaId} foram confirmados.
+              Os {state.esperados} volumes da carga nº {cargaId} foram recebidos do CD. Eles permanecem vinculados ao estoque móvel desta carga; esta etapa não realiza devolução ao CD.
             </p>
 
             <Link
