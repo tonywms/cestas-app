@@ -40,7 +40,7 @@ export default async function PrepararVendaDireta({ searchParams }: Props) {
   }
 
   const supabase = await createClient();
-  const [clienteResp,tipoResp,pendenteResp] = await Promise.all([
+  const [clienteResp,tipoResp,pendenteResp,destinoResp] = await Promise.all([
     supabase.from("clientes").select("id,codigo,nome").eq("empresa_id",usuario.empresa.id)
       .eq("id",clienteId).eq("ativo",true).maybeSingle(),
     supabase.from("tipos_cesta").select("id,codigo,nome,valor_venda")
@@ -50,6 +50,8 @@ export default async function PrepararVendaDireta({ searchParams }: Props) {
       .eq("cliente_id",clienteId).is("rota_cliente_id",null)
       .eq("status","AGUARDANDO_ENTREGA")
       .order("id",{ascending:false}).limit(1).maybeSingle(),
+    supabase.from("empresa_configuracoes").select("destino_pix_v108,destino_cartao_v108")
+      .eq("empresa_id",usuario.empresa.id).maybeSingle(),
   ]);
   if (pendenteResp.error) {
     return <main className="mx-auto max-w-[480px] p-6 text-sm">Falha ao verificar vendas pendentes. Atualize e tente novamente.</main>;
@@ -58,6 +60,11 @@ export default async function PrepararVendaDireta({ searchParams }: Props) {
     redirect(`/mobile/vendas/finalizar?fluxoId=${pendenteResp.data.id}`);
   }
   const cliente = clienteResp.data, tipo = tipoResp.data;
+  const destinoPix = destinoResp.error ? null : destinoResp.data?.destino_pix_v108;
+  const destinoCartao = destinoResp.error ? null : destinoResp.data?.destino_cartao_v108;
+  // Não inventar conta/maquineta quando a configuração financeira não estiver disponível.
+  const pix = destinoPix==="EMPRESA"||destinoPix==="ENTREGADOR"?destinoPix:null;
+  const cartao = destinoCartao==="EMPRESA"||destinoCartao==="ENTREGADOR"?destinoCartao:null;
   if (clienteResp.error || tipoResp.error || !cliente || !tipo) {
     redirect("/mobile/estoque?erro=tipo");
   }
@@ -117,7 +124,8 @@ export default async function PrepararVendaDireta({ searchParams }: Props) {
           </div>
           <VendaDiretaFinanceiroForm clienteId={clienteId} tipoCestaId={tipoCestaId}
             nomeCesta={tipo.nome} valorUnitario={valorUnitario}
-            limite={limite} primeiroVencimento={dataLocal()}/>
+            limite={limite} primeiroVencimento={dataLocal()}
+            destinoPix={pix} destinoCartao={cartao}/>
           <div className="flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-[11px] text-sky-900">
             <BadgeCheck size={18} className="shrink-0"/>
             Nenhum estoque ou pagamento é lançado antes da confirmação física da entrega.
