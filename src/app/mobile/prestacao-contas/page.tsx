@@ -82,7 +82,7 @@ export default async function PrestacaoContasPage({searchParams}:Props) {
           <button className="h-11 rounded-xl bg-emerald-800 px-4 text-[11px] font-black text-white" type="submit">Consultar</button>
         </form>
         {params.enviada&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] font-bold text-emerald-900">Prestação enviada ao CD. Aguardando conferência do Financeiro.</p>}
-        {params.erro&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-[11px] font-bold text-red-800">{decodeURIComponent(params.erro).slice(0,260)}</p>}
+        {params.erro&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-[11px] font-bold text-red-800">{params.erro.slice(0,260)}</p>}
         <div className="rounded-[24px] bg-white p-5 shadow-sm">
           <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Total recebido dos clientes</p>
           <p className="mt-2 text-3xl font-black tabular-nums text-emerald-900">{moeda(resumo.total_recebido)}</p>
@@ -101,12 +101,22 @@ export default async function PrestacaoContasPage({searchParams}:Props) {
         <div className="space-y-2">
           <Metodo icon={<Banknote size={20}/>} titulo="Dinheiro" valor={resumo.dinheiro}
             destino="ENTREGADOR" detalhe="Entregar e conferir o dinheiro físico no CD"/>
-          <Metodo icon={<Smartphone size={20}/>} titulo="PIX" valor={resumo.pix_empresa+resumo.pix_entregador}
-            destino={resumo.pix_entregador>0?"ENTREGADOR":"EMPRESA"}
-            detalhe={resumo.pix_entregador>0?"Repasse da conta do entregador ao CD":"Recebido pela empresa; CD confere no banco"}/>
-          <Metodo icon={<CreditCard size={20}/>} titulo="Cartão" valor={resumo.cartao_empresa+resumo.cartao_entregador}
-            destino={resumo.cartao_entregador>0?"ENTREGADOR":"EMPRESA"}
-            detalhe={resumo.cartao_entregador>0?"Maquineta própria: comprovar repasse ao CD":"Maquineta da empresa: CD confere a transação"}/>
+          {(resumo.pix_empresa>0||resumo.pix_entregador===0)&&(
+            <Metodo icon={<Building2 size={20}/>} titulo="PIX da empresa" valor={resumo.pix_empresa}
+              destino="EMPRESA" detalhe="Valor registrado na conta da empresa; o CD concilia no extrato bancário."/>
+          )}
+          {resumo.pix_entregador>0&&(
+            <Metodo icon={<Smartphone size={20}/>} titulo="PIX do entregador" valor={resumo.pix_entregador}
+              destino="ENTREGADOR" detalhe="Valor recebido na conta pessoal e sujeito a repasse ao CD."/>
+          )}
+          {(resumo.cartao_empresa>0||resumo.cartao_entregador===0)&&(
+            <Metodo icon={<Building2 size={20}/>} titulo="Cartão da empresa" valor={resumo.cartao_empresa}
+              destino="EMPRESA" detalhe="Transação da maquineta corporativa; o CD confere e concilia."/>
+          )}
+          {resumo.cartao_entregador>0&&(
+            <Metodo icon={<CreditCard size={20}/>} titulo="Cartão do entregador" valor={resumo.cartao_entregador}
+              destino="ENTREGADOR" detalhe="Transação da maquineta própria sujeita a repasse, taxas e liquidação."/>
+          )}
         </div>
         {pendenteClassificacao&&<p role="alert" className="rounded-[20px] border border-amber-300 bg-amber-50 p-4 text-[11px] leading-5 text-amber-900">
           <strong>Recebimentos pendentes de classificação: {moeda(resumo.sem_classificacao)}.</strong>
