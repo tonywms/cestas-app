@@ -26,6 +26,9 @@ import {
 import {
   registrarRecebimento,
 } from "./actions";
+import DestinoRecebimentoV118, {
+  titularPrevistoV118, type DestinoV118
+} from "@/components/mobile/DestinoRecebimentoV118";
 
 const initialState = {
   success: false,
@@ -149,6 +152,8 @@ export default function RecebimentoForm({
   parcelas,
   rotaClienteId = null,
   chaveOperacaoInicial,
+  destinoPix,
+  destinoCartao,
 }: {
   clienteId:
     number;
@@ -161,6 +166,8 @@ export default function RecebimentoForm({
 
   chaveOperacaoInicial:
     string;
+  destinoPix: DestinoV118;
+  destinoCartao: DestinoV118;
 }) {
   const [
     state,
@@ -209,6 +216,10 @@ export default function RecebimentoForm({
     setValor,
   ] =
     useState("");
+
+  const [formaSelecionada,setFormaSelecionada]=useState("PIX");
+  const destinatario=titularPrevistoV118(formaSelecionada,destinoPix,destinoCartao);
+  const naoConfigurado=["PIX","CARTAO"].includes(formaSelecionada)&&!destinatario;
 
   const [
     modal,
@@ -312,6 +323,7 @@ export default function RecebimentoForm({
           }
         />
 
+        <input type="hidden" name="destino_exibido" value={destinatario??""}/>
         <input
           type="hidden"
           name="chave_operacao"
@@ -567,7 +579,8 @@ export default function RecebimentoForm({
 
           <select
             name="forma_pagamento"
-            defaultValue="PIX"
+            value={formaSelecionada}
+            onChange={e=>setFormaSelecionada(e.target.value)}
             required
             className="mt-2 h-[56px] w-full rounded-[17px] border border-slate-200 bg-white px-4 text-[12px] font-black outline-none focus:border-emerald-400"
           >
@@ -593,6 +606,11 @@ export default function RecebimentoForm({
             </option>
 
           </select>
+          <DestinoRecebimentoV118 forma={formaSelecionada}
+            destinoPix={destinoPix} destinoCartao={destinoCartao}/>
+          {naoConfigurado&&<p role="alert" className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-bold text-amber-950">
+            A conta ou maquineta não está configurada. Solicite conferência ao CD antes de receber.
+          </p>}
 
           <label className="mt-5 block text-[8px] font-black uppercase tracking-[0.14em] text-slate-500">
             Observação
@@ -608,7 +626,7 @@ export default function RecebimentoForm({
             type="submit"
             disabled={
               pending ||
-              !valorValido
+              !valorValido || naoConfigurado
             }
             className="mt-5 flex h-[56px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_30px_rgba(23,111,60,0.30)] transition active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40"
           >
