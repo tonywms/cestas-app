@@ -214,6 +214,7 @@ export default async function FinalizarVendaPage({
     clienteResult,
     tipoResult,
     cargaResult,
+    destinoResult,
   ] =
     await Promise.all([
       supabase
@@ -267,6 +268,12 @@ export default async function FinalizarVendaPage({
           fluxo.carga_id,
         )
         .maybeSingle(),
+
+      supabase
+        .from("empresa_configuracoes")
+        .select("destino_pix_v108,destino_cartao_v108")
+        .eq("empresa_id",usuario.empresa.id)
+        .maybeSingle(),
     ]);
 
   if (
@@ -307,6 +314,12 @@ export default async function FinalizarVendaPage({
       valorTotal -
         valorEntrada,
     );
+  const destinoPix=destinoResult.data?.destino_pix_v108==="EMPRESA"||
+    destinoResult.data?.destino_pix_v108==="ENTREGADOR"
+    ?destinoResult.data.destino_pix_v108:null;
+  const destinoCartao=destinoResult.data?.destino_cartao_v108==="EMPRESA"||
+    destinoResult.data?.destino_cartao_v108==="ENTREGADOR"
+    ?destinoResult.data.destino_cartao_v108:null;
 
   const exigeScanner =
     fluxo.modo_controle ===
@@ -481,6 +494,10 @@ export default async function FinalizarVendaPage({
             modoControle={
               fluxo.modo_controle
             }
+            formaPagamento={fluxo.forma_pagamento??""}
+            valorEntrada={valorEntrada}
+            destinoPix={destinoPix}
+            destinoCartao={destinoCartao}
           />
 
           <div className="flex items-center justify-center gap-2 pb-2 text-[8px] font-bold text-slate-400">
