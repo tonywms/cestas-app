@@ -229,7 +229,9 @@ export default async function ClienteRecebimentosPage({
         credito_bloqueio_qtd_atrasos,
         credito_dias_tolerancia,
         credito_permitir_excecao,
-        credito_validade_excecao_dias
+        credito_validade_excecao_dias,
+        destino_pix_v108,
+        destino_cartao_v108
       `)
       .eq(
         "empresa_id",
@@ -800,6 +802,14 @@ export default async function ClienteRecebimentosPage({
               chaveOperacaoInicial={
                 randomUUID()
               }
+              destinoPix={configResult.error?null:
+                configResult.data?.destino_pix_v108==="EMPRESA"||
+                configResult.data?.destino_pix_v108==="ENTREGADOR"?
+                  configResult.data.destino_pix_v108:null}
+              destinoCartao={configResult.error?null:
+                configResult.data?.destino_cartao_v108==="EMPRESA"||
+                configResult.data?.destino_cartao_v108==="ENTREGADOR"?
+                  configResult.data.destino_cartao_v108:null}
             />
           ) : (
             <div className="relative overflow-hidden rounded-[28px] border border-emerald-200 bg-[linear-gradient(145deg,#f0fbf4,#ffffff)] p-7 text-center shadow-[0_18px_40px_-28px_rgba(16,185,129,0.55)]">
