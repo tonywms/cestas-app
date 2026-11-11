@@ -183,7 +183,7 @@ function Metodo({icon,titulo,valor,destino,detalhe}:{icon:React.ReactNode;titulo
 function Campo({nome,titulo,esperado,inicial,disabled=false}:{nome:string;titulo:string;esperado:number;inicial:unknown;disabled?:boolean}) {
   return <label className="block text-[10px] font-black text-slate-700">
     {titulo}<span className="ml-1 font-normal text-slate-500">· esperado {moeda(esperado)}</span>
-    <input type="number" step="0.01" min={0} max={Math.max(0,esperado)} name={nome}
+    <input type="number" step="0.01" min={0} name={nome}
       defaultValue={disabled?"0":inicial==null?"0":String(inicial)} readOnly={disabled}
       className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-[13px] font-black text-emerald-900"/>
   </label>;
