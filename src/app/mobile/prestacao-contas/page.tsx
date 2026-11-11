@@ -63,23 +63,30 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
   const inicio = /^\d{4}-\d{2}-\d{2}$/.test(params.inicio ?? "") ? String(params.inicio) : hoje;
   const fim = /^\d{4}-\d{2}-\d{2}$/.test(params.fim ?? "") ? String(params.fim) : hoje;
   const supabase = await createClient();
-  const [resumoResp, prestResp] = await Promise.all([
+  const [resumoResp, prestResp, creditoResp] = await Promise.all([
     supabase.rpc("resumo_periodo_prestacao_v109", {
       p_empresa_id: usuario.empresa.id, p_inicio: inicio, p_fim: fim,
     }),
     supabase.rpc("listar_prestacoes_v109", { p_empresa_id: usuario.empresa.id }),
+    supabase.rpc("resumo_creditos_entregador_v110", {
+      p_empresa_id: usuario.empresa.id, p_inicio: inicio, p_fim: fim,
+    }),
   ]);
-  if (resumoResp.error || prestResp.error) {
+  if (resumoResp.error || prestResp.error || creditoResp.error) {
     return <main className="mx-auto min-h-dvh max-w-[480px] bg-slate-50 p-6 text-sm">
       <Link href="/mobile" className="font-bold text-emerald-800">Voltar</Link>
       <h1 className="mt-5 text-xl font-black">Prestação de contas</h1>
       <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-        {resumoResp.error?.message || prestResp.error?.message || "Falha ao consultar o financeiro."}
+        {resumoResp.error?.message || prestResp.error?.message || creditoResp.error?.message || "Falha ao consultar o financeiro."}
       </p>
       <Link href="/mobile/prestacao-contas" className="mt-4 inline-block font-bold text-emerald-800">Consultar hoje</Link>
     </main>;
   }
   const resumo = (resumoResp.data ?? {}) as Resumo;
+  const creditoStatus = (creditoResp.data ?? {}) as {
+    valor_pendente?: number; valor_conciliado?: number;
+    pendentes?: number; conciliados?: number;
+  };
   const movimentos = Array.isArray(resumo.movimentos) ? resumo.movimentos : [];
   const prestacoes = (Array.isArray(prestResp.data) ? prestResp.data : []) as Prestacao[];
   const valorPendenteAnterior = n(resumo.saldo_pendente_anterior);
@@ -182,7 +189,7 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
           {resumo.detalhe_limitado && <p className="mt-3 text-[10px] font-semibold text-amber-900">A lista foi limitada a 500 movimentos. Reduza o intervalo para consultar todo o detalhe.</p>}
         </section>
 
-        {valorResponsabilidade<=0 ? (
+        {valorResponsabilidade<=0 && !incertos ? (
           <section className="rounded-[24px] border border-emerald-200 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-2 text-emerald-800"><CheckCircle2 size={20}/><h2 className="text-[14px] font-black">Nenhum dinheiro a repassar destes recebimentos</h2></div>
             <p className="mt-3 text-[11px] leading-6 text-slate-700">
@@ -190,9 +197,13 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
               pelo titular da empresa. Você não precisa enviar uma prestação de R$ 0,00.
             </p>
             <div className="mt-3 rounded-[15px] bg-emerald-50 p-3">
-              <p className="text-[10px] font-black text-emerald-800">Conciliação pendente com o CD</p>
-              <p className="mt-1 text-[12px] leading-5 text-emerald-950">
-                O Financeiro confere o extrato bancário e a maquineta diretamente, sem cobrar outro repasse de você.
+              <p className="text-[10px] font-black text-emerald-800">Conciliação financeira do CD</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div><p className="text-[9px] text-emerald-700">Aguardando banco/maquineta</p><p className="mt-1 text-[15px] font-black">{moeda(creditoStatus.valor_pendente)}</p></div>
+                <div><p className="text-[9px] text-emerald-700">Já conciliado pelo CD</p><p className="mt-1 text-[15px] font-black">{moeda(creditoStatus.valor_conciliado)}</p></div>
+              </div>
+              <p className="mt-2 text-[10px] leading-5 text-emerald-950">
+                O Financeiro confere o extrato e a maquineta. Não existe um segundo repasse a cobrar de você.
               </p>
             </div>
             {valorPendenteAnterior>0 && <p className="mt-3 text-[10px] text-amber-900">
