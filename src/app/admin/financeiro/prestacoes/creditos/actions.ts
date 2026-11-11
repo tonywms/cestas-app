@@ -24,7 +24,9 @@ export async function confirmarCreditoCorporativoV110(form:FormData){
     redirect("/admin/financeiro");
   const origem=String(form.get("origem")??"");
   const id=Number(form.get("origem_id"));
-  const referencia=String(form.get("referencia")??"").trim();
+  // Referência técnica automática: não é chave PIX, E2E ou NSU bancário.
+  // O operador confirma manualmente o recebimento; o banco não é consultado.
+  const referencia=`CONF-MANUAL-CD-${crypto.randomUUID()}`;
   const inicio=String(form.get("inicio")??"");
   const fim=String(form.get("fim")??"");
   const filtros={
@@ -32,12 +34,8 @@ export async function confirmarCreditoCorporativoV110(form:FormData){
     forma:String(form.get("forma")??"TODOS").slice(0,10),
     busca:String(form.get("busca")??"").slice(0,100),
   };
-  if(String(form.get("confirmado_no_extrato")??"")!=="SIM"){
-    redirect(voltar(inicio,fim,filtros,"A confirmação explícita do crédito no extrato é obrigatória."));
-  }
-  if(!["VENDA","COBRANCA","PARCELA"].includes(origem)||!Number.isSafeInteger(id)||id<1||
-     referencia.length<4||referencia.length>250) {
-    redirect(voltar(inicio,fim,filtros,"Informe o identificador bancário/NSU confirmado e um recebimento válido."));
+  if(!["VENDA","COBRANCA","PARCELA"].includes(origem)||!Number.isSafeInteger(id)||id<1) {
+    redirect(voltar(inicio,fim,filtros,"Selecione um recebimento válido."));
   }
   const supabase=await createClient();
   const {error}=await supabase.rpc("conciliar_credito_direto_v110",{
@@ -45,7 +43,7 @@ export async function confirmarCreditoCorporativoV110(form:FormData){
     p_origem:origem,p_origem_id:id,p_referencia:referencia,
   });
   if(error){
-    console.error("V110 conciliar credito corporativo:",error.code,error.message);
+    console.error("V112 confirmação manual CD:",error.code,error.message);
     redirect(voltar(inicio,fim,filtros,error.message));
   }
   revalidatePath("/admin/financeiro/prestacoes");
