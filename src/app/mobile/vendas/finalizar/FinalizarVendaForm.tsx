@@ -294,7 +294,7 @@ export default function FinalizarVendaForm({
           <p className="mt-2 text-[9px] leading-5 text-slate-500">
             {modoControle ===
             "VOLUME"
-              ? `O sistema baixará ${quantidade} volume(s) disponível(is) da carga.`
+              ? `O sistema baixará ${quantidade} volume(s) do estoque móvel, preservando o rastreio de origem.`
               : `O sistema baixará ${quantidade} cesta(s) do saldo móvel.`}
           </p>
         </section>
