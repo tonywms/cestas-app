@@ -372,12 +372,12 @@ return (
 
             {podeVenderCampo && (
               <ActionCard
-                href="/mobile/clientes?modo=venda"
+                href="/mobile/clientes?modo=venda-direta"
                 icon={
                   <ShoppingBag size={22} />
                 }
                 titulo="Venda em campo"
-                descricao="Cliente novo ou avulso"
+                descricao="Usar cestas da carga selecionada"
                 delay={210}
               />
             )}
