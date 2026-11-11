@@ -507,26 +507,37 @@ export default async function MinhaCargaPage() {
 
         <Header />
 
-        <IdentificacaoCargaMobile numero={carga.id} codigo={carga.codigo} status={carga.status} />
+        <IdentificacaoCargaMobile numero={carga.id} codigo={carga.codigo} status={recebimentoCompleto ? "NO ESTOQUE MÓVEL" : "A RECEBER"} />
 
-        {/* V105.5.7: jornada concluida nao significa devolucao automatica do estoque. */}
-        {carga.status === "EM_ROTA" && temRotaFinalizadaDaCarga && !temRotaAtiva && !rotaAtivaError && (
-          <div role="status" className="mx-4 mt-3 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-emerald-950 shadow-sm">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.09em]">Rota desta carga finalizada</p>
-              <p className="mt-0.5 text-[11px] font-semibold">Carga nº {carga.id} — {saldo} cesta(s) no estoque móvel</p>
-              <p className="mt-0.5 text-[10px] text-emerald-800">Nada é devolvido automaticamente ao CD. Só feche a carga quando decidir encerrar essa operação.</p>
+
+        {/* V105.5.8: estoque em posse, sem confundir com devolucao ao CD. */}
+        <section aria-label="Saldo da carga em uso" className="mx-4 mt-3 rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-[0.13em] text-emerald-800">Seu estoque nesta carga</p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[31px] font-black leading-none tabular-nums text-emerald-950">{saldo}</p>
+              <p className="mt-1 text-[11px] font-semibold text-emerald-800">cestas em posse</p>
             </div>
+            <span className="rounded-full bg-white px-3 py-2 text-[10px] font-bold text-emerald-800">
+              {recebimentoCompleto ? "Recebimento confirmado" : "Conferência pendente"}
+            </span>
           </div>
-        )}
+          <p className="mt-3 text-[10px] leading-5 text-emerald-800">
+            O saldo permanece com você até uma entrega ou devolução confirmada.
+            Finalizar uma rota não devolve as cestas automaticamente ao CD.
+          </p>
+          <Link prefetch={false} href="/mobile" className="mt-3 flex min-h-[44px] items-center justify-center rounded-[13px] bg-emerald-800 px-4 py-2.5 text-[12px] font-black text-white">
+            Ir para vendas e entregas
+          </Link>
+        </section>
         <div className="px-4 py-3">
           <Link prefetch={false}
             href="/mobile/carga/selecionar"
             className="flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-300 bg-white px-4 py-3.5 text-emerald-950 shadow-sm transition-colors hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
           >
             <span className="min-w-0">
-              <span className="block text-[9px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">Gestão de múltiplas cargas</span>
-              <span className="mt-1 block text-sm font-black">Selecionar ou trocar carga</span>
+              <span className="block text-[9px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">Trocar de estoque</span>
+              <span className="mt-1 block text-sm font-black">Escolher outra carga</span>
               <span className="mt-0.5 block text-[10px] text-slate-600">Em operação: carga nº {carga.id}</span>
             </span>
             <span className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2.5 text-[11px] font-extrabold text-white">Trocar →</span>
@@ -555,7 +566,7 @@ export default async function MinhaCargaPage() {
               <div className="flex items-center justify-between">
 
                 <span className="text-[10px] font-bold text-slate-400">
-                  Progresso da carga
+                  Progresso das entregas
                 </span>
 
                 <span className="text-[11px] font-black text-[#176b3a]">
@@ -584,21 +595,21 @@ export default async function MinhaCargaPage() {
                 valor={
                   totalCarregado
                 }
-                label="Carregado"
+                label="Carregadas"
               />
 
               <Indicador
                 valor={
                   totalEntregue
                 }
-                label="Entregue"
+                label="Entregues"
               />
 
               <Indicador
                 valor={
                   saldo
                 }
-                label="Saldo"
+                label="Em posse"
               />
 
             </div>
@@ -730,7 +741,7 @@ export default async function MinhaCargaPage() {
                           />
 
                           <MiniInfo
-                            label="Entregue"
+                            label="Entregues"
                             valor={
                               item.quantidade_entregue
                             }
@@ -1058,15 +1069,15 @@ function Header() {
       <div className="relative z-10 mt-6">
 
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#a8d8b7]">
-          Operação de hoje
+          Acompanhamento de estoque
         </p>
 
         <h2 className="mt-2 text-[26px] font-black tracking-[-0.04em]">
-          Minha Carga
+          Estoque do entregador
         </h2>
 
         <p className="mt-2 text-[12px] text-white/65">
-          Controle do estoque em movimento
+          Cestas disponíveis para vender e entregar
         </p>
 
       </div>
