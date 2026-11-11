@@ -288,7 +288,7 @@ export default async function ClientesMobilePage({
 
             {podeCadastrar ? (
               <Link
-                href="/mobile/clientes/novo"
+                href={modoVendaDireta ? "/mobile/clientes/novo?modo=venda-direta" : "/mobile/clientes/novo"}
                 className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-white text-[#176f3c]"
                 aria-label="Novo cliente"
               >
@@ -376,7 +376,7 @@ export default async function ClientesMobilePage({
 
             {podeCadastrar ? (
               <Link
-                href="/mobile/clientes/novo"
+                href={modoVendaDireta ? "/mobile/clientes/novo?modo=venda-direta" : "/mobile/clientes/novo"}
                 className="flex items-center gap-2 rounded-[14px] bg-[#176f3c] px-4 py-3 text-[10px] font-black text-white"
               >
                 <UserPlus
