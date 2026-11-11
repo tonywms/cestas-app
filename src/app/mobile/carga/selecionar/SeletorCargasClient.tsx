@@ -72,7 +72,7 @@ function BotaoEscolherCarga({ id, conferenciaPendente, conectado }: {
           ? "Selecionando carga..."
           : conferenciaPendente
             ? `Selecionar e receber carga nº ${id}`
-            : `Usar carga nº ${id}`}
+            : `Selecionar carga nº ${id}`}
     </button>
   );
 }
@@ -227,7 +227,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
 
       <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm">
         <label htmlFor="busca-carga" className="block text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
-          Localizar carga por número ou código
+          Procurar outra carga
         </label>
         <input
           id="busca-carga"
@@ -239,7 +239,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
           placeholder="Ex.: 24 ou CG-20261103"
           className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
         />
-        <p className="mt-2 text-[10px] text-slate-500">Toque nos indicadores acima para filtrar por situação.</p>
+        <p className="mt-2 text-[10px] text-slate-500">Filtre por recebimento ou digite o número da carga.</p>
       </div>
 
       <div role="status" aria-live="polite" className="flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
@@ -256,7 +256,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
       {/* V100_ORDENACAO_OPERACIONAL: ordenar sem aumentar a altura da tela. */}
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="min-w-0">
-          <h2 className="text-sm font-black text-slate-800">{atual ? "Outras cargas" : "Cargas disponíveis"}</h2>
+          <h2 className="text-sm font-black text-slate-800">{atual ? "Escolher outra carga" : "Escolher uma carga"}</h2>
           <p className="text-[10px] font-semibold tabular-nums text-slate-500">{filtradas.length} encontrada(s)</p>
         </div>
         {filtradas.length > 0 && (
@@ -270,7 +270,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
               onChange={(event) => { setOrdenacao(event.target.value as Ordenacao); setLimite(LOTE); }}
               className="w-[158px] min-w-0 rounded-xl border border-emerald-100 bg-white px-2 py-2.5 text-[11px] font-semibold text-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
             >
-              <option value="PRIORIDADE">Prioridade operacional</option>
+              <option value="PRIORIDADE">Por recebimento</option>
               <option value="RECENTES">Mais recentes</option>
               <option value="ANTIGAS">Mais antigas</option>
               <option value="MAIOR_SALDO">Maior saldo</option>
@@ -285,10 +285,10 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
             ? "Nenhuma carga disponível."
             : atualNoFiltro && totalNoFiltro === 1
               ? "A carga que corresponde ao filtro já está exibida acima, em operação."
-              : filtro === "EM_ROTA" && termoBusca.length === 0
-                ? "Nenhuma outra carga está com rota em andamento."
-                : filtro === "A_FECHAR" && termoBusca.length === 0
-                  ? "Nenhuma outra carga está aguardando fechamento."
+              : filtro === "A_RECEBER" && termoBusca.length === 0
+                ? "Todas as cargas já foram recebidas do CD."
+                : filtro === "RECEBIDAS" && termoBusca.length === 0
+                  ? "Nenhuma outra carga recebida corresponde ao filtro."
                   : "Nenhuma outra carga corresponde à busca ou ao filtro selecionado."}
         </div>
       )}
@@ -316,25 +316,16 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
                   <p className="mt-1 break-all text-[11px] font-medium text-slate-600">{carga.codigo}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-800">
-                    {carga.fechamentoPendente ? "Rota concluída" : carga.status === "EM_ROTA" ? "Em rota" : "Aberta"}
-                  </span>
-                  {selecionada && <span className="text-[10px] font-extrabold text-emerald-700">EM OPERAÇÃO</span>}
-                  {carga.fechamentoPendente && !carga.conferenciaPendente && (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">
-                      Fechamento pendente
-                    </span>
-                  )}
                   {carga.conferenciaPendente ? (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">Recebimento pendente</span>
+                    <span className="rounded-full bg-amber-100 px-3 py-1.5 text-[10px] font-bold text-amber-900">A receber do CD</span>
                   ) : (
-                    <span className="text-[10px] font-semibold text-emerald-700">Recebimento confirmado</span>
+                    <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[10px] font-bold text-emerald-800">Recebida do CD</span>
                   )}
                 </div>
               </div>
               {/* V99_CARDS_COMPACTOS_EXPANSIVEIS: saldo visivel; detalhes sob demanda. */}
               <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-emerald-50 px-3 py-2">
-                <span className="text-[10px] font-bold text-emerald-900">Saldo desta carga</span>
+                <span className="text-[10px] font-bold text-emerald-900">Cestas em posse nesta carga</span>
                 <span className="text-sm font-black tabular-nums text-emerald-900">
                   {saldoAtual == null ? "—" : `${saldoAtual} ${saldoAtual === 1 ? "cesta" : "cestas"}`}
                 </span>
@@ -346,11 +337,12 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
                 </summary>
                 <div className="border-t border-slate-100 px-3 pb-3 pt-2">
                   <p className="text-[10px] text-slate-500">Data da carga: {dataBR(carga.dataCarga)}</p>
+                  <p className="mt-1 text-[10px] text-slate-500">Rota: {carga.fechamentoPendente ? "Jornada concluída; saldo ainda em posse" : carga.status === "EM_ROTA" ? "Jornada vinculada" : "Sem jornada ativa nesta carga"}</p>
                   <div className="mt-2 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-2 text-center">
                 {([
-                  ["CARGA", carga.carregadas],
-                  ["ENTREGUE", carga.entregues],
-                  ["SALDO", saldoAtual],
+                  ["CARREGADAS", carga.carregadas],
+                  ["ENTREGUES", carga.entregues],
+                  ["EM POSSE", saldoAtual],
                 ] as const).map(([rotulo, valor]) => (
                   <div key={rotulo} className="py-1">
                     <p className="text-base font-black tabular-nums text-slate-900">{valor ?? "—"}</p>
@@ -362,7 +354,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
               </details>
               {selecionada ? (
                 <Link prefetch={false} href={carga.conferenciaPendente ? `/mobile/carga/receber?cargaId=${carga.id}` : "/mobile/carga"} className="mt-3 block rounded-xl bg-emerald-800 px-4 py-3 text-center text-xs font-black text-white">
-                  {carga.conferenciaPendente ? `Receber volumes da carga nº ${carga.id}` : `Continuar com a carga nº ${carga.id}`}
+                  {carga.conferenciaPendente ? `Receber volumes da carga nº ${carga.id}` : `Abrir estoque da carga nº ${carga.id}`}
                 </Link>
               ) : (
                 <BotaoEscolherCarga
@@ -380,7 +372,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
                     Receber volumes da carga nº {carga.id} sem trocar de rota
                   </Link>
                   <p className="text-[10px] leading-relaxed text-amber-800">
-                    A conferência desta carga é independente de qualquer rota. A bipagem só confirma volumes atribuídos a você.
+                    A bipagem confirma os volumes recebidos. Ela não devolve cestas nem encerra a carga.
                   </p>
                 </div>
               )}
@@ -388,6 +380,16 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
           );
         })}
       </div>
+
+
+      {rotaEmAndamento && (
+        <details className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+          <summary className="cursor-pointer text-[11px] font-bold text-slate-600">Informações de rota (opcional)</summary>
+          <p className="mt-2 text-[10px] leading-5 text-slate-600">
+            A rota {rotaEmAndamento.codigo} pertence à carga nº {rotaEmAndamento.cargaId} e não impede usar ou receber outras cargas.
+          </p>
+        </details>
+      )}
 
       {limite < filtradas.length && (
         <button
