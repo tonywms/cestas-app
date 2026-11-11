@@ -37,11 +37,11 @@ export default async function PrestacoesCdPage({searchParams}:Props){
     supabase.from("venda_recebimentos")
       .select("id,valor,forma_pagamento,created_at,recebido_por")
       .eq("empresa_id",usuario.empresa.id).is("destino_recebimento_v108",null)
-      .neq("forma_pagamento","DINHEIRO").order("id",{ascending:false}).limit(60),
+      .in("forma_pagamento",["PIX","CARTAO"]).order("id",{ascending:false}).limit(60),
     supabase.from("pagamentos")
       .select("id,valor,forma_pagamento,created_at,recebido_por")
       .eq("empresa_id",usuario.empresa.id).is("destino_recebimento_v108",null)
-      .neq("forma_pagamento","DINHEIRO").order("id",{ascending:false}).limit(60),
+      .in("forma_pagamento",["PIX","CARTAO"]).order("id",{ascending:false}).limit(60),
   ]);
   if(config.error||prest.error||usuarios.error||antigasVendas.error||antigasCobrancas.error)return <main className="p-6">Não foi possível consultar as prestações do CD. Confirme as permissões e atualize.</main>;
   const nomes=new Map((usuarios.data??[]).map(u=>[u.id,u.nome]));
