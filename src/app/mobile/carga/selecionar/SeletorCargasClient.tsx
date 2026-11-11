@@ -28,7 +28,7 @@ type Props = {
   saldosDisponiveis: boolean;
 };
 
-type Filtro = "TODAS" | "ABERTA" | "EM_ROTA" | "A_FECHAR";
+type Filtro = "TODAS" | "RECEBIDAS" | "A_RECEBER";
 type Ordenacao = "PRIORIDADE" | "RECENTES" | "ANTIGAS" | "MAIOR_SALDO";
 const LOTE = 15;
 
@@ -45,9 +45,8 @@ function saldo(carga: CargaOperacionalResumo): number | null {
 }
 
 function correspondeAoFiltro(carga: CargaOperacionalResumo, filtro: Filtro, termo: string): boolean {
-  if (filtro === "ABERTA" && carga.status !== "ABERTA") return false;
-  if (filtro === "EM_ROTA" && (carga.status !== "EM_ROTA" || carga.fechamentoPendente)) return false;
-  if (filtro === "A_FECHAR" && !carga.fechamentoPendente) return false;
+  if (filtro === "RECEBIDAS" && carga.conferenciaPendente) return false;
+  if (filtro === "A_RECEBER" && !carga.conferenciaPendente) return false;
   return termo.length === 0 || `${carga.id} ${carga.codigo}`.toLocaleLowerCase("pt-BR").includes(termo);
 }
 
@@ -104,17 +103,14 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
   }, [conectado, verificando, router]);
   const operacoesLiberadas = conectado && !reconciliando;
 
-  const quantidadeAbertas = cargas.filter((c) => c.status === "ABERTA").length;
-  // V96_UX_SELETOR_LIMPO: contabiliza estados operacionais reais.
-  const quantidadeEmRota = cargas.filter(c=>c.status==='EM_ROTA' && !c.fechamentoPendente).length;
-  const quantidadeFechamento = cargas.filter(c=>c.fechamentoPendente).length;
+  const quantidadeRecebidas = cargas.filter((c) => !c.conferenciaPendente).length;
   const aguardandoBipagem = cargas.filter((c) => c.conferenciaPendente).length;
   const atual = cargas.find((c) => c.id === cargaAtualId) ?? null;
 
   // V98_FILTROS_RESULTADOS_COERENTES: mesma regra para a carga selecionada e a lista.
   const termoBusca = busca.trim().toLocaleLowerCase("pt-BR");
   const atualNoFiltro = atual !== null && correspondeAoFiltro(atual, filtro, termoBusca);
-  const nomeFiltro = filtro === "TODAS" ? "Todas" : filtro === "ABERTA" ? "Abertas" : filtro === "EM_ROTA" ? "Em rota" : "A fechar";
+  const nomeFiltro = filtro === "TODAS" ? "Todas" : filtro === "RECEBIDAS" ? "Recebidas" : "A receber";
 
   const filtradas = useMemo(() => {
     const resultado = cargas.filter((c) => correspondeAoFiltro(c, filtro, termoBusca));
@@ -131,7 +127,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
         return b.id - a.id;
       }
       // Fechamento, rota em andamento, recebimento pendente e demais cargas abertas.
-      const prioridade = (c: CargaOperacionalResumo) => c.fechamentoPendente ? 0 : c.status === "EM_ROTA" ? 1 : c.conferenciaPendente ? 2 : 3;
+      const prioridade = (c: CargaOperacionalResumo) => c.conferenciaPendente ? 0 : (saldo(c) ?? 0) > 0 ? 1 : 2;
       const diferenca = prioridade(a) - prioridade(b);
       return diferenca || b.id - a.id;
     });
@@ -159,13 +155,13 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
           Conexão restabelecida. Atualizando as cargas e os saldos no servidor...
         </div>
       )}
-      {/* V97_FILTROS_POR_INDICADORES: indicadores funcionam como filtros, sem uma segunda barra de botoes. */}
-      <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Filtrar cargas por situação">
+
+      {/* V105.5.8: filtros por recebimento fisico. */}
+      <div className="grid grid-cols-3 gap-2" role="group" aria-label="Filtrar cargas por recebimento">
         {([
-          ["TODAS", "TOTAL", cargas.length],
-          ["ABERTA", "ABERTAS", quantidadeAbertas],
-          ["EM_ROTA", "EM ROTA", quantidadeEmRota],
-          ["A_FECHAR", "A FECHAR", quantidadeFechamento],
+          ["TODAS", "Todas", cargas.length],
+          ["RECEBIDAS", "Recebidas", quantidadeRecebidas],
+          ["A_RECEBER", "A receber", aguardandoBipagem],
         ] as const).map(([tipo, rotulo, valor]) => (
           <button
             key={tipo}
@@ -173,12 +169,11 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
             disabled={!operacoesLiberadas}
             aria-pressed={filtro === tipo}
             aria-controls="lista-outras-cargas"
-            aria-label={`Filtrar por ${rotulo.toLowerCase()}, ${valor} carga(s)`}
             onClick={() => { setFiltro(tipo); setLimite(LOTE); }}
-            className={`min-w-0 rounded-xl border px-1 py-2.5 text-center shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 ${filtro === tipo ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-500" : "border-emerald-100 bg-white hover:bg-emerald-50"}`}
+            className={`min-w-0 rounded-2xl border px-2 py-3 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 ${filtro === tipo ? "border-emerald-500 bg-emerald-50 shadow-sm ring-1 ring-emerald-400" : "border-emerald-100 bg-white"}`}
           >
-            <p className="text-lg font-black tabular-nums text-emerald-800">{valor}</p>
-            <p className="mt-1 text-[8px] font-extrabold tracking-wide text-slate-600">{rotulo}</p>
+            <p className="text-xl font-black tabular-nums text-emerald-900">{valor}</p>
+            <p className="mt-1 text-[10px] font-extrabold text-slate-600">{rotulo}</p>
           </button>
         ))}
       </div>
@@ -190,36 +185,44 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
         </div>
       )}
 
-      {atual && (
-        <section aria-label="Carga selecionada" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 shadow-sm">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-700">Carga selecionada para consulta</p>
-              <p className="text-base font-black text-emerald-950">Carga nº {atual.id}</p>
-              <p className="break-all text-[11px] text-emerald-800">{atual.codigo}</p>
-            </div>
-            <span className="rounded-full bg-emerald-700 px-2.5 py-1 text-[10px] font-bold text-white">Selecionada</span>
-          </div>
-          {!atualNoFiltro && (
-            <p className="mt-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-[10px] leading-relaxed text-emerald-900">
-              Esta carga permanece visível por estar em operação, mas não corresponde ao filtro ou à busca.
-            </p>
-          )}
-          {atual.fechamentoPendente && !atual.conferenciaPendente && (
-            <p role="status" className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-[11px] font-semibold text-amber-950">Rota finalizada · fechamento pendente</p>
-          )}
-          <Link prefetch={false} href={atual.conferenciaPendente ? `/mobile/carga/receber?cargaId=${atual.id}` : atual.fechamentoPendente ? "/mobile/carga/fechar" : "/mobile/carga"}
-            className="mt-3 block rounded-xl bg-emerald-800 px-4 py-3 text-center text-xs font-black text-white">
-            {atual.conferenciaPendente ? "Receber volumes" : atual.fechamentoPendente ? "Revisar fechamento" : "Continuar nesta carga"}
-          </Link>
-        </section>
-      )}
 
-      {rotaEmAndamento && (
-        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">
-          <strong>Rota ativa ou planejada:</strong> {rotaEmAndamento.codigo} (carga nº {rotaEmAndamento.cargaId}).
-          {" Essa rota permanece vinculada à sua carga original e não impede receber ou utilizar outras cargas do estoque móvel."}
-        </div>
+      {atual && (
+        <section aria-label="Carga em uso" className="overflow-hidden rounded-[24px] border-2 border-emerald-300 bg-white shadow-[0_12px_30px_rgba(9,87,48,0.10)]">
+          <div className="flex items-center justify-between gap-2 bg-emerald-50 px-4 py-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-800">Seu estoque selecionado</p>
+            <span className="rounded-full bg-emerald-700 px-3 py-1 text-[10px] font-black text-white">Em uso</span>
+          </div>
+          <div className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-[20px] font-black tracking-tight text-slate-900">Carga nº {atual.id}</h2>
+                <p className="mt-1 break-all text-[10px] font-medium text-slate-500">{atual.codigo}</p>
+              </div>
+              <div className="shrink-0 rounded-[18px] bg-emerald-50 px-4 py-3 text-center">
+                <p className="text-[27px] font-black leading-none tabular-nums text-emerald-900">
+                  {saldosDisponiveis ? (saldo(atual) ?? "—") : "—"}
+                </p>
+                <p className="mt-1 text-[9px] font-extrabold text-emerald-800">cestas em posse</p>
+              </div>
+            </div>
+            <p className={`mt-3 rounded-xl px-3 py-2 text-[11px] font-semibold leading-5 ${atual.conferenciaPendente ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-800"}`}>
+              {atual.conferenciaPendente
+                ? "Falta conferir os volumes recebidos do CD."
+                : "Recebimento do CD confirmado. As cestas permanecem no seu estoque móvel."}
+            </p>
+            {!atualNoFiltro && (
+              <p className="mt-2 text-[10px] text-slate-500">Esta carga continua em uso, mesmo fora do filtro atual.</p>
+            )}
+            <Link
+              prefetch={false}
+              href={atual.conferenciaPendente ? `/mobile/carga/receber?cargaId=${atual.id}` : "/mobile/carga"}
+              className="mt-4 flex min-h-[50px] w-full items-center justify-center rounded-[15px] bg-emerald-800 px-4 py-3 text-center text-[13px] font-black text-white"
+            >
+              {atual.conferenciaPendente ? "Conferir recebimento do CD" : "Abrir estoque desta carga"}
+            </Link>
+            <p className="mt-2 text-center text-[10px] text-slate-500">Abrir uma carga não devolve cestas nem encerra a operação.</p>
+          </div>
+        </section>
       )}
 
       <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm">
