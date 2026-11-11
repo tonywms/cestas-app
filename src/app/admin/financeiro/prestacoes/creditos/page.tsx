@@ -19,6 +19,10 @@ type Resumo={
   valor_pendente:number;conciliados:number;valor_conciliado:number;
   movimentos:Movimento[];detalhe_limitado:boolean;
 };
+type Confirmacao = {
+  origem:string;origem_id:number;protocolo:string;confirmado_por_nome:string;
+  confirmado_at:string;tipo_confirmacao:string;referencia:string|null;
+};
 type Props={searchParams:Promise<{
   inicio?:string;fim?:string;erro?:string;conciliado?:string;
   situacao?:string;forma?:string;busca?:string;
@@ -40,9 +44,18 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
   const inicio=/^\d{4}-\d{2}-\d{2}$/.test(params.inicio??"")?String(params.inicio):hoje;
   const fim=/^\d{4}-\d{2}-\d{2}$/.test(params.fim??"")?String(params.fim):hoje;
   const supabase=await createClient();
-  const {data,error}=await supabase.rpc("listar_creditos_corporativos_v110",{
-    p_empresa_id:usuario.empresa.id,p_inicio:inicio,p_fim:fim,
-  });
+  const [creditosResp,historicoResp]=await Promise.all([
+    supabase.rpc("listar_creditos_corporativos_v110",{
+      p_empresa_id:usuario.empresa.id,p_inicio:inicio,p_fim:fim,
+    }),
+    supabase.rpc("historico_confirmacoes_cd_v113",{
+      p_empresa_id:usuario.empresa.id,p_inicio:inicio,p_fim:fim,
+    }),
+  ]);
+  const {data,error}=creditosResp;
+  const historicoError=historicoResp.error;
+  const confirmacoes=(Array.isArray(historicoResp.data)?historicoResp.data:[]) as Confirmacao[];
+  const porOrigem=new Map(confirmacoes.map(c=>[`${c.origem}-${c.origem_id}`,c]));
   const resumo=(data??{}) as Partial<Resumo>;
   const movimentos=Array.isArray(resumo.movimentos)?resumo.movimentos:[];
   const situacao=["TODOS","PENDENTE","CONCILIADO"].includes(params.situacao??"")?String(params.situacao):"TODOS";
@@ -64,7 +77,7 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
           <ArrowLeft size={18}/> Voltar às prestações
         </Link>
         <div className="mt-5 flex items-center gap-3"><Landmark size={30}/><div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Conciliação e fechamento · V112</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Conciliação e fechamento · V113</p>
           <h1 className="text-2xl font-black">PIX e cartão da empresa</h1>
         </div></div>
         <p className="mt-3 text-[12px] leading-6 text-emerald-50">
@@ -106,6 +119,9 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
           </a>}
         </div>
       </form>
+      {historicoError && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-[11px] font-semibold text-amber-900">
+        Histórico de conferência indisponível. Não será emitido comprovante sem rastreabilidade confirmada.
+      </p>}
       {error ? <div role="alert" className="rounded-2xl border border-red-100 bg-white p-5 text-xs text-red-900">
         Não foi possível consultar o extrato corporativo: {error.message}
       </div>:<>
@@ -149,10 +165,26 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
               </div>
             </div>
             {m.conciliado
-              ? <div className="mt-4 flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-[11px] text-emerald-950">
-                  <ShieldCheck size={17} className="shrink-0"/> {m.referencia?.startsWith("CONF-MANUAL-CD-")
-                    ? "Recebimento confirmado manualmente por funcionário autorizado do CD. Protocolo registrado no histórico."
-                    : <>Conferido no CD. Referência: {m.referencia??"registrada no fechamento"}</>}
+              ? <div className="mt-4 space-y-3 rounded-xl bg-emerald-50 p-4 text-[11px] text-emerald-950">
+                  {porOrigem.has(`${m.origem}-${m.origem_id}`) ? (()=>{
+                    const c=porOrigem.get(`${m.origem}-${m.origem_id}`)!;
+                    return <>
+                      <div className="flex items-start gap-2">
+                        <ShieldCheck size={18} className="shrink-0 text-emerald-800"/>
+                        <div className="space-y-1">
+                          <p className="font-black">Conferência registrada no CD · {c.protocolo}</p>
+                          <p>Responsável: <strong>{c.confirmado_por_nome}</strong></p>
+                          <p>Conferido em: <strong>{new Date(c.confirmado_at).toLocaleString("pt-BR",{timeZone:"America/Fortaleza",dateStyle:"short",timeStyle:"short"})}</strong></p>
+                          <p className="text-[10px] text-emerald-800">{c.tipo_confirmacao==="MANUAL_CD"?"Confirmação manual · sem integração com o banco":"Confirmado pelo CD com registro de auditoria"}</p>
+                        </div>
+                      </div>
+                      <Link
+                        href={`/admin/financeiro/prestacoes/creditos/comprovante?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}&origem=${encodeURIComponent(m.origem)}&id=${m.origem_id}`}
+                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-emerald-300 bg-white px-4 text-[11px] font-black text-emerald-900">
+                        Ver comprovante interno
+                      </Link>
+                    </>;
+                  })():<p className="font-semibold">Recebimento confirmado. Histórico de conferência indisponível no momento.</p>}
                 </div>
               : <form action={confirmarCreditoCorporativoV110} className="mt-4 space-y-3 rounded-[17px] border border-emerald-100 bg-[#f8fcf9] p-4">
                   <input type="hidden" name="origem" value={m.origem}/>
