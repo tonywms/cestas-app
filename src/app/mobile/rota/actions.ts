@@ -650,7 +650,12 @@ export async function encerrarMinhaRota(
     resultado.codigo ??
     "";
 
+  // V106.1: finalizar o itinerario nunca inicia devolucao nem fechamento de carga.
   redirect(
-    `/mobile/carga/fechar?rotaFinalizada=1&rota=${encodeURIComponent(rotaCodigo)}`,
+    `/mobile/rota?ok=${encodeURIComponent(
+      rotaCodigo
+        ? `Rota ${rotaCodigo} finalizada. Seu estoque móvel não foi devolvido ao CD.`
+        : "Rota finalizada. Seu estoque móvel permanece disponível.",
+    )}`,
   );
 }
