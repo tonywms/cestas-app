@@ -42,7 +42,7 @@ type Prestacao = {
   itens:Item[]; repasses:Repasse[];
 };
 type Antigo = { id:number; valor:number; forma_pagamento:string; created_at:string;
-  recebido_por:string; origem:"VENDA"|"COBRANCA" };
+  recebido_por:string; origem:"VENDA"|"COBRANCA"|"PARCELA" };
 type Props={searchParams:Promise<{
   erro?:string;configurado?:string;classificado?:string;repasse?:string;
   conciliado?:string;inicio?:string;fim?:string;
@@ -83,7 +83,7 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
     temPermissao(usuario.permissoes,PERMISSOES.EMPRESA_CONFIGURAR);
   const params=await searchParams;
   const supabase=await createClient();
-  const [configResp,prestResp,vendasResp,cobrancasResp,usuariosResp,historicoResp] = await Promise.all([
+  const [configResp,prestResp,vendasResp,cobrancasResp,parcelasResp,usuariosResp,historicoResp] = await Promise.all([
     supabase.from("empresa_configuracoes").select("destino_pix_v108,destino_cartao_v108")
       .eq("empresa_id",usuario.empresa.id).maybeSingle(),
     supabase.rpc("listar_prestacoes_v109",{p_empresa_id:usuario.empresa.id}),
@@ -91,15 +91,20 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
       .select("id,valor,forma_pagamento,created_at,recebido_por")
       .eq("empresa_id",usuario.empresa.id).is("destino_recebimento_v108",null)
       .in("forma_pagamento",["PIX","CARTAO"]).order("id",{ascending:false}).limit(100),
-    supabase.from("pagamentos")
+    supabase.from("recebimentos_cliente")
       .select("id,valor,forma_pagamento,created_at,recebido_por")
       .eq("empresa_id",usuario.empresa.id).is("destino_recebimento_v108",null)
       .in("forma_pagamento",["PIX","CARTAO"]).order("id",{ascending:false}).limit(100),
+    supabase.from("pagamentos")
+      .select("id,valor,forma_pagamento,created_at,recebido_por")
+      .eq("empresa_id",usuario.empresa.id).is("destino_recebimento_v108",null)
+      .is("recebimento_id",null).in("forma_pagamento",["PIX","CARTAO"])
+      .order("id",{ascending:false}).limit(100),
     supabase.from("usuarios").select("id,nome").eq("empresa_id",usuario.empresa.id).limit(200),
     supabase.from("prestacoes_contas_v108").select("id,status,data_referencia,valores_esperados")
       .eq("empresa_id",usuario.empresa.id).order("id",{ascending:false}).limit(10),
   ]);
-  if(configResp.error||prestResp.error||vendasResp.error||cobrancasResp.error||usuariosResp.error||historicoResp.error) {
+  if(configResp.error||prestResp.error||vendasResp.error||cobrancasResp.error||parcelasResp.error||usuariosResp.error||historicoResp.error) {
     return <main className="min-h-screen bg-slate-50 p-6 text-sm">
       <Link href="/admin/financeiro" className="font-bold text-emerald-800">Voltar ao Financeiro</Link>
       <h1 className="mt-4 text-xl font-black">Prestação de contas</h1>
@@ -113,6 +118,7 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
   const pendentes:Antigo[]=[
     ...(vendasResp.data??[]).map(v=>({...v,origem:"VENDA" as const})),
     ...(cobrancasResp.data??[]).map(v=>({...v,origem:"COBRANCA" as const})),
+    ...(parcelasResp.data??[]).map(v=>({...v,origem:"PARCELA" as const})),
   ].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
   const inicio=/^\d{4}-\d{2}-\d{2}$/.test(params.inicio??"")?params.inicio:null;
   const fim=/^\d{4}-\d{2}-\d{2}$/.test(params.fim??"")?params.fim:null;
@@ -176,7 +182,7 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {pendentes.map(item=><form key={item.origem+"-"+item.id} action={classificarRecebimentoAnterior}
             className="rounded-xl bg-white p-4">
-            <p className="text-[10px] font-black text-amber-800">{item.origem==="VENDA"?"Recebimento da venda":"Pagamento de parcela"} nº {item.id}</p>
+            <p className="text-[10px] font-black text-amber-800">{item.origem==="VENDA"?"Recebimento da venda":item.origem==="COBRANCA"?"Cobrança recebida":"Pagamento de parcela avulsa"} nº {item.id}</p>
             <p className="mt-2 text-base font-black">{moeda(item.valor)} · {item.forma_pagamento}</p>
             <p className="mt-1 text-[10px] text-slate-500">{nomes.get(item.recebido_por)??"Entregador"} · {diaBr(String(item.created_at).slice(0,10))}</p>
             <input type="hidden" name="origem" value={item.origem}/><input type="hidden" name="id" value={item.id}/>
