@@ -6,10 +6,10 @@ import { ArrowLeft, Banknote, Building2, CheckCircle2, CreditCard, ReceiptText, 
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
-import { configurarPrestacao,conferirPrestacao } from "./actions";
+import { configurarPrestacao,conferirPrestacao,classificarRecebimentoAnterior } from "./actions";
 
 type Valores={dinheiro?:number;pix_empresa?:number;pix_entregador?:number;cartao_empresa?:number;cartao_entregador?:number;sem_classificacao?:number;total_recebido?:number;quantidade_movimentos?:number};
-type Props={searchParams:Promise<{erro?:string;configurado?:string;conferido?:string}>};
+type Props={searchParams:Promise<{erro?:string;configurado?:string;conferido?:string;classificado?:string}>};
 const moeda=(v:unknown)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v??0));
 const numero=(v:unknown)=>Number(v??0);
 function Entrada({name,label,esperado,valor}:{name:string;label:string;esperado:unknown;valor?:unknown}){
@@ -27,17 +27,29 @@ export default async function PrestacoesCdPage({searchParams}:Props){
   const permiteConfig=usuario.isPlatformAdmin||temPermissao(usuario.permissoes,PERMISSOES.EMPRESA_CONFIGURAR);
   const params=await searchParams;
   const supabase=await createClient();
-  const [config,prest,usuarios]=await Promise.all([
+  const [config,prest,usuarios,antigasVendas,antigasCobrancas]=await Promise.all([
     supabase.from("empresa_configuracoes")
       .select("destino_pix_v108,destino_cartao_v108").eq("empresa_id",usuario.empresa.id).maybeSingle(),
     supabase.from("prestacoes_contas_v108")
       .select("id,data_referencia,entregador_id,status,valores_esperados,dinheiro_declarado,pix_repassado,cartao_repassado,comprovante_pix,comprovante_cartao,observacao_entregador,observacao_cd,conferido_at,pix_empresa_conciliado,cartao_empresa_conciliado")
       .eq("empresa_id",usuario.empresa.id).order("data_referencia",{ascending:false}).order("id",{ascending:false}).limit(100),
     supabase.from("usuarios").select("id,nome").eq("ativo",true).limit(200),
+    supabase.from("venda_recebimentos")
+      .select("id,valor,forma_pagamento,created_at,recebido_por")
+      .eq("empresa_id",usuario.empresa.id).is("destino_recebimento_v108",null)
+      .neq("forma_pagamento","DINHEIRO").order("id",{ascending:false}).limit(60),
+    supabase.from("pagamentos")
+      .select("id,valor,forma_pagamento,created_at,recebido_por")
+      .eq("empresa_id",usuario.empresa.id).is("destino_recebimento_v108",null)
+      .neq("forma_pagamento","DINHEIRO").order("id",{ascending:false}).limit(60),
   ]);
-  if(config.error||prest.error||usuarios.error)return <main className="p-6">Não foi possível consultar as prestações do CD. Confirme as permissões e atualize.</main>;
+  if(config.error||prest.error||usuarios.error||antigasVendas.error||antigasCobrancas.error)return <main className="p-6">Não foi possível consultar as prestações do CD. Confirme as permissões e atualize.</main>;
   const nomes=new Map((usuarios.data??[]).map(u=>[u.id,u.nome]));
   const cards=prest.data??[];
+  const pendentes=[
+    ...(antigasVendas.data??[]).map(r=>({...r,origem:"VENDA" as const})),
+    ...(antigasCobrancas.data??[]).map(r=>({...r,origem:"COBRANCA" as const})),
+  ].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
   return <main className="min-h-dvh bg-[#eef4ef] text-[#142018]">
     <div className="mx-auto max-w-[1160px] space-y-6 p-5 md:p-8">
       <header className="rounded-[27px] bg-[linear-gradient(130deg,#0e5731,#187b43)] p-6 text-white">
@@ -48,6 +60,7 @@ export default async function PrestacoesCdPage({searchParams}:Props){
         </p>
       </header>
       {params.configurado&&<p role="status" className="rounded-xl bg-emerald-50 p-4 text-xs font-black text-emerald-800">Destinatários atualizados. A configuração vale somente para novos recebimentos; os anteriores mantêm a origem original.</p>}
+      {params.classificado&&<p role="status" className="rounded-xl bg-emerald-50 p-4 text-xs font-black text-emerald-800">Titular confirmado e registrado na auditoria. O histórico original foi preservado.</p>}
       {params.conferido&&<p role="status" className="rounded-xl bg-emerald-50 p-4 text-xs font-black text-emerald-800">Prestação conferida e registrada com auditoria.</p>}
       {params.erro&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-xs font-black text-red-800">{params.erro.slice(0,320)}</p>}
 
@@ -77,6 +90,32 @@ export default async function PrestacoesCdPage({searchParams}:Props){
         </form>
         <p className="mt-3 text-[10px] leading-5 text-slate-500">A propriedade fica registrada em cada recebimento. Mudanças futuras não reclassificam recebimentos históricos.</p>
       </section>
+
+      {pendentes.length>0&&<section className="rounded-[25px] border border-amber-200 bg-amber-50 p-5">
+        <h2 className="text-[16px] font-black text-amber-950">Recebimentos antigos sem titular identificado</h2>
+        <p className="mt-2 text-[11px] leading-5 text-amber-900">
+          Confirme com o banco ou comprovante quem recebeu cada transação anterior à V108.
+          Não atribuiremos pagamentos automaticamente ao entregador.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {pendentes.map(item=><form action={classificarRecebimentoAnterior} key={`${item.origem}-${item.id}`}
+            className="rounded-xl border border-amber-100 bg-white p-4">
+            <p className="text-[10px] font-black text-amber-800">{item.origem==="VENDA"?"Venda":"Cobrança"} nº {item.id}</p>
+            <p className="mt-1 text-base font-black">{moeda(item.valor)} · {item.forma_pagamento}</p>
+            <p className="mt-1 text-[10px] text-slate-500">{nomes.get(item.recebido_por)??"Entregador"} · {String(item.created_at).slice(0,10)}</p>
+            <input type="hidden" name="origem" value={item.origem}/>
+            <input type="hidden" name="id" value={item.id}/>
+            <label className="mt-3 block text-[10px] font-black text-slate-700">Quem recebeu este pagamento?
+              <select name="destino" defaultValue="" required className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs">
+                <option value="" disabled>Confirmar titular</option>
+                <option value="EMPRESA">Empresa / dono</option>
+                <option value="ENTREGADOR">Entregador</option>
+              </select>
+            </label>
+            <button className="mt-3 h-10 w-full rounded-lg bg-amber-800 text-[11px] font-black text-white">Confirmar titular</button>
+          </form>)}
+        </div>
+      </section>}
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
