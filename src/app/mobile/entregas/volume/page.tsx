@@ -157,8 +157,8 @@ export default async function EntregaVolumePage({
   );
   const cargaIdSelecionada = Number(cargaSelecionada);
   if (erroEscolha || !Number.isSafeInteger(cargaIdSelecionada) || cargaIdSelecionada < 1) {
-    redirect("/mobile/carga/selecionar?erro=" + encodeURIComponent(
-      "Selecione a carga que deseja usar antes de realizar uma entrega.",
+    redirect("/mobile/estoque?erro=" + encodeURIComponent(
+      "Não foi possível confirmar o estoque desta venda. Volte ao estoque móvel e escolha o tipo de cesta.",
     ));
   }
 
@@ -325,8 +325,8 @@ export default async function EntregaVolumePage({
         .maybeSingle();
 
     if (!rota || Number(rota.carga_id) !== cargaIdSelecionada) {
-      redirect("/mobile/carga/selecionar?erro=" + encodeURIComponent(
-        "A parada informada pertence a outra carga. Selecione a carga correta antes da entrega.",
+      redirect("/mobile/rota?erro=" + encodeURIComponent(
+        "A parada está vinculada a uma origem técnica incompatível com esta entrega. Nenhuma cesta foi baixada.",
       ));
     }
 
