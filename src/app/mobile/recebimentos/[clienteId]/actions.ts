@@ -294,6 +294,22 @@ export async function registrarRecebimento(
   const supabase =
     await createClient();
 
+  // V118: conferir no servidor a titularidade anunciada ao vendedor.
+  // Uma mudança de destinatário pelo CD exige recarregar a tela.
+  if (forma === "PIX" || forma === "CARTAO") {
+    const destinoMostrado = String(formData.get("destino_exibido") ?? "").trim();
+    const { data: config, error: configErro } = await supabase
+      .from("empresa_configuracoes")
+      .select("destino_pix_v108,destino_cartao_v108")
+      .eq("empresa_id", usuario.empresa.id)
+      .maybeSingle();
+    const destinoAtual = forma === "PIX" ? config?.destino_pix_v108 : config?.destino_cartao_v108;
+    if (configErro || !["EMPRESA","ENTREGADOR"].includes(destinoAtual ?? "") ||
+        destinoAtual !== destinoMostrado) {
+      return estadoVazio("A conta PIX ou maquineta foi alterada pelo CD ou está indisponível. Atualize o atendimento antes de confirmar.");
+    }
+  }
+
   const {
     data,
     error,
