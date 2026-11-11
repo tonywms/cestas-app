@@ -229,7 +229,7 @@ return (
             {/* V92.1: detalhamento recolhido por padrao; total sempre visivel. */}
             <div className="card-premium animate-pop rounded-[28px] p-5 shadow-[0_28px_60px_rgba(17,63,33,0.16)]">
               <Link prefetch={false}
-                href="/mobile/carga"
+                href="/mobile/estoque"
                 className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -237,7 +237,7 @@ return (
                     <div className="icon-emerald flex h-9 w-9 items-center justify-center rounded-[12px]">
                       <Truck size={19} />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#176b3a]">Minha carga</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#176b3a]">Meu estoque</span>
                   </div>
                   <span
                     className={`shrink-0 rounded-full px-3 py-1.5 text-[9px] font-black ${
@@ -253,7 +253,7 @@ return (
                 </div>
                 <h2 className="mt-4 text-xl font-black tracking-[-0.03em]">Estoque móvel</h2>
                 <p className="mt-2 text-xs leading-5 text-[#849085]">
-                  Saldo consolidado das cargas recebidas e ativas.
+                  Cestas disponíveis para vender e entregar, sem escolher carga de origem.
                 </p>
               </Link>
 
@@ -271,7 +271,7 @@ return (
                   <details className="group mt-3 rounded-xl border border-emerald-100 bg-[#f5faf5]">
                     <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-[#176b3a] focus-visible:outline-2 focus-visible:outline-emerald-700 [&::-webkit-details-marker]:hidden">
                       <span className="text-[11px] font-black">
-                        Ver cargas ({resultadoSaldo?.cargas.length ?? 0})
+                        Origens dos volumes (rastreabilidade)
                       </span>
                       <ChevronDown aria-hidden="true" size={17} className="shrink-0 transition-transform duration-200 group-open:rotate-180" />
                     </summary>
@@ -283,7 +283,7 @@ return (
                               Carga nº {carga.id} · {carga.codigo}
                             </p>
                             {cargaEmOperacao?.id === carga.id && (
-                              <p className="font-bold text-emerald-700">Em operação</p>
+                              <p className="font-bold text-emerald-700">Origem registrada</p>
                             )}
                           </div>
                           <strong className="shrink-0 text-[#176b3a]">
@@ -293,7 +293,7 @@ return (
                       ))}
                       {(resultadoSaldo?.cargas.length ?? 0) > 4 && (
                         <p className="text-[10px] font-semibold text-[#176b3a]">
-                          Mais {(resultadoSaldo?.cargas.length ?? 0) - 4} carga(s) no seletor.
+                          Mais {(resultadoSaldo?.cargas.length ?? 0) - 4} origens no histórico.
                         </p>
                       )}
                       {(resultadoSaldo?.pendentes ?? 0) > 0 && (
@@ -301,8 +301,8 @@ return (
                           {(resultadoSaldo?.pendentes ?? 0)} carga(s) aguardando confirmação física; não incluídas no total.
                         </p>
                       )}
-                      <Link prefetch={false} href="/mobile/carga/selecionar" className="inline-flex items-center gap-1 pt-1 text-[11px] font-bold text-[#176b3a] underline underline-offset-2">
-                        Gerenciar cargas <ChevronRight size={14} aria-hidden="true" />
+                      <Link prefetch={false} href="/mobile/carga" className="inline-flex items-center gap-1 pt-1 text-[11px] font-bold text-[#176b3a] underline underline-offset-2">
+                        Ver recebimentos do CD <ChevronRight size={14} aria-hidden="true" />
                       </Link>
                     </div>
                   </details>
@@ -352,8 +352,8 @@ return (
                 icon={
                   <PackageOpen size={22} />
                 }
-                titulo="Minha carga"
-                descricao="Consultar estoque móvel"
+                titulo="Receber do CD"
+                descricao="Conferir cargas e bipar volumes"
                 delay={100}
               />
             )}
@@ -372,12 +372,12 @@ return (
 
             {podeVenderCampo && (
               <ActionCard
-                href="/mobile/clientes?modo=venda-direta"
+                href="/mobile/estoque"
                 icon={
                   <ShoppingBag size={22} />
                 }
                 titulo="Venda em campo"
-                descricao="Usar cestas da carga selecionada"
+                descricao="Usar meu estoque móvel"
                 delay={210}
               />
             )}
