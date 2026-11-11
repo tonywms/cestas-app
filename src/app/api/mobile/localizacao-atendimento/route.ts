@@ -5,8 +5,6 @@ import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
 
 type Tipo = "ENTREGA" | "VENDA" | "COBRANCA";
 const isTipo = (x: unknown): x is Tipo => x === "ENTREGA" || x === "VENDA" || x === "COBRANCA";
