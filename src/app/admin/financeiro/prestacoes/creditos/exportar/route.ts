@@ -4,8 +4,6 @@ import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 
-export const dynamic = "force-dynamic";
-
 type Movimento = {
   origem: string; origem_id: number; cliente_nome: string; cliente_id: number;
   recebido_at: string; entregador_nome?: string; forma: string; valor: number;
