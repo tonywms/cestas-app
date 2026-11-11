@@ -176,8 +176,8 @@ export default async function SelecionarCargaMobilePage({ searchParams }: Props)
             </div>
             <span className="h-11 w-11" aria-hidden="true" />
           </div>
-          <p className="mt-4 text-xs leading-relaxed text-emerald-100">
-            Receba qualquer carga atribuída ao seu usuário, mesmo com uma rota aberta. Cada carga mantém o próprio saldo e histórico; a rota não bloqueia o seu estoque.
+          <p className="mt-4 text-[12px] leading-5 text-emerald-100">
+            Escolha o estoque que vai usar. Receber volumes do CD, vender cestas e devolver ao CD são operações separadas.
           </p>
         </header>
         <section className="space-y-3 p-4">
