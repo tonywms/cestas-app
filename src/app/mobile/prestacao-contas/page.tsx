@@ -182,6 +182,24 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
           {resumo.detalhe_limitado && <p className="mt-3 text-[10px] font-semibold text-amber-900">A lista foi limitada a 500 movimentos. Reduza o intervalo para consultar todo o detalhe.</p>}
         </section>
 
+        {valorResponsabilidade<=0 ? (
+          <section className="rounded-[24px] border border-emerald-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-2 text-emerald-800"><CheckCircle2 size={20}/><h2 className="text-[14px] font-black">Nenhum dinheiro a repassar destes recebimentos</h2></div>
+            <p className="mt-3 text-[11px] leading-6 text-slate-700">
+              PIX e cartão da empresa já foram informados pelo aplicativo como recebidos diretamente
+              pelo titular da empresa. Você não precisa enviar uma prestação de R$ 0,00.
+            </p>
+            <div className="mt-3 rounded-[15px] bg-emerald-50 p-3">
+              <p className="text-[10px] font-black text-emerald-800">Conciliação pendente com o CD</p>
+              <p className="mt-1 text-[12px] leading-5 text-emerald-950">
+                O Financeiro confere o extrato bancário e a maquineta diretamente, sem cobrar outro repasse de você.
+              </p>
+            </div>
+            {valorPendenteAnterior>0 && <p className="mt-3 text-[10px] text-amber-900">
+              Atenção: existem acertos anteriores ainda pendentes. Consulte os protocolos abaixo.
+            </p>}
+          </section>
+        ) : (
         <section className="rounded-[24px] bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-emerald-800"><WalletCards size={19}/><h2 className="text-[14px] font-black">Enviar prestação ao CD</h2></div>
           <p className="mt-2 text-[10px] leading-5 text-slate-600">
@@ -208,6 +226,7 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
             <p className="text-center text-[10px] leading-5 text-slate-500">Enviar não significa repasse quitado. Só a confirmação do CD reduz o saldo sob sua responsabilidade.</p>
           </form>
         </section>
+        )}
 
         {prestacoes.length>0 && <section className="rounded-[23px] bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2 text-emerald-800"><FileClock size={19}/><h2 className="text-[13px] font-black">Meus protocolos de prestação</h2></div>
