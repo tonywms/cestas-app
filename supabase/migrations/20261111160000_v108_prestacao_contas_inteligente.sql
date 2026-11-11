@@ -137,7 +137,7 @@ BEGIN
    'cartao_empresa',coalesce(sum(valor) FILTER (WHERE forma='CARTAO' AND destino='EMPRESA'),0),
    'cartao_entregador',coalesce(sum(valor) FILTER (WHERE forma='CARTAO' AND destino='ENTREGADOR'),0),
    'sem_classificacao',coalesce(sum(abs(valor)) FILTER (WHERE
-        (forma<>'DINHEIRO' AND destino IS NULL) OR forma IN ('TRANSFERENCIA','OUTRO')),0),
+        (forma<>'DINHEIRO' AND destino IS NULL)),0),
    'total_recebido',coalesce(sum(valor),0),
    'quantidade_movimentos',count(*)
  ) INTO v_res FROM movimentos;
@@ -325,6 +325,45 @@ BEGIN
  RETURN jsonb_build_object('id',v_p.id,'status',v_status,'divergencia',v_div);
 END;
 $$;
+
+-- Registros anteriores à V108 não são inferidos. O CD os classifica explicitamente.
+CREATE OR REPLACE FUNCTION public.classificar_recebimento_v108(
+ p_empresa_id uuid,p_origem text,p_id bigint,p_destino text
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+AS $
+DECLARE v_uid uuid:=auth.uid();v_forma text;v_linhas integer;
+BEGIN
+ IF v_uid IS NULL OR NOT app_private.is_empresa_member(p_empresa_id) OR
+    NOT app_private.has_permission(p_empresa_id,'FINANCEIRO_AUDITAR') THEN
+   RAISE EXCEPTION 'Sem permissão para classificar recebimentos antigos.';
+ END IF;
+ IF p_destino NOT IN ('EMPRESA','ENTREGADOR') THEN
+   RAISE EXCEPTION 'Titular inválido.';
+ END IF;
+ IF p_origem='VENDA' THEN
+  UPDATE public.venda_recebimentos
+   SET destino_recebimento_v108=p_destino
+   WHERE id=p_id AND empresa_id=p_empresa_id AND destino_recebimento_v108 IS NULL
+     AND forma_pagamento<>'DINHEIRO';
+ ELSIF p_origem='COBRANCA' THEN
+  UPDATE public.pagamentos
+   SET destino_recebimento_v108=p_destino
+   WHERE id=p_id AND empresa_id=p_empresa_id AND destino_recebimento_v108 IS NULL
+     AND forma_pagamento<>'DINHEIRO';
+ ELSE
+   RAISE EXCEPTION 'Origem inválida.';
+ END IF;
+ GET DIAGNOSTICS v_linhas=ROW_COUNT;
+ IF v_linhas<>1 THEN
+   RAISE EXCEPTION 'Lançamento não encontrado, já classificado ou inválido.';
+ END IF;
+ INSERT INTO public.auditoria_eventos(empresa_id,usuario_id,entidade,entidade_id,acao,dados)
+ VALUES(p_empresa_id,v_uid,'RECEBIMENTO',p_origem||'-'||p_id::text,
+   'TITULAR_CLASSIFICADO_MANUALMENTE_V108',
+   jsonb_build_object('origem',p_origem,'id',p_id,'titular',p_destino));
+ RETURN jsonb_build_object('classificado',true,'origem',p_origem,'id',p_id,'titular',p_destino);
+END;
+$;
 
 REVOKE ALL ON FUNCTION public.resumo_prestacao_v108(uuid,date,uuid),
  public.enviar_prestacao_v108(uuid,date,numeric,numeric,numeric,text,text,text),
