@@ -507,27 +507,28 @@ export default async function MinhaCargaPage() {
 
         <Header />
 
-        <IdentificacaoCargaMobile numero={carga.id} codigo={carga.codigo} status={recebimentoCompleto ? "NO ESTOQUE MÓVEL" : "A RECEBER"} />
+        <IdentificacaoCargaMobile numero={carga.id} codigo={carga.codigo} status={recebimentoCompleto ? (saldo > 0 ? "COM ESTOQUE" : "SEM SALDO") : "A RECEBER"} />
 
 
         {/* V105.5.8: estoque em posse, sem confundir com devolucao ao CD. */}
         <section aria-label="Saldo da carga em uso" className="mx-4 mt-3 rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.13em] text-emerald-800">Seu estoque nesta carga</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.13em] text-emerald-800">{recebimentoCompleto ? "Seu estoque nesta carga" : "Carga aguardando recebimento"}</p>
           <div className="mt-2 flex items-center justify-between gap-3">
             <div>
               <p className="text-[31px] font-black leading-none tabular-nums text-emerald-950">{saldo}</p>
-              <p className="mt-1 text-[11px] font-semibold text-emerald-800">cestas em posse</p>
+              <p className="mt-1 text-[11px] font-semibold text-emerald-800">{recebimentoCompleto ? "cestas em posse" : "cestas a conferir"}</p>
             </div>
             <span className="rounded-full bg-white px-3 py-2 text-[10px] font-bold text-emerald-800">
               {recebimentoCompleto ? "Recebimento confirmado" : "Conferência pendente"}
             </span>
           </div>
           <p className="mt-3 text-[10px] leading-5 text-emerald-800">
-            O saldo permanece com você até uma entrega ou devolução confirmada.
-            Finalizar uma rota não devolve as cestas automaticamente ao CD.
+            {recebimentoCompleto
+              ? "O saldo permanece com você até uma entrega ou devolução confirmada. Finalizar uma rota não devolve cestas automaticamente."
+              : "Primeiro confirme os volumes recebidos do CD. A bipagem não realiza nenhuma devolução."}
           </p>
-          <Link prefetch={false} href="/mobile" className="mt-3 flex min-h-[44px] items-center justify-center rounded-[13px] bg-emerald-800 px-4 py-2.5 text-[12px] font-black text-white">
-            Ir para vendas e entregas
+          <Link prefetch={false} href={recebimentoCompleto ? "/mobile" : "/mobile/carga/receber"} className="mt-3 flex min-h-[44px] items-center justify-center rounded-[13px] bg-emerald-800 px-4 py-2.5 text-[12px] font-black text-white">
+            {recebimentoCompleto ? "Ir para vendas e entregas" : "Receber volumes do CD"}
           </Link>
         </section>
         <div className="px-4 py-3">
