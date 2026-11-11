@@ -337,6 +337,23 @@ export default async function MinhaCargaPage() {
         )
       : 0;
 
+  // V105.5.9: a carga selecionada e o contexto de venda, nunca a primeira rota global.
+  const podeVenderDaCarga =
+    usuario.isPlatformAdmin ||
+    temPermissao(usuario.permissoes, PERMISSOES.ENTREGA_REALIZAR);
+  const podeIniciarRotaVenda =
+    usuario.isPlatformAdmin ||
+    temPermissao(usuario.permissoes, PERMISSOES.ROTA_MOBILE_GERENCIAR_PROPRIA);
+  const podeVerRota =
+    usuario.isPlatformAdmin ||
+    temPermissao(usuario.permissoes, PERMISSOES.ROTA_VISUALIZAR);
+  const podeCadastrarCliente =
+    usuario.isPlatformAdmin ||
+    temPermissao(usuario.permissoes, PERMISSOES.CLIENTE_MOBILE_CADASTRAR);
+  const podeEditarCliente =
+    usuario.isPlatformAdmin ||
+    temPermissao(usuario.permissoes, PERMISSOES.CLIENTE_MOBILE_EDITAR);
+
   const podeFecharCarga =
     usuario.isPlatformAdmin ||
     temPermissao(
@@ -421,6 +438,25 @@ export default async function MinhaCargaPage() {
       rotaFinalizadaError,
     );
   }
+
+  // A RPC atual de venda nao aceita iniciar uma rota se ja existe outra
+  // carga com rota ativa. Nao oferecer um botao que geraria erro silencioso
+  // ou contabilizacao de vendas na carga incorreta.
+  const { data: rotaDeOutraCarga, error: erroRotaDeOutraCarga } =
+    await supabaseRota
+      .from("rotas")
+      .select("id, codigo, carga_id")
+      .eq("empresa_id", empresaId)
+      .eq("entregador_id", entregadorId)
+      .in("status", ["PLANEJADA", "EM_ROTA"])
+      .neq("carga_id", carga.id)
+      .not("carga_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+
+  const vendaDaCargaBloqueada =
+    Boolean(erroRotaDeOutraCarga) || Boolean(rotaAtivaError) ||
+    Boolean(rotaDeOutraCarga);
 
   const temRotaAtiva =
     !!rotaAtiva;
@@ -527,8 +563,8 @@ export default async function MinhaCargaPage() {
               ? "O saldo permanece com você até uma entrega ou devolução confirmada. Finalizar uma rota não devolve cestas automaticamente."
               : "Primeiro confirme os volumes recebidos do CD. A bipagem não realiza nenhuma devolução."}
           </p>
-          <Link prefetch={false} href={recebimentoCompleto ? "/mobile" : "/mobile/carga/receber"} className="mt-3 flex min-h-[44px] items-center justify-center rounded-[13px] bg-emerald-800 px-4 py-2.5 text-[12px] font-black text-white">
-            {recebimentoCompleto ? "Ir para vendas e entregas" : "Receber volumes do CD"}
+          <Link prefetch={false} href={recebimentoCompleto ? "#acoes-carga" : "/mobile/carga/receber"} className="mt-3 flex min-h-[44px] items-center justify-center rounded-[13px] bg-emerald-800 px-4 py-2.5 text-[12px] font-black text-white">
+            {recebimentoCompleto ? "O que posso fazer com esta carga?" : "Receber volumes do CD"}
           </Link>
         </section>
         <div className="px-4 py-3">
@@ -544,6 +580,75 @@ export default async function MinhaCargaPage() {
             <span className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2.5 text-[11px] font-extrabold text-white">Trocar →</span>
           </Link>
         </div>
+
+        <section id="acoes-carga" aria-label="Ações da carga selecionada" className="scroll-mt-6 px-4 pt-3">
+          <div className="rounded-[24px] border border-emerald-200 bg-white p-4 shadow-[0_10px_30px_rgba(17,63,33,0.06)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.13em] text-emerald-800">Trabalhar com a carga nº {carga.id}</p>
+            <h2 className="mt-1 text-[18px] font-black text-slate-900">O que deseja fazer?</h2>
+            <p className="mt-2 text-[11px] leading-5 text-slate-600">
+              {recebimentoCompleto
+                ? `Você tem ${saldo} cesta(s) desta carga. Use os atalhos abaixo para atender seus clientes.`
+                : "Primeiro confira o recebimento dos volumes do CD para liberar o estoque."}
+            </p>
+
+            {!recebimentoCompleto ? (
+              <Link prefetch={false} href="/mobile/carga/receber"
+                className="mt-4 flex min-h-[52px] items-center justify-center rounded-[15px] bg-emerald-800 px-4 text-[12px] font-black text-white">
+                Receber e bipar os volumes
+              </Link>
+            ) : (
+              <div className="mt-4 space-y-2">
+                {saldo > 0 && podeVenderDaCarga && podeIniciarRotaVenda && !vendaDaCargaBloqueada ? (
+                  <Link prefetch={false} href="/mobile/clientes?modo=venda"
+                    className="flex min-h-[56px] items-center justify-center gap-2 rounded-[16px] bg-emerald-800 px-4 text-[13px] font-black text-white">
+                    Vender cesta da carga nº {carga.id}
+                  </Link>
+                ) : saldo > 0 && podeVenderDaCarga && podeIniciarRotaVenda && vendaDaCargaBloqueada ? (
+                  <div role="status" className="rounded-[16px] border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-[11px] font-black text-amber-950">Venda desta carga ainda bloqueada no servidor</p>
+                    <p className="mt-1 text-[10px] leading-5 text-amber-900">
+                      {rotaDeOutraCarga
+                        ? `A rota ${rotaDeOutraCarga.codigo} pertence à carga nº ${rotaDeOutraCarga.carga_id}.
+                           O fluxo antigo impede abrir uma venda desta carga sem misturar rotas. Seu estoque continua disponível, sem devolução.`
+                        : "Não foi possível verificar a associação da rota. Atualize a página antes de tentar uma venda."}
+                    </p>
+                  </div>
+                ) : saldo === 0 ? (
+                  <p className="rounded-xl bg-slate-50 p-3 text-[11px] font-semibold text-slate-700">
+                    Sem cestas disponíveis nesta carga para novas entregas.
+                  </p>
+                ) : podeVenderDaCarga && !podeIniciarRotaVenda ? (
+                  <p className="rounded-xl bg-amber-50 p-3 text-[11px] text-amber-900">
+                    Sua empresa ainda não autorizou a rotina de venda em campo neste perfil.
+                  </p>
+                ) : null}
+
+                <div className="grid grid-cols-2 gap-2">
+                  {(podeCadastrarCliente || podeEditarCliente || podeVenderDaCarga) && (
+                    <Link prefetch={false} href="/mobile/clientes"
+                      className="flex min-h-[48px] items-center justify-center rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 text-center text-[11px] font-black text-emerald-900">
+                      Clientes / cadastro
+                    </Link>
+                  )}
+                  {podeVerRota && temRotaAtiva && !rotaAtivaError && (
+                    <Link prefetch={false} href="/mobile/rota"
+                      className="flex min-h-[48px] items-center justify-center rounded-[14px] border border-emerald-200 bg-white px-3 text-center text-[11px] font-black text-emerald-900">
+                      Atender rota desta carga
+                    </Link>
+                  )}
+                  <Link prefetch={false} href="/mobile/carga/selecionar"
+                    className="flex min-h-[48px] items-center justify-center rounded-[14px] border border-emerald-200 bg-white px-3 text-center text-[11px] font-black text-emerald-900">
+                    Usar outra carga
+                  </Link>
+                </div>
+              </div>
+            )}
+            <p className="mt-3 text-[10px] leading-5 text-slate-500">
+              Selecionar uma carga, consultar clientes e abrir telas não movimenta o estoque.
+              A baixa só ocorre quando uma entrega é confirmada.
+            </p>
+          </div>
+        </section>
 
         <section className="px-5 py-6">
 
