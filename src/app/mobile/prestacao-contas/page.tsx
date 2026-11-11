@@ -12,6 +12,7 @@ import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { enviarPrestacaoPeriodoMobile } from "./actions";
+import ModalPrestacaoEnviadaV118 from "./ModalPrestacaoEnviadaV118";
 
 type Movimento = {
   origem: string; origem_id: number; cliente_nome: string; cliente_id: number;
@@ -93,6 +94,10 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
   const novos = movimentos.filter(m => m.prestacao_id == null);
   const incertos = n(resumo.sem_classificacao) > 0;
   const acertosMesmoPeriodo = prestacoes.filter(p => p.inicio === inicio && p.fim === fim);
+  const idEnviado=Number(params.enviada??0);
+  const prestacaoEnviada=(Number.isSafeInteger(idEnviado)&&idEnviado>0)
+    ?prestacoes.find(p=>p.id===idEnviado&&p.inicio===inicio&&p.fim===fim&&p.status==="ENVIADA")
+    :undefined;
   const dinheiro = n(resumo.dinheiro), pixEmpresa = n(resumo.pix_empresa);
   const pixEntregador = n(resumo.pix_entregador), cartaoEmpresa = n(resumo.cartao_empresa);
   const cartaoEntregador = n(resumo.cartao_entregador);
@@ -132,9 +137,11 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
           <button type="submit" className="mt-3 h-11 w-full rounded-xl bg-emerald-800 text-[12px] font-black text-white">Consultar movimentações</button>
         </form>
 
-        {params.enviada && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-[11px] font-bold text-emerald-900">
-          Prestação nº {params.enviada} enviada. O CD ainda precisa conferir dinheiro, repasses e créditos corporativos.
-        </p>}
+        {prestacaoEnviada&&<ModalPrestacaoEnviadaV118
+          protocolo={prestacaoEnviada.id}
+          saldoPendente={n(prestacaoEnviada.pendente_dinheiro)+n(prestacaoEnviada.pendente_pix)+n(prestacaoEnviada.pendente_cartao)}
+          destinoFechar={`/mobile/prestacao-contas?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`}
+        />}
         {params.erro && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-[11px] font-semibold text-red-900">{params.erro.slice(0,250)}</p>}
 
         <div className="rounded-[24px] bg-white p-5 shadow-sm">
