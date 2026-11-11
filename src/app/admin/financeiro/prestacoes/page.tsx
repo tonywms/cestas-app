@@ -100,7 +100,7 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
       .eq("empresa_id",usuario.empresa.id).is("destino_recebimento_v108",null)
       .is("recebimento_id",null).in("forma_pagamento",["PIX","CARTAO"])
       .order("id",{ascending:false}).limit(100),
-    supabase.from("usuarios").select("id,nome").eq("empresa_id",usuario.empresa.id).limit(200),
+    supabase.from("usuarios").select("id,nome").eq("ativo",true).limit(200),
     supabase.from("prestacoes_contas_v108").select("id,status,data_referencia,valores_esperados")
       .eq("empresa_id",usuario.empresa.id).order("id",{ascending:false}).limit(10),
   ]);
