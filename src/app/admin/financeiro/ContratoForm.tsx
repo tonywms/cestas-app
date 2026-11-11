@@ -2,7 +2,6 @@
 
 import {
   CalendarDays,
-  CheckCircle2,
   FilePlus2,
   Save,
   UserRound,
@@ -19,6 +18,7 @@ import {
 import {
   criarContrato,
 } from "./actions";
+import ConfirmacaoFinanceiraModal from "@/components/admin/ConfirmacaoFinanceiraModal";
 
 const initialState = {
   success: false,
@@ -230,57 +230,33 @@ export default function ContratoForm({
         </button>
       </form>
 
-      {modal &&
-        state.message && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[#07150d]/55 p-4 backdrop-blur-[5px]">
-            <div className="w-full max-w-[410px] rounded-[30px] bg-white p-7 text-center shadow-[0_30px_100px_rgba(15,50,30,0.25)]">
-              <div
-                className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${
-                  state.success
-                    ? "bg-emerald-50 text-emerald-600"
-                    : "bg-red-50 text-red-600"
-                }`}
-              >
-                {state.success ? (
-                  <CheckCircle2
-                    size={31}
-                  />
-                ) : (
-                  <XCircle
-                    size={31}
-                  />
-                )}
-              </div>
-
-              <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
-                {state.success
-                  ? "Contrato criado"
-                  : "Falha no cadastro"}
-              </p>
-
-              <h3 className="mt-2 text-xl font-black tracking-[-0.035em]">
-                {state.success
-                  ? state.codigo ??
-                    "Crediário criado"
-                  : "Não foi possível criar"}
-              </h3>
-
-              <p className="mt-3 text-[12px] leading-6 text-slate-500">
-                {state.message}
-              </p>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setModal(false)
-                }
-                className="mt-6 h-[50px] w-full rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
-              >
-                Entendi
-              </button>
+      {modal && state.success && state.message && (
+        <ConfirmacaoFinanceiraModal
+          titulo="Contrato criado com sucesso"
+          descricao={state.message}
+          destinoAposFechar="/admin/financeiro"
+          identificacao={state.codigo??`Contrato nº ${state.contratoId??"registrado"}`}
+          detalhe="As parcelas foram geradas e o contrato está disponível no Financeiro."
+        />
+      )}
+      {modal && !state.success && state.message && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-[3px]">
+          <div role="alertdialog" aria-modal="true" aria-labelledby="financeiro-contrato-erro"
+            className="w-full max-w-[420px] rounded-[28px] bg-white p-7 text-center shadow-[0_25px_100px_rgba(0,0,0,0.28)]">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <XCircle size={34}/>
             </div>
+            <h3 id="financeiro-contrato-erro" className="mt-5 text-xl font-black text-slate-950">
+              Contrato não registrado
+            </h3>
+            <p className="mt-3 text-[12px] leading-6 text-slate-600">{state.message}</p>
+            <button type="button" onClick={()=>setModal(false)}
+              className="mt-6 min-h-[50px] w-full rounded-xl bg-emerald-800 px-4 text-sm font-black text-white">
+              Entendi, corrigir
+            </button>
           </div>
-        )}
+        </div>
+      )}
     </>
   );
 }
