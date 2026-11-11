@@ -104,7 +104,7 @@ export async function registrarRepasseV109(form: FormData) {
   } catch(e) { redirect(aviso(e instanceof Error?e.message:"Valores inválidos.")); }
   if(valorRepasse<=0 || referencia.length>250)redirect(aviso("Informe valor positivo e referência válida."));
   const supabase=await createClient();
-  const {error}=await supabase.rpc("registrar_repasse_cd_v109",{
+  const {data,error}=await supabase.rpc("registrar_repasse_cd_v109",{
     p_empresa_id:usuario.empresa.id,p_prestacao_id:id,p_forma:forma,
     p_valor:valorRepasse,p_taxa_cartao:taxa,
     p_referencia:referencia||null,p_chave_operacao:chave,
@@ -115,7 +115,10 @@ export async function registrarRepasseV109(form: FormData) {
   }
   revalidatePath("/admin/financeiro/prestacoes");
   revalidatePath("/mobile/prestacao-contas");
-  redirect("/admin/financeiro/prestacoes?repasse=1");
+  const repasseId=Number((data as {repasse_id?:number}|null)?.repasse_id??0);
+  const query=new URLSearchParams({repasse:"1",prestacao:String(id)});
+  if(Number.isSafeInteger(repasseId)&&repasseId>0)query.set("repasseId",String(repasseId));
+  redirect("/admin/financeiro/prestacoes?"+query.toString());
 }
 
 export async function conciliarCreditoEmpresaV109(form:FormData) {
