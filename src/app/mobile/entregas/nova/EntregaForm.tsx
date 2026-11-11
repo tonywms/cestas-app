@@ -124,17 +124,15 @@ export default function EntregaForm({
           />
         )}
 
-        {/* CARGA */}
+        {/* Origem tecnica preservada no movimento; nenhuma carga precisa ser escolhida. */}
         <div className="rounded-[26px] bg-white p-5 shadow-sm">
-
           <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700">
-            Carga atual
+            Meu estoque móvel
           </p>
-
-          <h2 className="mt-2 text-lg font-black">
-            {cargaCodigo}
-          </h2>
-
+          <h2 className="mt-2 text-lg font-black">Confirmar entrega</h2>
+          <p className="mt-1 text-[10px] leading-5 text-slate-500">
+            O tipo de cesta vem do estoque disponível. A origem é registrada automaticamente para rastreabilidade.
+          </p>
         </div>
 
         {/* CLIENTE DA ROTA */}
