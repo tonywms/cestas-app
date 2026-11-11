@@ -575,14 +575,14 @@ export default async function FecharCargaPage({
 
               <div>
                 <h2 className="text-[24px] font-black tracking-[-0.045em]">
-                  Conferência final
+                  Devolução ao CD
                   <span className="text-[#f4b13f]">
                     .
                   </span>
                 </h2>
 
                 <p className="mt-1 text-[10px] leading-5 text-white/65">
-                  Classifique apenas o que voltou ou avariou.
+                  Encerramento da carga selecionada. Nada é devolvido enquanto você não confirmar.
                 </p>
               </div>
 
@@ -781,7 +781,7 @@ export default async function FecharCargaPage({
                     Carga liberada para fechamento
                   </p>
                   <p className="mt-1 text-[9px] leading-4 text-emerald-700/80">
-                    Todo saldo restante começa como retorno ao estoque central. Informe apenas as avarias, se houver.
+                    Esta tela prepara uma devolução, não um recebimento do CD. O saldo continua no estoque móvel até a confirmação final. Só informe avaria quando houver dano real.
                   </p>
                 </div>
               </div>
