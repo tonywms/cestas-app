@@ -99,7 +99,7 @@ export async function iniciarMinhaRota() {
     error,
   } =
     await supabase.rpc(
-      "mobile_iniciar_rota_propria",
+      "mobile_iniciar_rota_sem_carga_v106",
       {
         p_empresa_id:
           usuario.empresa.id,
@@ -127,9 +127,8 @@ export async function iniciarMinhaRota() {
   [
     "/mobile",
     "/mobile/rota",
-    "/mobile/carga",
+    "/mobile/estoque",
     "/admin/rotas",
-    "/admin/cargas",
   ].forEach(
     (
       path,
@@ -634,9 +633,8 @@ export async function encerrarMinhaRota(
   [
     "/mobile",
     "/mobile/rota",
-    "/mobile/carga",
+    "/mobile/estoque",
     "/admin/rotas",
-    "/admin/cargas",
   ].forEach(
     (
       path,
