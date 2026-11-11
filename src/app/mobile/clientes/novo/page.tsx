@@ -22,7 +22,9 @@ import {
 
 import NovoClienteMobileForm from "./NovoClienteMobileForm";
 
-export default async function NovoClienteMobilePage() {
+export default async function NovoClienteMobilePage({ searchParams }: { searchParams?: Promise<{ modo?: string }> }) {
+  const params = searchParams ? await searchParams : {};
+  const voltaParaVenda = params.modo === "venda-direta";
   const usuario =
     await getCurrentUserProfile();
 
@@ -52,7 +54,7 @@ export default async function NovoClienteMobilePage() {
         <header className="hero-premium grain relative overflow-hidden px-5 pb-8 pt-5 text-white">
           <div className="relative z-10 flex items-center justify-between">
             <Link
-              href="/mobile/clientes"
+              href={voltaParaVenda ? "/mobile/clientes?modo=venda-direta" : "/mobile/clientes"}
               className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/10"
             >
               <ArrowLeft
@@ -89,7 +91,7 @@ export default async function NovoClienteMobilePage() {
         </header>
 
         <section className="px-5 py-5">
-          <NovoClienteMobileForm empresaId={usuario.empresa.id} usuarioId={usuario.id} />
+          <NovoClienteMobileForm empresaId={usuario.empresa.id} usuarioId={usuario.id} voltaParaVenda={voltaParaVenda} />
         </section>
       </div>
     </main>
