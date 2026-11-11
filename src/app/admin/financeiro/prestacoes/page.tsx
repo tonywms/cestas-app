@@ -186,6 +186,17 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
         </p>
       </header>
 
+      {/* V118 | Acesso à consulta de repasses já confirmados */}
+      <Link href="/admin/financeiro/prestacoes/repasses" className="flex flex-wrap items-center justify-between gap-4 rounded-[23px] border border-emerald-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800"><ReceiptText size={22}/></div>
+          <div><p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Auditoria de caixa · V118</p>
+            <h2 className="mt-1 text-[15px] font-black text-emerald-950">Histórico e comprovantes de repasses</h2>
+            <p className="mt-1 text-[11px] text-slate-600">Filtre por data, entregador e forma. Reimprima RP e exporte lançamentos confirmados.</p></div>
+        </div>
+        <span className="rounded-xl bg-emerald-800 px-5 py-3 text-[11px] font-black text-white">Consultar repasses</span>
+      </Link>
+
       {modal&&<ConfirmacaoFinanceiraModal
         titulo={modal.titulo}
         descricao={modal.descricao}
