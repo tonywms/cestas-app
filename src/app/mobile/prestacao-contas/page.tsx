@@ -85,11 +85,16 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
   const valorPendenteAnterior = n(resumo.saldo_pendente_anterior);
   const novos = movimentos.filter(m => m.prestacao_id == null);
   const incertos = n(resumo.sem_classificacao) > 0;
-  const jaEnviadoMesmoPeriodo = prestacoes.some(p => p.inicio === inicio && p.fim === fim);
+  const acertosMesmoPeriodo = prestacoes.filter(p => p.inicio === inicio && p.fim === fim);
   const dinheiro = n(resumo.dinheiro), pixEmpresa = n(resumo.pix_empresa);
   const pixEntregador = n(resumo.pix_entregador), cartaoEmpresa = n(resumo.cartao_empresa);
   const cartaoEntregador = n(resumo.cartao_entregador);
-  const valorResponsabilidade = dinheiro + pixEntregador + cartaoEntregador;
+  // Saldo novo: não cobrar novamente itens já incluídos em outros protocolos.
+  const novosDinheiro = novos.filter(m => m.forma==="DINHEIRO")
+    .reduce((total,m)=>total+n(m.valor),0);
+  const valorResponsabilidade = novos
+    .filter(m => m.destino==="ENTREGADOR")
+    .reduce((total,m)=>total+n(m.valor),0);
   const temNovos = novos.length > 0;
 
   return <main className="min-h-dvh bg-[#ebf2ec] text-[#142018]">
@@ -130,11 +135,11 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
           <p className="mt-2 text-3xl font-black tabular-nums text-emerald-950">{moeda(resumo.total_recebido)}</p>
           <p className="mt-1 text-[10px] text-slate-500">{n(resumo.qtde)} movimentação(ões) registradas. Só valores efetivamente lançados entram no acerto.</p>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <Cartao titulo="Responsabilidade de repasse" valor={valorResponsabilidade} detalhe="Dinheiro + PIX/cartão do entregador" destaque/>
+            <Cartao titulo="Responsabilidade de novos recebimentos" valor={valorResponsabilidade} detalhe="Somente movimentos ainda não incluídos em acerto" destaque/>
             <Cartao titulo="Direto para a empresa" valor={pixEmpresa+cartaoEmpresa} detalhe="A conciliar pelo CD, sem novo repasse"/>
           </div>
           {valorPendenteAnterior>0 && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <p className="text-[10px] font-bold text-amber-900">Saldo de acertos anteriores ainda pendente</p>
+            <p className="text-[10px] font-bold text-amber-900">Saldo pendente de prestações já enviadas</p>
             <p className="mt-1 text-xl font-black text-amber-950">{moeda(valorPendenteAnterior)}</p>
             <p className="mt-1 text-[9px] text-amber-800">Não foi somado às novas vendas. Esse valor será abatido somente pelo CD ao confirmar cada repasse.</p>
           </div>}
@@ -185,7 +190,7 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
           <form action={enviarPrestacaoPeriodoMobile} className="mt-4 space-y-3">
             <input type="hidden" name="inicio" value={inicio}/>
             <input type="hidden" name="fim" value={fim}/>
-            <Campo nome="dinheiro" titulo="Dinheiro contado em mãos para entregar" valor={dinheiro}/>
+            <Campo nome="dinheiro" titulo="Dinheiro contado nesta nova prestação" valor={novosDinheiro}/>
             <Campo nome="pix" titulo="PIX já transferido da conta do entregador" valor={0} detalhe={`Sob sua responsabilidade: ${moeda(pixEntregador)}`}/>
             <Campo nome="cartao" titulo="Cartão já repassado pelo entregador" valor={0} detalhe={`Sob sua responsabilidade: ${moeda(cartaoEntregador)}`}/>
             <label className="block text-[10px] font-bold text-slate-700">Observação ou referência dos repasses
@@ -193,11 +198,13 @@ export default async function PrestacaoContasPage({ searchParams }: Props) {
                 placeholder="Ex.: dinheiro em mãos; PIX feito às 14h; cartão a liquidar amanhã"
                 className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-[12px]"/>
             </label>
-            <button type="submit" disabled={!temNovos || incertos || jaEnviadoMesmoPeriodo || Boolean(resumo.detalhe_limitado)}
+            <button type="submit" disabled={!temNovos || incertos || Boolean(resumo.detalhe_limitado)}
               className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-800 px-3 text-[12px] font-black text-white disabled:cursor-not-allowed disabled:opacity-40">
               <CheckCircle2 size={17}/> Enviar acerto do período ao CD
             </button>
-            {jaEnviadoMesmoPeriodo && <p className="text-center text-[10px] text-slate-600">Este período já possui prestação enviada. Veja o protocolo abaixo.</p>}
+            {acertosMesmoPeriodo.length>0 && <p className="text-center text-[10px] text-slate-600">
+              Há {acertosMesmoPeriodo.length} prestação(ões) neste mesmo período. O novo envio incluirá apenas os pagamentos ainda não prestados.
+            </p>}
             <p className="text-center text-[10px] leading-5 text-slate-500">Enviar não significa repasse quitado. Só a confirmação do CD reduz o saldo sob sua responsabilidade.</p>
           </form>
         </section>
