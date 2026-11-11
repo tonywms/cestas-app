@@ -426,7 +426,7 @@ return (
                 href="/mobile/prestacao-contas"
                 delay={320}
               />
-            )
+            )}
 
           </div>
 
