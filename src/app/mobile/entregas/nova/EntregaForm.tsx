@@ -1,5 +1,6 @@
 "use client";
 
+import RegistrarLocalizacaoEventoV120 from "@/components/mobile/RegistrarLocalizacaoEventoV120";
 import {
   CheckCircle2,
   MapPin,
@@ -421,6 +422,11 @@ export default function EntregaForm({
 
                   </div>
                 )}
+
+
+              {state.success && state.entregaId && (
+                <RegistrarLocalizacaoEventoV120 tipo="ENTREGA" eventoId={state.entregaId} />
+              )}
 
               {state.success ? (
                 <Link

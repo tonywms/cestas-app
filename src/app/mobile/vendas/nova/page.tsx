@@ -14,6 +14,7 @@ import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 
 import VendaCampoForm from "./VendaCampoForm";
+import RegistrarLocalizacaoEventoV120 from "@/components/mobile/RegistrarLocalizacaoEventoV120";
 
 type PageProps = {
   searchParams: Promise<{
@@ -666,6 +667,9 @@ export default async function NovaVendaCampoPage({
               <p className="mt-4 text-center text-[9px] leading-4 text-slate-400">
                 O valor da venda é o total da cesta. O recebido hoje é o que entrou no caixa; o saldo restante continua na carteira do cliente.
               </p>
+
+              {/* CESTAS_V120_1_1_GPS_RESUMO_VENDA — Registro opcional APOS venda confirmada */}
+              <RegistrarLocalizacaoEventoV120 tipo="VENDA" eventoId={vendaExistente.id} />
 
               <Link
                 href="/mobile/rota"

@@ -1,5 +1,6 @@
 "use client";
 
+import RegistrarLocalizacaoEventoV120 from "@/components/mobile/RegistrarLocalizacaoEventoV120";
 import {
   Banknote,
   CheckCircle2,
@@ -606,6 +607,11 @@ export default function VendaCampoForm({
               <p className="mt-3 text-[10px] leading-5 text-slate-500">
                 {state.message}
               </p>
+
+
+              {state.success && state.vendaId && (
+                <RegistrarLocalizacaoEventoV120 tipo="VENDA" eventoId={state.vendaId} />
+              )}
 
               {state.success &&
                 state.valorTotal !==

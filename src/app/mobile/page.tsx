@@ -347,6 +347,27 @@ return (
 
           <div className="mt-5 grid grid-cols-2 gap-3">
 
+
+              {/* CESTAS_V119_MOBILE_ATALHOS: atalhos por perfil, sem mexer no fluxo de vendas */}
+              {(usuario.isPlatformAdmin || usuario.perfilCodigo === "GESTOR" || usuario.perfilCodigo === "ADMINISTRADOR") && (
+                <ActionCard
+                  href="/mobile/gestor"
+                  icon={<MapPinned size={22} />}
+                  titulo="Painel gestor"
+                  descricao="Indicadores, equipe e territÃ³rio"
+                  delay={80}
+                />
+              )}
+              {usuario.perfilCodigo === "ENTREGADOR" && (
+                <ActionCard
+                  href="/mobile/produtividade"
+                  icon={<PackageCheck size={22} />}
+                  titulo="Meu desempenho"
+                  descricao="Entregas, metas e evoluÃ§Ã£o"
+                  delay={90}
+                />
+              )}
+
             {podeVerCarga && (
               <ActionCard
                 href="/mobile/carga"

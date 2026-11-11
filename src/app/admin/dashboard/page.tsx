@@ -1267,6 +1267,14 @@ export default async function DashboardPage({
           }
         />
 
+        {/* CESTAS_V119_CENTRAL_GESTAO_LINK: nova central, sem alterar o dashboard anterior */}
+        {(usuario.isPlatformAdmin || usuario.perfilCodigo === "GESTOR" || usuario.perfilCodigo === "ADMINISTRADOR") && (
+        <section className="mb-5 flex flex-wrap gap-3 rounded-[22px] border border-emerald-100 bg-white p-4 shadow-sm">
+          <Link href="/admin/gestao-operacional" className="inline-flex min-h-11 items-center rounded-xl bg-emerald-800 px-5 text-xs font-black text-white">Centro executivo V119</Link>
+          <Link href="/admin/territorio" className="inline-flex min-h-11 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 text-xs font-black text-emerald-900">Mapa de calor por bairro</Link>
+          <p className="w-full text-[11px] text-slate-500">Novas leituras gerenciais. A prestaÃ§Ã£o de contas e o estoque permanecem independentes.</p>
+        </section>
+        )}
         <Hero
           eyebrow="Visão consolidada"
           title="A empresa em uma única tela."

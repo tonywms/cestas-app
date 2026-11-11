@@ -1,5 +1,6 @@
 "use client";
 
+import RegistrarLocalizacaoEventoV120 from "@/components/mobile/RegistrarLocalizacaoEventoV120";
 // V64_RECEBIMENTO_IDEMPOTENTE
 
 import {
@@ -679,6 +680,11 @@ export default function RecebimentoForm({
                   state.message
                 }
               </p>
+
+
+              {state.success && state.recebimentoId && (
+                <RegistrarLocalizacaoEventoV120 tipo="COBRANCA" eventoId={state.recebimentoId} />
+              )}
 
               {state.success && (
                 <div className="mt-5 space-y-3 text-left">

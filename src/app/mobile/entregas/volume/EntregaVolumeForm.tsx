@@ -1,5 +1,6 @@
 "use client";
 
+import RegistrarLocalizacaoEventoV120 from "@/components/mobile/RegistrarLocalizacaoEventoV120";
 import {
   Barcode,
   CheckCircle2,
@@ -296,7 +297,12 @@ export default function EntregaVolumeForm({
                 <MiniResumo label="Agora" valor={state.saldoAtual} destaque />
               </div>
             )}
-            {state.success ? (
+
+              {state.success && state.entregaId && (
+                <RegistrarLocalizacaoEventoV120 tipo="ENTREGA" eventoId={state.entregaId} />
+              )}
+
+              {state.success ? (
               <Link
                 href={
                   habilitarFinanceiro && state.entregaId
