@@ -37,6 +37,7 @@ import {
 
 import {
   encerrarMinhaRota,
+  iniciarMinhaRota,
 } from "./actions";
 
 import ItinerarioRota, {
@@ -189,9 +190,16 @@ export default async function MinhaRotaPage({
                 <Link href="/mobile/clientes" className="mt-2 flex min-h-[48px] items-center justify-center rounded-2xl border border-emerald-200 text-[12px] font-bold text-emerald-800">
                   Consultar clientes
                 </Link>
+                {podeGerenciarRotaPropria && (
+                  <form action={iniciarMinhaRota} className="mt-3">
+                    <button type="submit" className="flex min-h-[50px] w-full items-center justify-center rounded-2xl border border-emerald-300 bg-emerald-50 px-4 text-[12px] font-black text-emerald-900">
+                      Iniciar nova rota sem carga
+                    </button>
+                  </form>
+                )}
                 <p className="mt-4 text-[10px] leading-5 text-slate-500">
-                  A criação de uma rota própria sem carga requer a atualização da função do banco.
-                  Esta tela não executará o procedimento antigo que vinculava uma carga automaticamente.
+                  O itinerário pertence ao entregador. Criar uma rota não altera seu estoque
+                  nem vincula uma carga de recebimento.
                 </p>
               </div>
             )}
@@ -1186,10 +1194,17 @@ export default async function MinhaRotaPage({
             <section className="mb-5 rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
               <p className="text-[11px] font-black text-emerald-950">Rota planejada para este entregador</p>
               <p className="mt-2 text-[11px] leading-5 text-emerald-800">
-                Os atendimentos desta rota não dependem de uma carga. A rotina antiga de iniciar rota
-                ainda contém esse vínculo no banco e foi desabilitada aqui para não criar associação indevida.
+                Os atendimentos desta rota não dependem de uma carga. Iniciar a jornada
+                não devolve, transfere nem movimenta cestas do estoque móvel.
               </p>
-              <Link href="/mobile/estoque" className="mt-3 flex min-h-[46px] items-center justify-center rounded-xl bg-emerald-800 px-3 text-[11px] font-black text-white">
+              {podeGerenciarRotaPropria && (
+                <form action={iniciarMinhaRota} className="mt-4">
+                  <button type="submit" className="flex min-h-[48px] w-full items-center justify-center rounded-xl bg-emerald-800 px-4 text-[12px] font-black text-white">
+                    Iniciar rota do entregador
+                  </button>
+                </form>
+              )}
+              <Link href="/mobile/estoque" className="mt-2 flex min-h-[44px] items-center justify-center rounded-xl border border-emerald-200 bg-white px-3 text-[11px] font-bold text-emerald-900">
                 Meu estoque móvel
               </Link>
             </section>
