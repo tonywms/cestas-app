@@ -97,6 +97,41 @@ export async function registrarEntregaVolume(
     return estado(false, "Informe uma quantidade válida.");
   }
 
+  // V105.5.10: nao debitar volumes de carga diferente da escolhida.
+  // Sem rota planejada, clienteId basta: a entrega fisica e direta.
+  const supabase = await createClient();
+  const { data: cargaEscolhida, error: erroEscolha } = await supabase.rpc(
+    "mobile_obter_carga_escolhida",
+    { p_empresa_id: usuario.empresa.id },
+  );
+  if (erroEscolha || Number(cargaEscolhida) !== cargaId) {
+    return estado(false,
+      "A carga em uso mudou ou não pôde ser confirmada. Volte ao estoque móvel, escolha a carga e tente novamente.",
+      { rotaClienteId });
+  }
+
+  if (rotaClienteId !== null) {
+    const { data: parada, error: erroParada } = await supabase
+      .from("rota_clientes")
+      .select("rota_id")
+      .eq("empresa_id", usuario.empresa.id)
+      .eq("id", rotaClienteId)
+      .maybeSingle();
+    if (erroParada || !parada) {
+      return estado(false, "Parada da rota não encontrada nesta empresa.", { rotaClienteId });
+    }
+    const { data: rota, error: erroRota } = await supabase
+      .from("rotas")
+      .select("carga_id")
+      .eq("empresa_id", usuario.empresa.id)
+      .eq("entregador_id", usuario.id)
+      .eq("id", parada.rota_id)
+      .maybeSingle();
+    if (erroRota || !rota || Number(rota.carga_id) !== cargaId) {
+      return estado(false, "A parada pertence a outra carga. Nenhum volume foi baixado.", { rotaClienteId });
+    }
+  }
+
   const validacaoCredito =
     await validarCreditoCliente({
       empresaId:
@@ -131,7 +166,6 @@ export async function registrarEntregaVolume(
     );
   }
 
-  const supabase = await createClient();
   const { data, error } = await supabase.rpc("registrar_entrega_volume", {
     p_empresa_id: usuario.empresa.id,
     p_carga_id: cargaId,
