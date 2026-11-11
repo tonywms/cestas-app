@@ -72,7 +72,7 @@ function BotaoEscolherCarga({ id, conferenciaPendente, conectado }: {
           ? "Selecionando carga..."
           : conferenciaPendente
             ? `Selecionar e receber carga nº ${id}`
-            : `Selecionar carga nº ${id}`}
+            : `Trabalhar com a carga nº ${id}`}
     </button>
   );
 }
@@ -330,6 +330,12 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
                   {saldoAtual == null ? "—" : `${saldoAtual} ${saldoAtual === 1 ? "cesta" : "cestas"}`}
                 </span>
               </div>
+              {!carga.conferenciaPendente && saldoAtual !== null && saldoAtual > 0 && (
+                <p className="mt-2 text-[11px] font-medium leading-5 text-slate-600">
+                  Estas {saldoAtual} cesta(s) podem ser usadas em vendas e entregas da carga nº {carga.id}.
+                  Toque em <strong>Trabalhar com a carga</strong> para ver as ações disponíveis.
+                </p>
+              )}
               <details className="group mt-2 rounded-xl border border-slate-200 bg-white">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-[11px] font-bold text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
                   <span>Ver detalhes da carga</span>
@@ -354,7 +360,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
               </details>
               {selecionada ? (
                 <Link prefetch={false} href={carga.conferenciaPendente ? `/mobile/carga/receber?cargaId=${carga.id}` : "/mobile/carga"} className="mt-3 block rounded-xl bg-emerald-800 px-4 py-3 text-center text-xs font-black text-white">
-                  {carga.conferenciaPendente ? `Receber volumes da carga nº ${carga.id}` : `Abrir estoque da carga nº ${carga.id}`}
+                  {carga.conferenciaPendente ? `Receber volumes da carga nº ${carga.id}` : `Abrir ações da carga nº ${carga.id}`}
                 </Link>
               ) : (
                 <BotaoEscolherCarga
