@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ShieldCheck, X } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, FileCheck2, ShieldCheck, X } from "lucide-react";
 
 type Props = {
   titulo: string;
@@ -11,10 +12,11 @@ type Props = {
   valor?: string;
   identificacao?: string;
   detalhe?: string;
+  comprovanteUrl?: string;
 };
 
 export default function ConfirmacaoFinanceiraModal({
-  titulo, descricao, destinoAposFechar, valor, identificacao, detalhe,
+  titulo, descricao, destinoAposFechar, valor, identificacao, detalhe, comprovanteUrl,
 }: Props) {
   const router = useRouter();
   const [aberto, setAberto] = useState(true);
@@ -78,6 +80,12 @@ export default function ConfirmacaoFinanceiraModal({
           <ShieldCheck size={17} className="mt-0.5 shrink-0 text-emerald-700"/>
           Resultado confirmado pelo sistema e registrado no histórico. Esta mensagem não representa uma validação bancária automática.
         </div>
+        {comprovanteUrl && (
+          <Link href={comprovanteUrl} target="_blank" rel="noopener noreferrer"
+            className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-xs font-black text-emerald-900">
+            <FileCheck2 size={17}/> Visualizar e imprimir comprovante
+          </Link>
+        )}
         <button type="button" ref={fecharRef} onClick={fechar}
           className="mt-6 flex min-h-[52px] w-full items-center justify-center rounded-xl bg-emerald-800 px-4 text-sm font-black text-white transition hover:bg-emerald-900">
           Entendi, continuar
