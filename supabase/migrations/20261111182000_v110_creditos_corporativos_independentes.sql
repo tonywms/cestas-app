@@ -117,7 +117,7 @@ DECLARE
  v_uid uuid:=auth.uid();
  v_recebedor uuid;v_forma text;v_data timestamptz;
  v_id bigint;v_item public.prestacao_itens_v109%rowtype;
- v_m app_private.movimentos_prestacao_v109%rowtype;
+ v_m record;
  v_valor numeric;v_cliente_id bigint;
  v_ja_conciliado boolean:=false;
 BEGIN
