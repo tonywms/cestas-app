@@ -64,7 +64,7 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
           <ArrowLeft size={18}/> Voltar às prestações
         </Link>
         <div className="mt-5 flex items-center gap-3"><Landmark size={30}/><div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Conciliação e fechamento · V111</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Conciliação e fechamento · V112</p>
           <h1 className="text-2xl font-black">PIX e cartão da empresa</h1>
         </div></div>
         <p className="mt-3 text-[12px] leading-6 text-emerald-50">
@@ -72,7 +72,7 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
         </p>
       </header>
       {params.conciliado&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold text-emerald-950">
-        Crédito registrado na conciliação. Nenhum repasse adicional foi cobrado do entregador.
+        Recebimento confirmado manualmente pelo CD. O responsável, a data e o protocolo foram registrados. Nenhum repasse adicional foi cobrado do entregador.
       </p>}
       {params.erro&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-900">{params.erro.slice(0,260)}</p>}
       <form method="get" className="grid items-end gap-3 rounded-[22px] bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-6">
@@ -144,13 +144,15 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
               <div className="text-right">
                 <p className="text-xl font-black text-emerald-950">{real(m.valor)}</p>
                 <p className={`mt-2 text-[10px] font-black ${m.conciliado?"text-emerald-800":"text-amber-800"}`}>
-                  {m.conciliado?"CONCILIADO":"AGUARDANDO CONFERÊNCIA"}
+                  {m.conciliado?"CONFIRMADO PELO CD":"AGUARDANDO CONFERÊNCIA"}
                 </p>
               </div>
             </div>
             {m.conciliado
               ? <div className="mt-4 flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-[11px] text-emerald-950">
-                  <ShieldCheck size={17} className="shrink-0"/> Conferido no CD. Referência: {m.referencia??"registrada no fechamento"}
+                  <ShieldCheck size={17} className="shrink-0"/> {m.referencia?.startsWith("CONF-MANUAL-CD-")
+                    ? "Recebimento confirmado manualmente por funcionário autorizado do CD. Protocolo registrado no histórico."
+                    : <>Conferido no CD. Referência: {m.referencia??"registrada no fechamento"}</>}
                 </div>
               : <form action={confirmarCreditoCorporativoV110} className="mt-4 space-y-3 rounded-[17px] border border-emerald-100 bg-[#f8fcf9] p-4">
                   <input type="hidden" name="origem" value={m.origem}/>
@@ -160,21 +162,11 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
                   <input type="hidden" name="situacao" value={situacao}/>
                   <input type="hidden" name="forma" value={forma}/>
                   <input type="hidden" name="busca" value={busca}/>
-                  <label className="block text-[10px] font-black text-slate-700">ID PIX, NSU ou referência do crédito conferido
-                    <input name="referencia" minLength={4} maxLength={250} required
-                      placeholder={m.forma==="PIX"?"Ex.: identificador E2E no extrato":"Ex.: NSU da transação aprovada"}
-                      className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs"/>
-                  </label>
-                  <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-5 font-semibold text-amber-950">
-                    <input type="checkbox" name="confirmado_no_extrato" value="SIM" required
-                      className="mt-1 h-4 w-4 shrink-0 accent-emerald-700"/>
-                    Verifiquei o crédito de {real(m.valor)} no extrato/maquineta da empresa e confirmei que corresponde a este cliente e pagamento.
-                  </label>
                   <button type="submit" className="min-h-12 w-full rounded-xl bg-emerald-800 px-4 text-xs font-black text-white">
-                    Confirmar crédito conferido no banco
+                    Confirmar recebimento
                   </button>
                   <p className="text-[10px] leading-5 text-slate-600">
-                    Confirme somente após verificar o banco ou a maquineta. Isso não cria outro pagamento nem cobra o entregador.
+                    Confirmação manual feita por funcionário autorizado do CD. O sistema registra responsável, horário e protocolo, sem exigir código PIX ou NSU. Não há consulta automática ao banco.
                   </p>
                 </form>}
           </article>)}
