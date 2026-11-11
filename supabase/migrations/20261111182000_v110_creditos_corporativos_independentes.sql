@@ -210,6 +210,9 @@ RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS $inhe
 DECLARE v_cc public.creditos_corporativos_v110%rowtype;
 BEGIN
  IF NEW.destino='EMPRESA' AND NEW.forma IN ('PIX','CARTAO') THEN
+  -- Bloqueia a mesma origem que a conciliação direta, impedindo corrida dupla.
+  PERFORM pg_advisory_xact_lock(hashtextextended(
+    'credito-v110:'||NEW.empresa_id::text||':'||NEW.origem||':'||NEW.origem_id::text,0));
   SELECT cc.* INTO v_cc FROM public.creditos_corporativos_v110 cc
    WHERE cc.empresa_id=NEW.empresa_id AND cc.origem=NEW.origem
      AND cc.origem_id=NEW.origem_id;
