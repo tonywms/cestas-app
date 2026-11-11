@@ -11,8 +11,6 @@ import {
   MapPin,
   MapPinned,
   Navigation,
-  PackageCheck,
-  Play,
   Plus,
   Route,
   Sparkles,
@@ -39,28 +37,11 @@ import {
 
 import {
   encerrarMinhaRota,
-  iniciarMinhaRota,
 } from "./actions";
 
 import ItinerarioRota, {
   type ItinerarioRotaItem,
 } from "./ItinerarioRota";
-
-/* =========================================================
-   DATA LOCAL
-========================================================= */
-
-function dataFortaleza() {
-  return new Intl.DateTimeFormat(
-    "en-CA",
-    {
-      timeZone: "America/Fortaleza",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    },
-  ).format(new Date());
-}
 
 /* =========================================================
    FORMATAR DATA
