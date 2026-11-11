@@ -116,6 +116,18 @@ export default async function EntregaVolumePage({
 
   const params =
     await searchParams;
+
+  // V107: acesso direto ao scanner jamais pode contornar a negociacao.
+  // Clientes sem parada de rota iniciam sempre em valor/parcelas/pagamento.
+  if (params.clienteId && !params.rotaClienteId) {
+    const clienteId = Number(params.clienteId);
+    const tipoId = Number(params.tipoCestaId);
+    if (Number.isSafeInteger(clienteId) && clienteId>0 &&
+        Number.isSafeInteger(tipoId) && tipoId>0) {
+      redirect(`/mobile/vendas/preparar-direta?clienteId=${clienteId}&tipoCestaId=${tipoId}`);
+    }
+    redirect("/mobile/estoque?erro=tipo");
+  }
   const tipoVendaId = params.tipoCestaId ? Number(params.tipoCestaId) : null;
   if (tipoVendaId !== null &&
     (!Number.isSafeInteger(tipoVendaId) || tipoVendaId < 1)) {
