@@ -149,9 +149,12 @@ export default async function ClientesMobilePage({
         "",
     ).trim();
 
-  const modoVenda =
-    params.modo ===
-    "venda";
+  const modoVendaDireta = params.modo === "venda-direta";
+  const modoVenda = params.modo === "venda" || modoVendaDireta;
+
+  if (modoVendaDireta && !podeVender) {
+    redirect("/mobile/sem-acesso");
+  }
 
   const destaqueId =
     Number(
@@ -161,6 +164,21 @@ export default async function ClientesMobilePage({
 
   const supabase =
     await createClient();
+
+  // Venda direta: identifica a carga selecionada, sem iniciar outra rota.
+  const { data: cargaSelecionada, error: erroCargaSelecionada } =
+    modoVendaDireta
+      ? await supabase.rpc("mobile_obter_carga_escolhida", {
+          p_empresa_id: usuario.empresa.id,
+        })
+      : { data: null, error: null };
+  const cargaVendaId = Number(cargaSelecionada ?? 0);
+  if (modoVendaDireta &&
+      (erroCargaSelecionada || !Number.isSafeInteger(cargaVendaId) || cargaVendaId < 1)) {
+    redirect("/mobile/carga/selecionar?erro=" + encodeURIComponent(
+      "Escolha a carga recebida que será utilizada na venda.",
+    ));
+  }
 
   const {
     data,
@@ -295,9 +313,11 @@ export default async function ClientesMobilePage({
                 />
               )}
 
-              {modoVenda
-                ? "Venda em campo"
-                : "Carteira da empresa"}
+              {modoVendaDireta
+                ? `Venda sem rota · carga nº ${cargaVendaId}`
+                : modoVenda
+                  ? "Venda em campo"
+                  : "Carteira da empresa"}
             </div>
 
             <h2 className="mt-2 text-[29px] font-black tracking-[-0.05em]">
@@ -307,9 +327,11 @@ export default async function ClientesMobilePage({
             </h2>
 
             <p className="mt-3 max-w-[340px] text-[11px] leading-5 text-white/65">
-              {modoVenda
-                ? "Venda para um cliente já cadastrado ou cadastre um novo sem depender de rota planejada."
-                : "Localize, cadastre, corrija dados e inicie uma venda diretamente da rua."}
+              {modoVendaDireta
+                ? `Você está usando as cestas da carga nº ${cargaVendaId}. Escolha o cliente, entregue a cesta e registre a venda e o pagamento. Nenhuma rota precisa ser criada.`
+                : modoVenda
+                  ? "Venda para um cliente já cadastrado ou cadastre um novo sem depender de rota planejada."
+                  : "Localize, cadastre, corrija dados e inicie uma venda diretamente da rua."}
             </p>
           </div>
         </header>
@@ -320,7 +342,7 @@ export default async function ClientesMobilePage({
               <input
                 type="hidden"
                 name="modo"
-                value="venda"
+                value={modoVendaDireta ? "venda-direta" : "venda"}
               />
             ) : null}
 
@@ -472,29 +494,26 @@ export default async function ClientesMobilePage({
                         )}
 
                         {podeVender ? (
-                          <form
-                            action={
-                              iniciarVendaCampo
-                            }
-                          >
-                            <input
-                              type="hidden"
-                              name="cliente_id"
-                              value={
-                                cliente.id
-                              }
-                            />
-
-                            <button
-                              type="submit"
+                          modoVendaDireta ? (
+                            <Link
+                              href={`/mobile/entregas/nova?clienteId=${cliente.id}`}
                               className="flex h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#176f3c] text-[10px] font-black text-white"
                             >
-                              <ShoppingBag
-                                size={15}
-                              />
-                              Vender agora
-                            </button>
-                          </form>
+                              <ShoppingBag size={15} />
+                              Vender desta carga
+                            </Link>
+                          ) : (
+                            <form action={iniciarVendaCampo}>
+                              <input type="hidden" name="cliente_id" value={cliente.id} />
+                              <button
+                                type="submit"
+                                className="flex h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#176f3c] text-[10px] font-black text-white"
+                              >
+                                <ShoppingBag size={15} />
+                                Vender agora
+                              </button>
+                            </form>
+                          )
                         ) : null}
                       </div>
                     </article>
