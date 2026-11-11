@@ -453,6 +453,13 @@ export default function FecharCargaForm({
         <p className="mt-1 text-[16px] font-black text-slate-900">Carga nº {cargaId}</p>
         <p className="break-all text-[10px] font-semibold text-slate-600">{cargaCodigo}</p>
       </div>
+      <div role="note" className="mb-4 rounded-[18px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <p className="text-[10px] font-black text-slate-800">Esta etapa é a devolução ao CD, não o recebimento da carga.</p>
+        <p className="mt-1 text-[10px] leading-5 text-slate-600">Nenhuma cesta sai do estoque móvel enquanto você não confirmar o encerramento no último modal.</p>
+        <Link href="/mobile/carga" className="mt-2 inline-flex rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black text-emerald-800">
+          Manter carga no estoque móvel
+        </Link>
+      </div>
       <form
         ref={formRef}
         onSubmit={(event) => {
@@ -497,20 +504,34 @@ export default function FecharCargaForm({
                 Classificação física
               </p>
               <h2 className="mt-1 text-[16px] font-black">
-                O que voltou?
+                Devolução ao CD
               </h2>
               <p className="mt-1 text-[9px] leading-5 text-slate-500">
-                Esta é a devolução ao CD no fim da operação, não o recebimento inicial.
-                O saldo permanece no estoque móvel até a confirmação final.
+                Prévia do que será devolvido ao CD se você confirmar o fechamento.
+                Até lá, o saldo permanece em posse do entregador.
               </p>
             </div>
+
+            {totalAvaria === 0 && totalEmPosse > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setExibirAvarias((atual) => !atual);
+                  setErroVolumeAvaria("");
+                }}
+                className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-[9px] font-black text-emerald-800"
+              >
+                {exibirAvarias ? "Ocultar avarias" : "Registrar avaria"}
+              </button>
+            )}
 
             {totalAvaria > 0 && (
               <button
                 type="button"
-                onClick={
-                  zerarAvarias
-                }
+                onClick={() => {
+                  zerarAvarias();
+                  setExibirAvarias(false);
+                }}
                 className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-[8px] font-black text-emerald-700"
               >
                 Sem avaria
@@ -518,7 +539,7 @@ export default function FecharCargaForm({
             )}
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className={`mt-4 grid gap-2 ${totalAvaria > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
             <Resumo
               label="Em posse"
               valor={
@@ -527,35 +548,22 @@ export default function FecharCargaForm({
               tipo="neutro"
             />
             <Resumo
-              label="Retorno"
+              label="A devolver"
               valor={
                 totalRetorno
               }
               tipo="retorno"
             />
-            <Resumo
-              label="Avaria"
-              valor={
-                totalAvaria
-              }
-              tipo="avaria"
-            />
+            {totalAvaria > 0 && (
+              <Resumo
+                label="Avaria"
+                valor={totalAvaria}
+                tipo="avaria"
+              />
+            )}
           </div>
 
         </section>
-
-        {modoVolume && totalEmPosse > 0 && totalAvaria === 0 && !exibirAvarias && !erroVolumeAvaria && (
-          <div className="flex items-center justify-between gap-3 rounded-[18px] border border-emerald-100 bg-emerald-50/70 px-4 py-3">
-            <p className="text-[10px] font-semibold text-emerald-800">Nenhuma avaria informada.</p>
-            <button
-              type="button"
-              onClick={() => setExibirAvarias(true)}
-              className="shrink-0 rounded-[13px] border border-emerald-200 bg-white px-3 py-2 text-[10px] font-black text-emerald-800 transition hover:bg-emerald-50"
-            >
-              Registrar avaria
-            </button>
-          </div>
-        )}
 
         {modoVolume &&
           totalEmPosse > 0 &&
@@ -736,14 +744,14 @@ export default function FecharCargaForm({
                     </span>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-[1fr_auto] gap-3">
+                  <div className={`mt-4 grid gap-3 ${modoVolume ? (avaria > 0 ? "grid-cols-[1fr_auto]" : "grid-cols-1") : (exibirAvarias || avaria > 0 ? "grid-cols-[1fr_auto]" : "grid-cols-1")}`}>
                     <div className="rounded-[16px] border border-emerald-100 bg-emerald-50 px-4 py-3">
                       <div className="flex items-center gap-2 text-emerald-700">
                         <RotateCcw
                           size={14}
                         />
                         <p className="text-[7px] font-black uppercase tracking-[0.11em]">
-                          Retorno ao central
+                          A devolver ao CD
                         </p>
                       </div>
                       <p className="mt-2 text-[20px] font-black text-[#176f3c]">
@@ -751,6 +759,7 @@ export default function FecharCargaForm({
                       </p>
                     </div>
 
+                    {(modoVolume ? avaria > 0 : exibirAvarias || avaria > 0) && (
                     <div className="min-w-[132px] rounded-[16px] border border-amber-200 bg-amber-50 px-3 py-3">
                       <div className="flex items-center gap-1.5 text-amber-700">
                         <AlertTriangle
@@ -836,6 +845,7 @@ export default function FecharCargaForm({
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
 
                 </section>
@@ -937,12 +947,14 @@ export default function FecharCargaForm({
                 !motivoAvariaValido
               ? "Informe o motivo da avaria"
               : totalEmPosse > 0
-                ? `Revisar ${totalRetorno} retorno(s), ${totalAvaria} avaria(s) antes de finalizar`
+                ? totalAvaria > 0
+                  ? `Revisar devolução: ${totalRetorno} retorno(s), ${totalAvaria} avaria(s)`
+                  : `Revisar devolução de ${totalRetorno} cesta(s) ao CD`
                 : "Revisar e finalizar carga"}
         </button>
 
         <p className="px-4 text-center text-[8px] leading-4 text-slate-400">
-          Retornos voltam ao estoque central. Avarias permanecem registradas no histórico e não retornam ao saldo disponível.
+          Nada será movimentado até você confirmar o encerramento no modal. Após confirmar, devoluções entram no estoque central e avarias ficam registradas sem voltar ao disponível.
         </p>
 
       </form>
