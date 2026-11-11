@@ -221,67 +221,38 @@ export default async function MinhaRotaPage({
       !!cargaAtiva.recebida_at
     );
 
-  /* PROCURA ROTA ATIVA */
-
-  const {
-    data: rotaAtiva,
-    error: rotaAtivaError,
-  } = await supabase
+  /* V105.5.9: rota de outra carga nunca substitui a carga escolhida. */
+  const { data: rotaAtiva, error: rotaAtivaError } = await supabase
     .from("rotas")
-    .select(`
-      id,
-      codigo,
-      data_rota,
-      status,
-      observacao,
-      origem,
-      carga_id
-    `)
-    .eq(
-      "empresa_id",
-      usuario.empresa.id,
-    )
-    .eq(
-      "entregador_id",
-      usuario.id,
-    )
-    .in("status", [
-      "PLANEJADA",
-      "EM_ROTA",
-    ])
-    .order("data_rota", {
-      ascending: true,
-    })
+    .select("id, codigo, data_rota, status, observacao, origem, carga_id")
+    .eq("empresa_id", usuario.empresa.id)
+    .eq("entregador_id", usuario.id)
+    .eq("carga_id", cargaAtiva?.id ?? 0)
+    .in("status", ["PLANEJADA", "EM_ROTA"])
+    .order("data_rota", { ascending: true })
     .limit(1)
     .maybeSingle();
 
   if (rotaAtivaError) {
-    console.error(
-      "Erro ao consultar rota ativa:",
-      rotaAtivaError,
-    );
+    console.error("Erro ao consultar rota desta carga:", rotaAtivaError);
   }
 
-  // V105.4 — rota nao controla qual carga pode ser recebida.
-  // Ao trocar a carga selecionada, preservar a carga ORIGINAL da rota
-  // para nao transferir o itinerario nem confundir saldos entre cargas.
-  if (rotaAtiva?.carga_id != null && Number(rotaAtiva.carga_id) !== cargaAtiva?.id) {
-    const { data: cargaVinculada, error: erroCargaVinculada } = await supabase
-      .from("cargas")
-      .select("id,codigo,status,recebida_at")
-      .eq("empresa_id", usuario.empresa.id)
-      .eq("entregador_id", usuario.id)
-      .eq("id", rotaAtiva.carga_id)
-      .in("status", ["ABERTA", "EM_ROTA"])
-      .maybeSingle();
+  // Bloqueio real do RPC ainda compartilhado com producao:
+  // nao oferecer iniciar rota da carga escolhida quando a rota de outra
+  // carga impediria a operacao e poderia induzir o operador ao erro.
+  const { data: rotaDeOutraCarga, error: erroRotaDeOutraCarga } = await supabase
+    .from("rotas")
+    .select("id, codigo, carga_id")
+    .eq("empresa_id", usuario.empresa.id)
+    .eq("entregador_id", usuario.id)
+    .in("status", ["PLANEJADA", "EM_ROTA"])
+    .neq("carga_id", cargaAtiva?.id ?? 0)
+    .not("carga_id", "is", null)
+    .limit(1)
+    .maybeSingle();
 
-    if (erroCargaVinculada) {
-      console.error("Nao foi possivel consultar a carga vinculada a rota:", erroCargaVinculada);
-    }
-    cargaAtiva = cargaVinculada ?? null;
-    cargaPronta = !!cargaAtiva &&
-      (!usuario.configuracao.exigirBipagemCarga || !!cargaAtiva.recebida_at);
-  }
+  const bloqueioMultiRota = Boolean(erroRotaDeOutraCarga) ||
+    Boolean(rotaAtivaError) || Boolean(rotaDeOutraCarga);
 
     /* =========================================================
      ROTA ATUAL = SOMENTE ROTA ATIVA
@@ -475,7 +446,8 @@ export default async function MinhaRotaPage({
 
               {cargaPronta &&
                 !jornadaEncerrada &&
-                podeGerenciarRotaPropria && (
+                podeGerenciarRotaPropria &&
+                !bloqueioMultiRota && (
                   <form
                     action={
                       iniciarMinhaRota
@@ -494,6 +466,21 @@ export default async function MinhaRotaPage({
                     </button>
                   </form>
                 )}
+
+              {cargaPronta && !jornadaEncerrada && bloqueioMultiRota && (
+                <div className="mt-6 rounded-[18px] border border-amber-200 bg-amber-50 p-4 text-left">
+                  <p className="text-[12px] font-black text-amber-950">Outra carga já possui uma rota aberta</p>
+                  <p className="mt-2 text-[11px] leading-5 text-amber-900">
+                    {rotaDeOutraCarga
+                      ? `A rota ${rotaDeOutraCarga.codigo} pertence à carga nº ${rotaDeOutraCarga.carga_id}.
+                          Esta tela está mostrando somente a carga selecionada; nenhuma venda ou entrega será redirecionada para aquela rota.`
+                      : "Não foi possível conferir as rotas. Atualize a página para tentar novamente."}
+                  </p>
+                  <Link href="/mobile/carga" className="mt-3 flex h-[44px] items-center justify-center rounded-xl border border-amber-300 bg-white text-[11px] font-black text-amber-900">
+                    Voltar ao estoque desta carga
+                  </Link>
+                </div>
+              )}
 
               {cargaPronta &&
                 !jornadaEncerrada &&
