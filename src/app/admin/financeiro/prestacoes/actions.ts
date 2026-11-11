@@ -58,3 +58,24 @@ export async function conferirPrestacao(form:FormData){
   }
   redirect("/admin/financeiro/prestacoes?conferido=1");
 }
+
+export async function classificarRecebimentoAnterior(form:FormData){
+  const usuario=await getCurrentUserProfile();
+  if(!usuario||!usuario.ativo)redirect("/");
+  if(!usuario.isPlatformAdmin&&!temPermissao(usuario.permissoes,PERMISSOES.FINANCEIRO_AUDITAR))
+    redirect("/admin/financeiro");
+  const origem=String(form.get("origem")??"");
+  const id=Number(form.get("id"));
+  const destino=String(form.get("destino")??"");
+  if(!["VENDA","COBRANCA"].includes(origem) || !Number.isSafeInteger(id) || id<1 ||
+    !["EMPRESA","ENTREGADOR"].includes(destino))redirect(aviso("Selecione origem, lançamento e titular corretos."));
+  const supabase=await createClient();
+  const {error}=await supabase.rpc("classificar_recebimento_v108",{
+    p_empresa_id:usuario.empresa.id,p_origem:origem,p_id:id,p_destino:destino,
+  });
+  if(error){
+    console.error("V108 classificação legado:",error.code,error.message);
+    redirect(aviso(error.message));
+  }
+  redirect("/admin/financeiro/prestacoes?classificado=1");
+}
