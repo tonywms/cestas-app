@@ -200,10 +200,10 @@ export default function ReceberCargaForm({
           </div>
 
           <Link
-            href="/mobile/carga"
+            href="/mobile/estoque"
             className="mt-5 flex h-[54px] w-full items-center justify-center rounded-[17px] bg-[#176f3c] text-[11px] font-black text-white"
           >
-            Voltar para Minha Carga
+            Ver meu estoque móvel
           </Link>
 
         </section>
@@ -480,14 +480,14 @@ export default function ReceberCargaForm({
             </h3>
 
             <p className="mt-3 text-[11px] leading-5 text-slate-500">
-              Os {state.esperados} volumes da carga nº {cargaId} foram recebidos do CD. Eles permanecem vinculados ao estoque móvel desta carga; esta etapa não realiza devolução ao CD.
+              Os {state.esperados} volumes da carga nº {cargaId} foram recebidos do CD. Elas agora compõem o estoque móvel do entregador. A carga permanece vinculada aos volumes apenas para rastreio; esta etapa não devolve cestas ao CD.
             </p>
 
             <Link
-              href="/mobile/carga"
+              href="/mobile/estoque"
               className="mt-6 flex h-[50px] w-full items-center justify-center rounded-[16px] bg-[#176f3c] text-[11px] font-black text-white"
             >
-              Ver Minha Carga
+              Ver meu estoque móvel
             </Link>
 
             <button
