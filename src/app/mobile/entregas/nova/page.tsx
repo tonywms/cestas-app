@@ -310,7 +310,8 @@ export default async function NovaEntregaPage({
         id,
         codigo,
         entregador_id,
-        status
+        status,
+        carga_id
       `)
       .eq(
         "empresa_id",
@@ -333,13 +334,10 @@ export default async function NovaEntregaPage({
       )
       .maybeSingle();
 
-    if (
-      rotaError ||
-      !rota
-    ) {
-      redirect(
-        "/mobile/rota",
-      );
+    if (rotaError || !rota || Number(rota.carga_id) !== carga.id) {
+      redirect("/mobile/carga/selecionar?erro=" + encodeURIComponent(
+        "A parada da rota pertence a outra carga. Confirme qual carga deseja utilizar.",
+      ));
     }
 
     /*
