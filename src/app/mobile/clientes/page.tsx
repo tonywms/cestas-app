@@ -170,21 +170,8 @@ export default async function ClientesMobilePage({
   const supabase =
     await createClient();
 
-  // Venda direta: identifica a carga selecionada, sem iniciar outra rota.
-  const { data: cargaSelecionada, error: erroCargaSelecionada } =
-    modoVendaDireta
-      ? await supabase.rpc("mobile_obter_carga_escolhida", {
-          p_empresa_id: usuario.empresa.id,
-        })
-      : { data: null, error: null };
-  const cargaVendaId = Number(cargaSelecionada ?? 0);
-  if (modoVendaDireta &&
-      (erroCargaSelecionada || !Number.isSafeInteger(cargaVendaId) || cargaVendaId < 1)) {
-    redirect("/mobile/estoque?erro=" + encodeURIComponent(
-      "Entre em Meu estoque móvel e toque em Vender cesta.",
-    ));
-  }
-
+  // V107: venda direta nao exige selecionar carga nem vincular rota.
+  // O saldo por origem sera confirmado apenas ao salvar a negociacao.
   const {
     data,
     error,
@@ -504,7 +491,7 @@ export default async function ClientesMobilePage({
                         {podeVender ? (
                           modoVendaDireta ? (
                             <Link
-                              href={`/mobile/entregas/nova?clienteId=${cliente.id}&tipoCestaId=${tipoVendaId}`}
+                              href={`/mobile/vendas/preparar-direta?clienteId=${cliente.id}&tipoCestaId=${tipoVendaId}`}
                               className="flex h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#176f3c] text-[10px] font-black text-white"
                             >
                               <ShoppingBag size={15} />
