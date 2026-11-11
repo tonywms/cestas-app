@@ -143,6 +143,19 @@ export default async function EntregaVolumePage({
       )
     );
 
+  // V105.5.10: nao deduzir a carga de entrega pelo created_at.
+  // O estoque debitado deve ser EXATAMENTE o selecionado no mobile.
+  const { data: cargaSelecionada, error: erroEscolha } = await supabase.rpc(
+    "mobile_obter_carga_escolhida",
+    { p_empresa_id: usuario.empresa.id },
+  );
+  const cargaIdSelecionada = Number(cargaSelecionada);
+  if (erroEscolha || !Number.isSafeInteger(cargaIdSelecionada) || cargaIdSelecionada < 1) {
+    redirect("/mobile/carga/selecionar?erro=" + encodeURIComponent(
+      "Selecione a carga que deseja usar antes de realizar uma entrega.",
+    ));
+  }
+
   const {
     data: carga,
     error: cargaError,
@@ -170,13 +183,7 @@ export default async function EntregaVolumePage({
           "EM_ROTA",
         ],
       )
-      .order(
-        "created_at",
-        {
-          ascending:
-            false,
-        },
-      )
+      .eq("id", cargaIdSelecionada)
       .limit(1)
       .maybeSingle();
 
@@ -287,7 +294,8 @@ export default async function EntregaVolumePage({
           id,
           entregador_id,
           status,
-          origem
+          origem,
+          carga_id
         `)
         .eq(
           "empresa_id",
@@ -310,10 +318,10 @@ export default async function EntregaVolumePage({
         )
         .maybeSingle();
 
-    if (!rota) {
-      redirect(
-        "/mobile/rota",
-      );
+    if (!rota || Number(rota.carga_id) !== cargaIdSelecionada) {
+      redirect("/mobile/carga/selecionar?erro=" + encodeURIComponent(
+        "A parada informada pertence a outra carga. Selecione a carga correta antes da entrega.",
+      ));
     }
 
     rotaOrigem =
