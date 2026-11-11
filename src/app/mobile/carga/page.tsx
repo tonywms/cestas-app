@@ -386,6 +386,7 @@ export default async function MinhaCargaPage() {
       .select("id, codigo, status, carga_id, finalizada_at")
       .eq("empresa_id", empresaId)
       .eq("entregador_id", entregadorId)
+      .eq("carga_id", carga.id)
       .in("status", [
         "PLANEJADA",
         "EM_ROTA",
@@ -508,15 +509,14 @@ export default async function MinhaCargaPage() {
 
         <IdentificacaoCargaMobile numero={carga.id} codigo={carga.codigo} status={carga.status} />
 
-        {/* V94_STATUS_ROTA_FINALIZADA: o estado EM_ROTA da carga permanece ate a conciliacao fisica. */}
-        {carga.status === "EM_ROTA" && temRotaFinalizadaDaCarga && !temRotaAtiva && (
-          <div role="status" className="mx-4 mt-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-amber-950 shadow-sm">
+        {/* V105.5.7: jornada concluida nao significa devolucao automatica do estoque. */}
+        {carga.status === "EM_ROTA" && temRotaFinalizadaDaCarga && !temRotaAtiva && !rotaAtivaError && (
+          <div role="status" className="mx-4 mt-3 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-emerald-950 shadow-sm">
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.09em]">Rota finalizada</p>
-              <p className="mt-0.5 text-[11px] font-semibold">Fechamento da carga nº {carga.id} pendente</p>
-              <p className="mt-0.5 text-[10px] text-amber-800">O saldo continua em posse até conferir retorno e avarias.</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.09em]">Rota desta carga finalizada</p>
+              <p className="mt-0.5 text-[11px] font-semibold">Carga nº {carga.id} — {saldo} cesta(s) no estoque móvel</p>
+              <p className="mt-0.5 text-[10px] text-emerald-800">Nada é devolvido automaticamente ao CD. Só feche a carga quando decidir encerrar essa operação.</p>
             </div>
-            {/* V96_UX_SELETOR_LIMPO: a acao principal de fechamento permanece no resumo. */}
           </div>
         )}
         <div className="px-4 py-3">
@@ -867,6 +867,12 @@ export default async function MinhaCargaPage() {
                 </div>
               </div>
 
+              {recebimentoCompleto && (
+                <p role="status" className="mt-3 text-[10px] font-semibold leading-5 text-emerald-800">
+                  Recebimento do CD 100% conferido. O saldo não entregue permanece no estoque móvel. Nenhuma devolução foi realizada.
+                </p>
+              )}
+
               {!recebimentoCompleto &&
                 podeBiparCarga && (
                 <Link prefetch={false}
@@ -932,7 +938,7 @@ export default async function MinhaCargaPage() {
                     </p>
 
                     <p className="mt-1 text-[10px] leading-5 text-emerald-800">
-                      A carga foi recebida e conferida. O fechamento só será liberado depois que uma rota vinculada a esta carga for finalizada.
+                      A carga está disponível no estoque móvel. Você pode trocar de carga e continuar a operação. Uma devolução ao CD depende de confirmação específica.
                     </p>
                   </div>
                 </div>
@@ -966,7 +972,7 @@ export default async function MinhaCargaPage() {
                 className="mt-5 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176b3a] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,107,58,0.18)]"
               >
                 <RotateCcw size={17} />
-                Finalizar carga / informar retorno
+                Encerrar carga / devolver saldo ao CD
               </Link>
             )}
 
