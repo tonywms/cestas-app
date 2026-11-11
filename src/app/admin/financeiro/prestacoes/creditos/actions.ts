@@ -50,5 +50,7 @@ export async function confirmarCreditoCorporativoV110(form:FormData){
   revalidatePath("/admin/financeiro/prestacoes");
   revalidatePath("/admin/financeiro/prestacoes/creditos");
   revalidatePath("/mobile/prestacao-contas");
-  redirect(voltar(inicio,fim,filtros));
+  const destino=new URLSearchParams({inicio,fim,...filtros,
+    conciliado:"1",origemConfirmada:origem,idConfirmado:String(id)});
+  redirect("/admin/financeiro/prestacoes/creditos?"+destino.toString());
 }
