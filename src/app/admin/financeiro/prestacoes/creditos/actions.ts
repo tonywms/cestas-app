@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
@@ -26,7 +27,7 @@ export async function confirmarCreditoCorporativoV110(form:FormData){
   const id=Number(form.get("origem_id"));
   // Referência técnica automática: não é chave PIX, E2E ou NSU bancário.
   // O operador confirma manualmente o recebimento; o banco não é consultado.
-  const referencia=`CONF-MANUAL-CD-${crypto.randomUUID()}`;
+  const referencia=`CONF-MANUAL-CD-${randomUUID()}`;
   const inicio=String(form.get("inicio")??"");
   const fim=String(form.get("fim")??"");
   const filtros={
