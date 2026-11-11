@@ -31,6 +31,7 @@ type PageProps = {
   searchParams: Promise<{
     rotaClienteId?: string;
     clienteId?: string;
+    tipoCestaId?: string;
   }>;
 };
 
@@ -115,6 +116,11 @@ export default async function EntregaVolumePage({
 
   const params =
     await searchParams;
+  const tipoVendaId = params.tipoCestaId ? Number(params.tipoCestaId) : null;
+  if (tipoVendaId !== null &&
+    (!Number.isSafeInteger(tipoVendaId) || tipoVendaId < 1)) {
+    redirect("/mobile/estoque?erro=tipo");
+  }
 
   const rotaClienteIdInformado =
     params.rotaClienteId
@@ -712,7 +718,8 @@ export default async function EntregaVolumePage({
             },
           ];
         },
-      );
+      )
+      .filter(tipo => tipoVendaId === null || tipo.id === tipoVendaId);
 
   const clienteSelecionado =
     clienteSelecionadoId
@@ -820,7 +827,7 @@ export default async function EntregaVolumePage({
             <p className="mt-2 text-[11px] leading-5 text-white/65">
               {usuario.configuracao
                 .exigirBipagemEntrega
-                ? "Somente volumes físicos vinculados à sua carga podem ser entregues."
+                ? "Bipe os volumes físicos do estoque móvel para registrar a entrega; a origem fica no histórico."
                 : "A empresa controla volumes, mas a bipagem na entrega está desativada."}
             </p>
 
@@ -834,7 +841,7 @@ export default async function EntregaVolumePage({
           0 ? (
             <EstadoVazio
               titulo="Sem saldo disponível"
-              texto="Sua carga não possui mais cestas disponíveis para entrega."
+              texto="Não há volume disponível deste tipo de cesta na origem técnica. Consulte o estoque móvel."
             />
           ) : (
             <EntregaVolumeForm
