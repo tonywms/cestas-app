@@ -323,7 +323,7 @@ export default async function FinalizarVendaPage({
 
           <div className="relative z-10 flex items-center justify-between">
             <Link
-              href="/mobile/rota"
+              href={fluxo.rota_cliente_id ? "/mobile/rota" : "/mobile/estoque"}
               className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/10"
             >
               <ArrowLeft
@@ -349,7 +349,7 @@ export default async function FinalizarVendaPage({
 
           <div className="relative z-10 mt-6">
             <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#a8d8b7]">
-              {carga.codigo}
+              Estoque móvel do entregador
             </p>
             <h2 className="mt-2 text-[26px] font-black tracking-[-0.05em]">
               Agora entregue a cesta
@@ -459,7 +459,7 @@ export default async function FinalizarVendaPage({
                   Pode fechar o app sem perder a venda
                 </p>
                 <p className="mt-1 text-[9px] leading-5 text-sky-800/80">
-                  Enquanto esta etapa não for concluída, a rota continuará mostrando “Pagamento informado”. Se houver falha na confirmação, nenhum valor nem volume será duplicado.
+                  Enquanto esta etapa não for concluída, a venda fica como negociação preparada. Se houver falha, o lançamento de entrega, estoque e financeiro será revertido em conjunto.
                 </p>
               </div>
             </div>
