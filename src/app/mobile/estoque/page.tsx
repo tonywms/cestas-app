@@ -10,7 +10,15 @@ import { getEstoqueMovelMulticargas } from "@/services/cargas/get-estoque-movel-
 import { createClient } from "@/lib/supabase/server";
 import { iniciarVendaEstoque } from "./actions";
 
-export default async function EstoqueEntregadorPage() {
+export default async function EstoqueEntregadorPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ erro?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const erroVenda = params.erro
+    ? "Não foi possível selecionar uma cesta disponível neste momento. Atualize o estoque e tente novamente."
+    : null;
   const usuario = await getCurrentUserProfile();
   if (!usuario || !usuario.ativo) redirect("/");
   const podeVer = usuario.isPlatformAdmin || temPermissao(usuario.permissoes, PERMISSOES.CARGA_VISUALIZAR);
@@ -82,12 +90,11 @@ export default async function EstoqueEntregadorPage() {
             {estoque.erro && (
               <p role="alert" className="mt-4 rounded-xl bg-amber-50 p-3 text-[11px] font-semibold text-amber-900">{estoque.erro}</p>
             )}
-            {!estoque.erro && podeVender && (estoque.saldoTotal ?? 0) > 0 && (
-              <form action={iniciarVendaEstoque} className="mt-4">
-                <button type="submit" className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[15px] bg-emerald-800 px-4 text-[13px] font-black text-white">
-                  <ShoppingBag size={18} /> Vender cesta
-                </button>
-              </form>
+            {erroVenda && <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold text-amber-900">{erroVenda}</p>}
+            {!estoque.erro && (estoque.saldoTotal ?? 0) > 0 && (
+              <p className="mt-4 text-[11px] font-semibold leading-5 text-emerald-900">
+                Para vender, escolha abaixo o tipo de cesta. Não é necessário selecionar uma carga.
+              </p>
             )}
           </div>
 
@@ -113,12 +120,25 @@ export default async function EstoqueEntregadorPage() {
             ) : (
               <div className="mt-4 space-y-2">
                 {(tipos ?? []).map(tipo => (
-                  <div key={tipo.id} className="flex items-center justify-between gap-3 rounded-[14px] bg-[#f5faf7] px-3 py-3">
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-black">{tipo.nome}</p>
-                      <p className="text-[10px] text-slate-500">{tipo.codigo}</p>
+                  <div key={tipo.id} className="rounded-[16px] bg-[#f5faf7] px-3 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-black">{tipo.nome}</p>
+                        <p className="text-[10px] text-slate-500">{tipo.codigo}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[20px] font-black tabular-nums text-emerald-800">{saldosPorTipo.get(Number(tipo.id)) ?? 0}</p>
+                        <p className="text-[9px] text-emerald-700">disponíveis</p>
+                      </div>
                     </div>
-                    <p className="text-[20px] font-black tabular-nums text-emerald-800">{saldosPorTipo.get(Number(tipo.id)) ?? 0}</p>
+                    {podeVender && (saldosPorTipo.get(Number(tipo.id)) ?? 0) > 0 && !estoque.erro && (
+                      <form action={iniciarVendaEstoque} className="mt-3">
+                        <input type="hidden" name="tipo_cesta_id" value={tipo.id} />
+                        <button type="submit" className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[12px] bg-emerald-800 px-3 text-[11px] font-black text-white">
+                          <ShoppingBag size={15} /> Vender este tipo de cesta
+                        </button>
+                      </form>
+                    )}
                   </div>
                 ))}
               </div>
