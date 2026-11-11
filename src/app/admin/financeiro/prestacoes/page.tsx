@@ -12,6 +12,7 @@ import {
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
+import ConfirmacaoFinanceiraModal from "@/components/admin/ConfirmacaoFinanceiraModal";
 import {
   configurarPrestacao, classificarRecebimentoAnterior,
   registrarRepasseV109, conciliarCreditoEmpresaV109
@@ -45,7 +46,7 @@ type Antigo = { id:number; valor:number; forma_pagamento:string; created_at:stri
   recebido_por:string; origem:"VENDA"|"COBRANCA"|"PARCELA" };
 type Props={searchParams:Promise<{
   erro?:string;configurado?:string;classificado?:string;repasse?:string;
-  conciliado?:string;inicio?:string;fim?:string;
+  conciliado?:string;conferido?:string;repasseId?:string;prestacao?:string;inicio?:string;fim?:string;
 }>};
 const n=(v:unknown)=>Number.isFinite(Number(v))?Number(v):0;
 const moeda=(v:unknown)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(n(v));
@@ -135,6 +136,39 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
   const fim=/^\d{4}-\d{2}-\d{2}$/.test(params.fim??"")?params.fim:null;
   const visiveis=prestacoes.filter(p=>(!inicio||p.fim>=inicio)&&(!fim||p.inicio<=fim));
   const saldos=visiveis.reduce((a,p)=>a+n(p.pendente_dinheiro)+n(p.pendente_pix)+n(p.pendente_cartao),0);
+  const idPrestacao=Number(params.prestacao??0),idRepasse=Number(params.repasseId??0);
+  const repasseConfirmado=(Number.isSafeInteger(idPrestacao)&&Number.isSafeInteger(idRepasse)
+    ?prestacoes.find(p=>p.id===idPrestacao)?.repasses.find(r=>r.id===idRepasse)
+    :undefined);
+  const evento=params.erro?null:params.repasse==="1"?"REPASSE":
+    params.conciliado==="1"?"CREDITO":
+    params.classificado==="1"?"CLASSIFICADO":
+    params.configurado==="1"?"CONFIGURADO":
+    params.conferido==="1"?"CONFERIDO":null;
+  const destinoLimpo=new URLSearchParams();
+  if(inicio)destinoLimpo.set("inicio",inicio);
+  if(fim)destinoLimpo.set("fim",fim);
+  const fecharModal=`/admin/financeiro/prestacoes${destinoLimpo.size?"?"+destinoLimpo.toString():""}`;
+  const modal=evento==="REPASSE"?(repasseConfirmado?{
+      titulo:"Repasse confirmado com sucesso",
+      descricao:"O CD registrou o valor recebido. O saldo da prestação foi atualizado.",
+      valor:moeda(repasseConfirmado.valor),
+      identificacao:`Prestação nº ${idPrestacao} · ${repasseConfirmado.forma}`,
+      detalhe:"O valor consta nos repasses confirmados e não pode ser recebido novamente como saldo pendente.",
+    }:null):
+    evento==="CREDITO"?{
+      titulo:"Crédito conciliado pelo CD",
+      descricao:"O recebimento foi conferido e registrado no histórico financeiro.",
+    }:evento==="CLASSIFICADO"?{
+      titulo:"Recebimento classificado",
+      descricao:"O destinatário foi registrado e os saldos foram atualizados.",
+    }:evento==="CONFIGURADO"?{
+      titulo:"Configuração salva",
+      descricao:"Os novos destinatários de PIX e cartão foram atualizados para os próximos recebimentos.",
+    }:evento==="CONFERIDO"?{
+      titulo:"Conferência registrada",
+      descricao:"Os valores da prestação foram registrados pelo CD.",
+    }:null;
   return <main className="min-h-screen bg-[#eef4ef] text-[#142018]">
     <div className="mx-auto max-w-[1160px] space-y-5 p-4 md:p-8">
       <header className="rounded-[28px] bg-[linear-gradient(135deg,#0d5730,#187c43)] p-6 text-white">
@@ -151,8 +185,14 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
         </p>
       </header>
 
-      {(params.configurado||params.classificado||params.repasse||params.conciliado)&&
-        <p role="status" className="rounded-xl bg-emerald-50 p-4 text-xs font-bold text-emerald-900">Operação registrada. O histórico e os saldos foram atualizados.</p>}
+      {modal&&<ConfirmacaoFinanceiraModal
+        titulo={modal.titulo}
+        descricao={modal.descricao}
+        destinoAposFechar={fecharModal}
+        valor={"valor" in modal ? modal.valor : undefined}
+        identificacao={"identificacao" in modal ? modal.identificacao : undefined}
+        detalhe={"detalhe" in modal ? modal.detalhe : undefined}
+      />}
       {params.erro&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-900">{params.erro.slice(0,320)}</p>}
 
       <Link href="/admin/financeiro/prestacoes/fechamento"
