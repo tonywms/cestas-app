@@ -21,6 +21,7 @@ import {
   Truck,
   UsersRound,
   WalletCards,
+  Banknote,
 } from "lucide-react";
 
 import LogoutButton from "@/components/auth/LogoutButton";
@@ -416,6 +417,16 @@ return (
                 delay={310}
               />
             )}
+
+            {podeRegistrarPagamento && (
+              <ActionCard
+                icon={<Banknote size={22} />}
+                titulo="Prestação de contas"
+                descricao="Dinheiro, PIX e cartão · acerto com CD"
+                href="/mobile/prestacao-contas"
+                delay={320}
+              />
+            )
 
           </div>
 
