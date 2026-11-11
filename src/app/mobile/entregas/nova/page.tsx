@@ -43,6 +43,7 @@ type PageProps = {
     Promise<{
       rotaClienteId?: string;
       clienteId?: string;
+      tipoCestaId?: string;
     }>;
 };
 
@@ -66,6 +67,11 @@ export default async function NovaEntregaPage({
 
   const params =
     await searchParams;
+  const tipoVendaId = params.tipoCestaId ? Number(params.tipoCestaId) : null;
+  if (tipoVendaId !== null &&
+      (!Number.isSafeInteger(tipoVendaId) || tipoVendaId < 1)) {
+    redirect("/mobile/estoque?erro=tipo");
+  }
 
   /* ENTREGA_VOLUME_REDIRECT_PATCH_V3 */
   const modoControleCarga =
@@ -93,6 +99,9 @@ export default async function NovaEntregaPage({
         "clienteId",
         params.clienteId,
       );
+    }
+    if (params.tipoCestaId) {
+      queryParams.set("tipoCestaId", params.tipoCestaId);
     }
 
     const query =
@@ -446,7 +455,8 @@ export default async function NovaEntregaPage({
       )
       .filter(
         (item) =>
-          item.saldo > 0,
+          item.saldo > 0 &&
+          (tipoVendaId === null || item.tipoCestaId === tipoVendaId),
       );
 
   /*
@@ -751,7 +761,7 @@ export default async function NovaEntregaPage({
               </h2>
 
               <p className="mt-2 text-xs leading-5 text-slate-400">
-                Sua carga não possui mais cestas disponíveis.
+                Não há saldo disponível deste tipo de cesta para a venda. Consulte o estoque móvel.
               </p>
 
             </div>
