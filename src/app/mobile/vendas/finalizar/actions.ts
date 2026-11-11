@@ -96,7 +96,7 @@ export async function concluirVendaCampo(
   // V107: cada fluxo carrega sua natureza no banco. Nunca confiar no
   // browser para escolher como debitar estoque ou registrar financeiro.
   const {data:fluxo,error:erroFluxo}=await supabase.from("venda_fluxos_campo")
-    .select("id,rota_id,rota_cliente_id")
+    .select("id,rota_id,rota_cliente_id,forma_pagamento,valor_entrada")
     .eq("empresa_id",usuario.empresa.id)
     .eq("entregador_id",usuario.id)
     .eq("id",fluxoId).maybeSingle();
@@ -104,6 +104,19 @@ export async function concluirVendaCampo(
     return {success:false,message:"Venda preparada não encontrada. Nenhuma entrega foi efetuada."};
   }
   const direta = fluxo.rota_id===null && fluxo.rota_cliente_id===null;
+  const forma=String(fluxo.forma_pagamento??"").toUpperCase();
+  if(direta && Number(fluxo.valor_entrada??0)>0 && (forma==="PIX"||forma==="CARTAO")){
+    const destinoExibido=String(formData.get("destino_exibido")??"");
+    const {data:config,error:erroConfig}=await supabase.from("empresa_configuracoes")
+      .select("destino_pix_v108,destino_cartao_v108")
+      .eq("empresa_id",usuario.empresa.id).maybeSingle();
+    const destinoAtual=forma==="PIX"?config?.destino_pix_v108:config?.destino_cartao_v108;
+    if(erroConfig||!["EMPRESA","ENTREGADOR"].includes(destinoAtual??"")||
+      destinoAtual!==destinoExibido){
+      return {success:false,message:
+        "A conta PIX ou maquineta mudou desde a negociação. Atualize a página antes de concluir a entrega e o pagamento."};
+    }
+  }
 
   const {
     data,
