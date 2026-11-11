@@ -18,6 +18,9 @@ import {
 import {
   concluirVendaCampo,
 } from "./actions";
+import DestinoRecebimentoV118, {
+  titularPrevistoV118, type DestinoV118
+} from "@/components/mobile/DestinoRecebimentoV118";
 
 const initialState = {
   success: false,
@@ -29,11 +32,19 @@ export default function FinalizarVendaForm({
   quantidade,
   exigeScanner,
   modoControle,
+  formaPagamento,
+  valorEntrada,
+  destinoPix,
+  destinoCartao,
 }: {
   fluxoId: number;
   quantidade: number;
   exigeScanner: boolean;
   modoControle: string;
+  formaPagamento: string;
+  valorEntrada: number;
+  destinoPix: DestinoV118;
+  destinoCartao: DestinoV118;
 }) {
   const [
     state,
@@ -133,6 +144,8 @@ export default function FinalizarVendaForm({
       action={formAction}
       className="space-y-4"
     >
+      <input type="hidden" name="destino_exibido"
+        value={valorEntrada>0?titularPrevistoV118(formaPagamento,destinoPix,destinoCartao)??"":""}/>
       <input
         type="hidden"
         name="fluxo_id"
@@ -300,6 +313,8 @@ export default function FinalizarVendaForm({
         </section>
       )}
 
+      <DestinoRecebimentoV118 forma={formaPagamento}
+        destinoPix={destinoPix} destinoCartao={destinoCartao} semPagamento={valorEntrada<=0}/>
       {state.message && (
         <div className="rounded-[18px] border border-red-200 bg-red-50 p-4">
           <div className="flex items-start gap-3">
@@ -318,7 +333,9 @@ export default function FinalizarVendaForm({
         type="submit"
         disabled={
           pending ||
-          !pronto
+          !pronto ||
+          (valorEntrada>0&&["PIX","CARTAO"].includes(formaPagamento)&&
+            !titularPrevistoV118(formaPagamento,destinoPix,destinoCartao))
         }
         className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#176f3c] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.18)] disabled:opacity-40"
       >
