@@ -17,8 +17,8 @@ import { CAMPOS_CLIENTE, salvarClienteOffline, type DadosCliente } from "@/lib/m
 import SincronizadorOfflineClientes from "@/components/mobile/SincronizadorOfflineClientes";
 
 export default function NovoClienteMobileForm({
-  empresaId, usuarioId,
-}: { empresaId: string; usuarioId: string }) {
+  empresaId, usuarioId, voltaParaVenda = false,
+}: { empresaId: string; usuarioId: string; voltaParaVenda?: boolean }) {
   const [salvando, setSalvando] = useState(false);
   const [mensagemLocal, setMensagemLocal] = useState("");
 
@@ -164,6 +164,20 @@ export default function NovoClienteMobileForm({
         <div role="status" aria-live="polite"
           className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-[12px] font-semibold leading-relaxed text-emerald-900">
           {mensagemLocal}
+        </div>
+      )}
+      {voltaParaVenda && (
+        <div className="mb-3 rounded-[16px] border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-[11px] font-black text-emerald-900">Próximo passo: vender da carga escolhida</p>
+          <p className="mt-1 text-[10px] leading-5 text-emerald-800">
+            Após a sincronização confirmar o cadastro no Supabase, volte à lista e selecione este cliente para a entrega e o registro da venda.
+          </p>
+          <Link
+            href="/mobile/clientes?modo=venda-direta"
+            className="mt-3 flex min-h-[44px] items-center justify-center rounded-xl bg-emerald-800 px-3 text-[11px] font-black text-white"
+          >
+            Voltar para escolher cliente
+          </Link>
         </div>
       )}
       <SincronizadorOfflineClientes empresaId={empresaId} usuarioId={usuarioId} />
