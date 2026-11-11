@@ -202,7 +202,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
                 <p className="text-[27px] font-black leading-none tabular-nums text-emerald-900">
                   {saldosDisponiveis ? (saldo(atual) ?? "—") : "—"}
                 </p>
-                <p className="mt-1 text-[9px] font-extrabold text-emerald-800">cestas em posse</p>
+                <p className="mt-1 text-[9px] font-extrabold text-emerald-800">{atual.conferenciaPendente ? "cestas a conferir" : "cestas em posse"}</p>
               </div>
             </div>
             <p className={`mt-3 rounded-xl px-3 py-2 text-[11px] font-semibold leading-5 ${atual.conferenciaPendente ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-800"}`}>
@@ -325,7 +325,7 @@ export default function SeletorCargasClient({ cargas, cargaAtualId, rotaEmAndame
               </div>
               {/* V99_CARDS_COMPACTOS_EXPANSIVEIS: saldo visivel; detalhes sob demanda. */}
               <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-emerald-50 px-3 py-2">
-                <span className="text-[10px] font-bold text-emerald-900">Cestas em posse nesta carga</span>
+                <span className="text-[10px] font-bold text-emerald-900">{carga.conferenciaPendente ? "Cestas a conferir" : "Cestas em posse"}</span>
                 <span className="text-sm font-black tabular-nums text-emerald-900">
                   {saldoAtual == null ? "—" : `${saldoAtual} ${saldoAtual === 1 ? "cesta" : "cestas"}`}
                 </span>
