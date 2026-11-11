@@ -108,9 +108,11 @@ export default function EntregaVolumeForm({
             <PackageCheck size={21} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[8px] font-black uppercase tracking-[0.16em] text-emerald-700">Carga atual</p>
-            <h2 className="mt-1 text-[16px] font-black">{cargaCodigo}</h2>
-            <p className="mt-1 text-[9px] text-slate-400">Controle físico por volume</p>
+            <p className="text-[8px] font-black uppercase tracking-[0.16em] text-emerald-700">Meu estoque móvel</p>
+            <h2 className="mt-1 text-[16px] font-black">Conferência da entrega</h2>
+            <p className="mt-1 text-[10px] leading-5 text-slate-500">
+              Bipe os volumes que serão entregues. A origem permanece no histórico, sem precisar selecionar uma carga.
+            </p>
           </div>
         </div>
       </section>
