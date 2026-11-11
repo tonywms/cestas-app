@@ -462,6 +462,16 @@ export default async function FinanceiroPage({
           }
         />
 
+        {/* V108 — Prestação de contas do entregador e conciliação no CD */}
+        <Link href="/admin/financeiro/prestacoes" className="mt-4 flex min-h-[92px] items-center justify-between gap-4 rounded-[22px] border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Fechamento financeiro do CD</p>
+            <p className="mt-1 text-[16px] font-black text-emerald-950">Prestação de contas dos entregadores</p>
+            <p className="mt-1 text-[12px] text-emerald-800">Conferir dinheiro, PIX e cartão e configurar quem recebe cada pagamento.</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-white px-4 py-2 text-[11px] font-black text-emerald-800">Abrir</span>
+        </Link>
+
         {/* V70_FINANCEIRO_GOVERNANCA */}
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <Link
