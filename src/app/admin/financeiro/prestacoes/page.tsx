@@ -52,10 +52,10 @@ const moeda=(v:unknown)=>new Intl.NumberFormat("pt-BR",{style:"currency",currenc
 const diaBr=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)?s.split("-").reverse().join("/"):s;
 const dataHora=(s:string)=>new Date(s).toLocaleString("pt-BR",{timeZone:"America/Fortaleza",dateStyle:"short",timeStyle:"short"});
 
-function Metrica({titulo,valor,detalhe}:{titulo:string;valor:unknown;detalhe?:string}) {
+function Metrica({titulo,valor,detalhe,quantidade=false}:{titulo:string;valor:unknown;detalhe?:string;quantidade?:boolean}) {
   return <div className="rounded-[17px] border border-emerald-100 bg-[#f7fbf8] p-4">
     <p className="text-[10px] font-bold text-slate-600">{titulo}</p>
-    <p className="mt-2 text-xl font-black tabular-nums text-emerald-950">{moeda(valor)}</p>
+    <p className="mt-2 text-xl font-black tabular-nums text-emerald-950">{quantidade ? n(valor).toLocaleString("pt-BR") : moeda(valor)}</p>
     {detalhe&&<p className="mt-1 text-[9px] leading-4 text-slate-500">{detalhe}</p>}
   </div>;
 }
@@ -139,10 +139,10 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
       {params.erro&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-900">{params.erro.slice(0,320)}</p>}
 
       <section className="grid gap-3 md:grid-cols-3">
-        <Metrica titulo="Prestações encontradas" valor={visiveis.length} detalhe="Quantidade de protocolos, não valor monetário"/>
+        <Metrica titulo="Prestações encontradas" valor={visiveis.length} quantidade detalhe="Protocolos de prestação de contas"/>
         <Metrica titulo="A repassar pelos entregadores" valor={saldos} detalhe="Somente saldos que o CD ainda não confirmou"/>
-        <Metrica titulo="PIX/cartão corporativos não conciliados" valor={visiveis.reduce((a,p)=>a+n(p.itens_empresa_pendentes),0)}
-          detalhe="Quantidade de transações para conferir"/>
+        <Metrica titulo="PIX/cartão corporativos não conciliados" valor={visiveis.reduce((a,p)=>a+n(p.itens_empresa_pendentes),0)} quantidade
+          detalhe="Transações que aguardam conferência"/>
       </section>
 
       <section className="rounded-[25px] bg-white p-5 shadow-sm">
