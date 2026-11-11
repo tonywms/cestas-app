@@ -93,12 +93,24 @@ export async function concluirVendaCampo(
   const supabase =
     await createClient();
 
+  // V107: cada fluxo carrega sua natureza no banco. Nunca confiar no
+  // browser para escolher como debitar estoque ou registrar financeiro.
+  const {data:fluxo,error:erroFluxo}=await supabase.from("venda_fluxos_campo")
+    .select("id,rota_id,rota_cliente_id")
+    .eq("empresa_id",usuario.empresa.id)
+    .eq("entregador_id",usuario.id)
+    .eq("id",fluxoId).maybeSingle();
+  if (erroFluxo || !fluxo) {
+    return {success:false,message:"Venda preparada não encontrada. Nenhuma entrega foi efetuada."};
+  }
+  const direta = fluxo.rota_id===null && fluxo.rota_cliente_id===null;
+
   const {
     data,
     error,
   } =
     await supabase.rpc(
-      "mobile_concluir_venda_rota",
+      direta ? "mobile_concluir_venda_direta_v107" : "mobile_concluir_venda_rota",
       {
         p_empresa_id:
           usuario.empresa.id,
@@ -142,6 +154,7 @@ export async function concluirVendaCampo(
     "/mobile",
     "/mobile/rota",
     "/mobile/carga",
+    "/mobile/estoque",
     "/mobile/recebimentos",
     "/admin/cargas",
     "/admin/financeiro",
@@ -218,8 +231,7 @@ export async function cancelarVendaPreparada(
 
   if (
     !podePagamento ||
-    !podeEntrega ||
-    !podeRota
+    !podeEntrega
   ) {
     return {
       success: false,
@@ -268,13 +280,25 @@ export async function cancelarVendaPreparada(
 
   const supabase =
     await createClient();
+  const {data:fluxo,error:erroFluxo}=await supabase.from("venda_fluxos_campo")
+    .select("rota_id,rota_cliente_id,cliente_id,tipo_cesta_id")
+    .eq("empresa_id",usuario.empresa.id)
+    .eq("entregador_id",usuario.id)
+    .eq("id",fluxoId).maybeSingle();
+  if (erroFluxo || !fluxo) {
+    return {success:false,message:"Venda não encontrada para correção."};
+  }
+  const direta = fluxo.rota_id===null && fluxo.rota_cliente_id===null;
+  if (!direta && !podeRota) {
+    return {success:false,message:"Sem permissão para corrigir venda da rota."};
+  }
 
   const {
     data,
     error,
   } =
     await supabase.rpc(
-      "mobile_cancelar_venda_preparada",
+      direta ? "mobile_cancelar_venda_direta_v107" : "mobile_cancelar_venda_preparada",
       {
         p_empresa_id:
           usuario.empresa.id,
@@ -297,6 +321,10 @@ export async function cancelarVendaPreparada(
         error.message ||
         "Não foi possível corrigir a venda preparada.",
     };
+  }
+
+  if (direta) {
+    redirect(`/mobile/vendas/preparar-direta?clienteId=${fluxo.cliente_id}&tipoCestaId=${fluxo.tipo_cesta_id}`);
   }
 
   const resultado =
