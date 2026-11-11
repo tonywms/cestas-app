@@ -22,7 +22,7 @@ import {
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import IdentificacaoCargaMobile from "@/components/mobile/IdentificacaoCargaMobile";
+
 
 import {
   PERMISSOES,
@@ -157,351 +157,64 @@ export default async function MinhaRotaPage({
   const supabase =
     await createClient();
 
-  const { data: cargaEscolhida, error: escolhaError } = await supabase.rpc(
-    "mobile_obter_carga_escolhida", { p_empresa_id: usuario.empresa.id },
-  );
-  if (escolhaError) redirect("/mobile/carga/selecionar");
-  if (!cargaEscolhida) {
-    const { count } = await supabase.from("cargas").select("id", { count: "exact", head: true })
-      .eq("empresa_id", usuario.empresa.id).eq("entregador_id", usuario.id)
-      .in("status", ["ABERTA", "EM_ROTA"]);
-    if ((count ?? 0) > 1) redirect("/mobile/carga/selecionar");
-  }
-
-  let {
-    data: cargaAtiva,
-    error: cargaAtivaError,
-  } =
-    await supabase
-      .from("cargas")
-      .select(`
-        id,
-        codigo,
-        status,
-        recebida_at
-      `)
-      .eq(
-        "empresa_id",
-        usuario.empresa.id,
-      )
-      .eq(
-        "entregador_id",
-        usuario.id,
-      )
-      .in(
-        "status",
-        [
-          "ABERTA",
-          "EM_ROTA",
-        ],
-      )
-      .eq("id", Number(cargaEscolhida ?? 0))
-      .order(
-        "created_at",
-        {
-          ascending:
-            false,
-        },
-      )
-      .limit(1)
-      .maybeSingle();
-
-  if (cargaAtivaError) {
-    console.error(
-      "Erro ao consultar carga ativa:",
-      cargaAtivaError,
-    );
-  }
-
-  let cargaPronta =
-    !!cargaAtiva &&
-    (
-      !usuario.configuracao
-        .exigirBipagemCarga ||
-      !!cargaAtiva.recebida_at
-    );
-
-  /* V105.5.9: rota de outra carga nunca substitui a carga escolhida. */
-  const { data: rotaAtiva, error: rotaAtivaError } = await supabase
+  // V106.1: a rota pertence ao entregador. Nao ha selecao, conferencia
+  // nem finalizacao de carga para consultar o itinerario.
+  const { data: rota, error: rotaError } = await supabase
     .from("rotas")
-    .select("id, codigo, data_rota, status, observacao, origem, carga_id")
-    .eq("empresa_id", usuario.empresa.id)
-    .eq("entregador_id", usuario.id)
-    .eq("carga_id", cargaAtiva?.id ?? 0)
-    .in("status", ["PLANEJADA", "EM_ROTA"])
-    .order("data_rota", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (rotaAtivaError) {
-    console.error("Erro ao consultar rota desta carga:", rotaAtivaError);
-  }
-
-  // Bloqueio real do RPC ainda compartilhado com producao:
-  // nao oferecer iniciar rota da carga escolhida quando a rota de outra
-  // carga impediria a operacao e poderia induzir o operador ao erro.
-  const { data: rotaDeOutraCarga, error: erroRotaDeOutraCarga } = await supabase
-    .from("rotas")
-    .select("id, codigo, carga_id")
+    .select("id,codigo,data_rota,status,observacao,origem,carga_id")
     .eq("empresa_id", usuario.empresa.id)
     .eq("entregador_id", usuario.id)
     .in("status", ["PLANEJADA", "EM_ROTA"])
-    .neq("carga_id", cargaAtiva?.id ?? 0)
-    .not("carga_id", "is", null)
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  const bloqueioMultiRota = Boolean(erroRotaDeOutraCarga) ||
-    Boolean(rotaAtivaError) || Boolean(rotaDeOutraCarga);
+  if (rotaError) console.error("V106.1: erro ao consultar rota do entregador:", rotaError.message);
 
-    /* =========================================================
-     ROTA ATUAL = SOMENTE ROTA ATIVA
-     ---------------------------------------------------------
-     Uma rota FINALIZADA e historico, nao operacao atual.
-     Sem PLANEJADA/EM_ROTA, a tela deve decidir pelo estado
-     da carga: abastecer, receber/conferir ou iniciar rota.
-  ========================================================= */
-
-  const rota =
-    rotaAtiva;
-
-  /* V60_2_ROTA_CARGA_GATE
-   * A rota pode ser planejada antes da carga, mas o atendimento
-   * só é liberado depois que a carga ativa estiver pronta e a
-   * jornada tiver sido iniciada. O RPC mobile_iniciar_rota_propria
-   * vincula a carga à rota administrativa existente.
-   */
-  const rotaPlanejada =
-    rota?.status === "PLANEJADA";
-
-  const rotaEmOperacao =
-    rota?.status === "EM_ROTA";
-
-  const rotaAguardandoCarga =
-    !!rota &&
-    rotaPlanejada &&
-    !cargaAtiva;
-
-  const rotaAguardandoConferencia =
-    !!rota &&
-    rotaPlanejada &&
-    !!cargaAtiva &&
-    !cargaPronta;
-
-  const rotaProntaParaIniciar =
-    !!rota &&
-    rotaPlanejada &&
-    cargaPronta;
-
-  /* SEM ROTA */
+  const rotaPlanejada = rota?.status === "PLANEJADA";
+  const rotaEmOperacao = rota?.status === "EM_ROTA";
 
   if (!rota) {
-    const precisaReceberCarga =
-      !!cargaAtiva &&
-      usuario.configuracao
-        .exigirBipagemCarga &&
-      !cargaAtiva.recebida_at;
-
-    /*
-     * Se a carga já está EM_ROTA, significa que uma jornada
-     * foi iniciada com ela. Sem rota ativa neste momento,
-     * a jornada foi encerrada e o próximo passo é fechar
-     * a carga, informando eventual retorno/avaria.
-     */
-    const jornadaEncerrada =
-      !!cargaAtiva &&
-      cargaAtiva.status === "EM_ROTA";
-
-    const titulo =
-      !cargaAtiva
-        ? "Abasteça o carro primeiro"
-        : jornadaEncerrada
-          ? "Jornada encerrada"
-          : precisaReceberCarga
-            ? "Receba sua carga"
-            : "Pronto para sair?";
-
-    const texto =
-      !cargaAtiva
-        ? "Sua rota nasce a partir do estoque móvel. Receba uma carga antes de iniciar a jornada."
-        : jornadaEncerrada
-          ? "Sua rota foi encerrada. Agora finalize a carga e informe qualquer retorno ou avaria antes de iniciar uma nova jornada."
-          : precisaReceberCarga
-            ? "A carga já está vinculada ao seu usuário, mas a conferência física precisa ser concluída."
-            : "Sua carga está pronta. Inicie a jornada e adicione os clientes conforme for atendendo em campo.";
-
     return (
       <main className="app-premium min-h-dvh text-[#142018]">
-        <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-[#f7faf7]/90 shadow-[0_0_70px_rgba(17,63,33,0.14)]">
-
-          <header className="hero-premium grain relative overflow-hidden px-5 pb-10 pt-5 text-white">
-
-            <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full border-[30px] border-white/[0.04]" />
-
-            <div className="animate-orb pointer-events-none absolute right-10 top-16 h-32 w-32 rounded-full bg-[#f4b13f]/[0.14] blur-3xl" />
-
-            <div className="relative z-10 flex items-center justify-between">
-
-              <Link
-                href="/mobile"
-                aria-label="Voltar"
-                className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/15 bg-white/10 backdrop-blur-xl transition active:scale-95"
-              >
-                <ArrowLeft size={19} />
+        <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-[#f7faf7]/90 shadow-[0_0_70px_rgba(17,63,33,0.14)]">
+          <header className="hero-premium grain px-5 pb-8 pt-5 text-white">
+            <div className="flex items-center justify-between">
+              <Link href="/mobile" aria-label="Voltar" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/10">
+                <ArrowLeft size={19}/>
               </Link>
-
-              <div className="text-center">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#a8d8b7]">
-                  Operação
-                </p>
-                <h1 className="mt-0.5 text-[17px] font-black tracking-[-0.03em]">
-                  Minha Rota
-                </h1>
-              </div>
-
-              <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/15 bg-white/10">
-                <Route size={19} />
-              </div>
-
+              <h1 className="text-[17px] font-black">Minha Rota</h1>
+              <Route size={21}/>
             </div>
-
+            <p className="mt-5 text-[12px] text-white/80">Seus atendimentos e itinerário, sem vínculo obrigatório com nenhuma carga.</p>
           </header>
-
-          {cargaAtiva && (
-            <div><IdentificacaoCargaMobile numero={cargaAtiva.id} codigo={cargaAtiva.codigo} status={cargaAtiva.status} />
-            <div className="px-4 pt-2 text-right"><Link href="/mobile/carga/selecionar" className="text-[11px] font-bold text-emerald-700 underline">Trocar carga em operacao</Link></div></div>
-          )}
-
-          <section className="flex flex-1 items-start px-5 py-7">
-
-            <div className="card-premium animate-pop w-full overflow-hidden rounded-[30px] p-7 text-center">
-
-              <div className="icon-emerald mx-auto flex h-[68px] w-[68px] items-center justify-center rounded-[22px]">
-                <MapPinned size={30} />
+          <section className="p-5">
+            {mensagemErro && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-[11px] font-semibold text-red-800">{mensagemErro}</p>}
+            {rotaError ? (
+              <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-[12px] text-red-800">
+                Não foi possível consultar suas rotas. Atualize a página para tentar novamente.
+              </p>
+            ) : (
+              <div className="rounded-[26px] bg-white p-6 text-center shadow-sm">
+                <MapPinned size={30} className="mx-auto text-emerald-700"/>
+                <h2 className="mt-4 text-xl font-black">Nenhuma rota em andamento</h2>
+                <p className="mt-3 text-[12px] leading-6 text-slate-600">
+                  Você pode atender clientes e vender usando o estoque móvel sem criar uma rota.
+                  As cargas recebidas não determinam o itinerário.
+                </p>
+                <Link href="/mobile/estoque" className="mt-5 flex min-h-[50px] items-center justify-center rounded-2xl bg-emerald-800 px-4 text-[12px] font-black text-white">
+                  Ver meu estoque e vender
+                </Link>
+                <Link href="/mobile/clientes" className="mt-2 flex min-h-[48px] items-center justify-center rounded-2xl border border-emerald-200 text-[12px] font-bold text-emerald-800">
+                  Consultar clientes
+                </Link>
+                <p className="mt-4 text-[10px] leading-5 text-slate-500">
+                  A criação de uma rota própria sem carga requer a atualização da função do banco.
+                  Esta tela não executará o procedimento antigo que vinculava uma carga automaticamente.
+                </p>
               </div>
-
-              <p className="mt-6 text-[10px] font-black uppercase tracking-[0.22em] text-[#b07a12]">
-                Jornada do entregador
-              </p>
-
-              <h2 className="mt-2 text-[24px] font-black tracking-[-0.04em]">
-                {titulo}
-              </h2>
-
-              <p className="mx-auto mt-3 max-w-[320px] text-[13px] leading-6 text-slate-500">
-                {texto}
-              </p>
-
-              {mensagemErro && (
-                <div className="mt-5 rounded-[18px] border border-red-100 bg-red-50 px-4 py-3 text-left text-[11px] font-bold leading-5 text-red-700">
-                  {mensagemErro}
-                </div>
-              )}
-
-              {mensagemOk && (
-                <div className="mt-5 rounded-[18px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-left text-[11px] font-bold leading-5 text-emerald-700">
-                  {mensagemOk}
-                </div>
-              )}
-
-
-              {!cargaAtiva && (
-                <Link
-                  href="/mobile/carga"
-                  className="mt-7 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.28)] transition active:scale-[0.985]"
-                >
-                  <PackageCheck size={17} />
-                  Ir para Minha carga
-                </Link>
-              )}
-
-              {precisaReceberCarga && (
-                <Link
-                  href="/mobile/carga/receber"
-                  className="mt-7 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_14px_30px_rgba(23,111,60,0.28)] transition active:scale-[0.985]"
-                >
-                  <PackageCheck size={17} />
-                  Receber e conferir carga
-                </Link>
-              )}
-
-              {jornadaEncerrada && (
-                <div className="mt-7 space-y-3">
-                  <Link
-                    href="/mobile/carga/fechar"
-                    className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_32px_rgba(23,111,60,0.30)] transition active:scale-[0.985]"
-                  >
-                    <PackageCheck size={18} />
-                    Finalizar carga / Informar retorno
-                  </Link>
-
-                  <Link
-                    href="/mobile/carga"
-                    className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[16px] border border-emerald-100 bg-white text-[11px] font-black text-[#176f3c]"
-                  >
-                    Ver Minha Carga
-                  </Link>
-                </div>
-              )}
-
-              {cargaPronta &&
-                !jornadaEncerrada &&
-                podeGerenciarRotaPropria &&
-                !bloqueioMultiRota && (
-                  <form
-                    action={
-                      iniciarMinhaRota
-                    }
-                    className="mt-7"
-                  >
-                    <button
-                      type="submit"
-                      className="flex h-[58px] w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[13px] font-black text-white shadow-[0_16px_32px_rgba(23,111,60,0.30)] transition active:scale-[0.985]"
-                    >
-                      <Play
-                        size={18}
-                        fill="currentColor"
-                      />
-                      Iniciar minha rota
-                    </button>
-                  </form>
-                )}
-
-              {cargaPronta && !jornadaEncerrada && bloqueioMultiRota && (
-                <div className="mt-6 rounded-[18px] border border-amber-200 bg-amber-50 p-4 text-left">
-                  <p className="text-[12px] font-black text-amber-950">Outra carga já possui uma rota aberta</p>
-                  <p className="mt-2 text-[11px] leading-5 text-amber-900">
-                    {rotaDeOutraCarga
-                      ? `A rota ${rotaDeOutraCarga.codigo} pertence à carga nº ${rotaDeOutraCarga.carga_id}.
-                          Esta tela está mostrando somente a carga selecionada; nenhuma venda ou entrega será redirecionada para aquela rota.`
-                      : "Não foi possível conferir as rotas. Atualize a página para tentar novamente."}
-                  </p>
-                  <Link href="/mobile/carga" className="mt-3 flex h-[44px] items-center justify-center rounded-xl border border-amber-300 bg-white text-[11px] font-black text-amber-900">
-                    Voltar ao estoque desta carga
-                  </Link>
-                </div>
-              )}
-
-              {cargaPronta &&
-                !jornadaEncerrada &&
-                !podeGerenciarRotaPropria && (
-                  <div className="mt-7 rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-bold leading-5 text-amber-800">
-                    Seu perfil ainda não possui permissão para iniciar a própria rota.
-                  </div>
-                )}
-
-              <Link
-                href="/mobile"
-                className="mt-3 flex h-[50px] w-full items-center justify-center gap-2 rounded-[16px] border border-emerald-100 bg-white text-[11px] font-black text-[#176f3c]"
-              >
-                <ArrowLeft size={16} />
-                Voltar ao início
-              </Link>
-
-            </div>
-
+            )}
           </section>
-
         </div>
       </main>
     );
@@ -1426,10 +1139,6 @@ export default async function MinhaRotaPage({
 
         </header>
 
-        {cargaAtiva && rota.carga_id === cargaAtiva.id && (
-          <IdentificacaoCargaMobile numero={cargaAtiva.id} codigo={cargaAtiva.codigo} status={cargaAtiva.status} />
-        )}
-
         {/* =================================================
             CONTEÚDO
         ================================================= */}
@@ -1493,70 +1202,15 @@ export default async function MinhaRotaPage({
           )}
 
           {!finalizada && rotaPlanejada && (
-            <section className="mb-5 overflow-hidden rounded-[24px] border border-amber-200 bg-[linear-gradient(145deg,#fff9ed,#ffffff)] p-4 shadow-[0_18px_40px_-30px_rgba(217,145,21,0.42)]">
-              <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-amber-100 text-amber-700">
-                  <PackageCheck size={20} />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-700">
-                    Antes do atendimento
-                  </p>
-                  <h3 className="mt-1 text-[15px] font-black tracking-[-0.03em]">
-                    {rotaAguardandoCarga
-                      ? "Rota planejada, mas sem carga ativa"
-                      : rotaAguardandoConferencia
-                        ? "Receba e confira sua carga"
-                        : "Carga pronta para iniciar a rota"}
-                  </h3>
-                  <p className="mt-1 text-[9px] leading-4 text-slate-500">
-                    {rotaAguardandoCarga
-                      ? "A rota pode ser planejada antes da separação, mas nenhum cliente pode ser atendido sem estoque móvel ativo."
-                      : rotaAguardandoConferencia
-                        ? "A carga já está vinculada ao entregador, porém a conferência física obrigatória ainda não foi concluída."
-                        : "Inicie a jornada para vincular a carga ativa a esta rota e liberar os atendimentos."}
-                  </p>
-                </div>
-              </div>
-
-              {rotaAguardandoCarga && (
-                <Link
-                  href="/mobile/carga"
-                  className="mt-4 flex h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[11px] font-black text-white shadow-[0_14px_28px_rgba(23,111,60,0.24)]"
-                >
-                  <PackageCheck size={16} />
-                  Ir para Minha carga
-                </Link>
-              )}
-
-              {rotaAguardandoConferencia && (
-                <Link
-                  href="/mobile/carga/receber"
-                  className="mt-4 flex h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[11px] font-black text-white shadow-[0_14px_28px_rgba(23,111,60,0.24)]"
-                >
-                  <PackageCheck size={16} />
-                  Receber e conferir carga
-                </Link>
-              )}
-
-              {rotaProntaParaIniciar && podeGerenciarRotaPropria && (
-                <form action={iniciarMinhaRota} className="mt-4">
-                  <button
-                    type="submit"
-                    className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#1f8a4c,#0d5d31)] text-[11px] font-black text-white shadow-[0_14px_28px_rgba(23,111,60,0.24)] transition active:scale-[0.985]"
-                  >
-                    <Play size={16} fill="currentColor" />
-                    Iniciar rota e vincular carga
-                  </button>
-                </form>
-              )}
-
-              {rotaProntaParaIniciar && !podeGerenciarRotaPropria && (
-                <div className="mt-4 rounded-[16px] border border-red-100 bg-red-50 px-4 py-3 text-[10px] font-bold leading-5 text-red-700">
-                  Seu perfil não possui permissão para iniciar esta rota.
-                </div>
-              )}
+            <section className="mb-5 rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-[11px] font-black text-emerald-950">Rota planejada para este entregador</p>
+              <p className="mt-2 text-[11px] leading-5 text-emerald-800">
+                Os atendimentos desta rota não dependem de uma carga. A rotina antiga de iniciar rota
+                ainda contém esse vínculo no banco e foi desabilitada aqui para não criar associação indevida.
+              </p>
+              <Link href="/mobile/estoque" className="mt-3 flex min-h-[46px] items-center justify-center rounded-xl bg-emerald-800 px-3 text-[11px] font-black text-white">
+                Meu estoque móvel
+              </Link>
             </section>
           )}
 
@@ -1713,13 +1367,13 @@ export default async function MinhaRotaPage({
               ) : null}
 
               <Link
-                href="/mobile/clientes?modo=venda"
+                href="/mobile/estoque"
                 className="flex h-[48px] w-full items-center justify-center gap-2 rounded-[15px] border border-emerald-200 bg-white text-[10px] font-black text-[#176f3c] shadow-[0_8px_20px_rgba(17,63,33,0.06)] transition active:scale-[0.985]"
               >
                 <Plus
                   size={16}
                 />
-                Adicionar outro atendimento
+                Atender cliente com meu estoque
               </Link>
 
             </section>
