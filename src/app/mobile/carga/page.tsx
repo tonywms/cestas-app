@@ -341,9 +341,10 @@ export default async function MinhaCargaPage() {
   const podeVenderDaCarga =
     usuario.isPlatformAdmin ||
     temPermissao(usuario.permissoes, PERMISSOES.ENTREGA_REALIZAR);
-  const podeIniciarRotaVenda =
-    usuario.isPlatformAdmin ||
-    temPermissao(usuario.permissoes, PERMISSOES.ROTA_MOBILE_GERENCIAR_PROPRIA);
+  const podeRegistrarVenda =
+    usuario.configuracao.permitirPagamentoMobile &&
+    (usuario.isPlatformAdmin ||
+      temPermissao(usuario.permissoes, PERMISSOES.PAGAMENTO_REGISTRAR));
   const podeVerRota =
     usuario.isPlatformAdmin ||
     temPermissao(usuario.permissoes, PERMISSOES.ROTA_VISUALIZAR);
@@ -439,25 +440,9 @@ export default async function MinhaCargaPage() {
     );
   }
 
-  // A RPC atual de venda nao aceita iniciar uma rota se ja existe outra
-  // carga com rota ativa. Nao oferecer um botao que geraria erro silencioso
-  // ou contabilizacao de vendas na carga incorreta.
-  const { data: rotaDeOutraCarga, error: erroRotaDeOutraCarga } =
-    await supabaseRota
-      .from("rotas")
-      .select("id, codigo, carga_id")
-      .eq("empresa_id", empresaId)
-      .eq("entregador_id", entregadorId)
-      .in("status", ["PLANEJADA", "EM_ROTA"])
-      .neq("carga_id", carga.id)
-      .not("carga_id", "is", null)
-      .limit(1)
-      .maybeSingle();
-
-  const vendaDaCargaBloqueada =
-    Boolean(erroRotaDeOutraCarga) || Boolean(rotaAtivaError) ||
-    Boolean(rotaDeOutraCarga);
-
+  // V105.5.10: venda SEM rota utiliza o formulario de entrega direta
+  // e nao chama mobile_iniciar_rota_propria. A baixa fica sempre na
+  // carga escolhida, validada novamente pelo servidor da entrega.
   const temRotaAtiva =
     !!rotaAtiva;
 
@@ -598,30 +583,30 @@ export default async function MinhaCargaPage() {
               </Link>
             ) : (
               <div className="mt-4 space-y-2">
-                {saldo > 0 && podeVenderDaCarga && podeIniciarRotaVenda && !vendaDaCargaBloqueada ? (
-                  <Link prefetch={false} href="/mobile/clientes?modo=venda"
+                {saldo > 0 && podeVenderDaCarga && podeRegistrarVenda ? (
+                  <Link prefetch={false} href="/mobile/clientes?modo=venda-direta"
                     className="flex min-h-[56px] items-center justify-center gap-2 rounded-[16px] bg-emerald-800 px-4 text-[13px] font-black text-white">
                     Vender cesta da carga nº {carga.id}
                   </Link>
-                ) : saldo > 0 && podeVenderDaCarga && podeIniciarRotaVenda && vendaDaCargaBloqueada ? (
-                  <div role="status" className="rounded-[16px] border border-amber-200 bg-amber-50 p-3">
-                    <p className="text-[11px] font-black text-amber-950">Venda desta carga ainda bloqueada no servidor</p>
-                    <p className="mt-1 text-[10px] leading-5 text-amber-900">
-                      {rotaDeOutraCarga
-                        ? `A rota ${rotaDeOutraCarga.codigo} pertence à carga nº ${rotaDeOutraCarga.carga_id}.
-                           O fluxo antigo impede abrir uma venda desta carga sem misturar rotas. Seu estoque continua disponível, sem devolução.`
-                        : "Não foi possível verificar a associação da rota. Atualize a página antes de tentar uma venda."}
-                    </p>
-                  </div>
+                ) : saldo > 0 && podeVenderDaCarga ? (
+                  <Link prefetch={false} href="/mobile/entregas/nova"
+                    className="flex min-h-[56px] items-center justify-center gap-2 rounded-[16px] bg-emerald-800 px-4 text-[13px] font-black text-white">
+                    Entregar cesta desta carga
+                  </Link>
                 ) : saldo === 0 ? (
                   <p className="rounded-xl bg-slate-50 p-3 text-[11px] font-semibold text-slate-700">
                     Sem cestas disponíveis nesta carga para novas entregas.
                   </p>
-                ) : podeVenderDaCarga && !podeIniciarRotaVenda ? (
-                  <p className="rounded-xl bg-amber-50 p-3 text-[11px] text-amber-900">
-                    Sua empresa ainda não autorizou a rotina de venda em campo neste perfil.
+                ) : (
+                  <p className="rounded-xl bg-amber-50 p-3 text-[11px] font-semibold text-amber-900">
+                    Seu perfil não tem permissão para realizar entregas desta carga.
                   </p>
-                ) : null}
+                )}
+                {saldo > 0 && podeVenderDaCarga && !podeRegistrarVenda && (
+                  <p className="text-[10px] leading-5 text-slate-500">
+                    O registro financeiro da venda depende da permissão de pagamentos da empresa.
+                  </p>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   {(podeCadastrarCliente || podeEditarCliente || podeVenderDaCarga) && (
