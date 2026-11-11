@@ -175,8 +175,8 @@ export default async function ClientesMobilePage({
   const cargaVendaId = Number(cargaSelecionada ?? 0);
   if (modoVendaDireta &&
       (erroCargaSelecionada || !Number.isSafeInteger(cargaVendaId) || cargaVendaId < 1)) {
-    redirect("/mobile/carga/selecionar?erro=" + encodeURIComponent(
-      "Escolha a carga recebida que será utilizada na venda.",
+    redirect("/mobile/estoque?erro=" + encodeURIComponent(
+      "Entre em Meu estoque móvel e toque em Vender cesta.",
     ));
   }
 
@@ -314,7 +314,7 @@ export default async function ClientesMobilePage({
               )}
 
               {modoVendaDireta
-                ? `Venda sem rota · carga nº ${cargaVendaId}`
+                ? "Venda com estoque móvel"
                 : modoVenda
                   ? "Venda em campo"
                   : "Carteira da empresa"}
@@ -328,7 +328,7 @@ export default async function ClientesMobilePage({
 
             <p className="mt-3 max-w-[340px] text-[11px] leading-5 text-white/65">
               {modoVendaDireta
-                ? `Você está usando as cestas da carga nº ${cargaVendaId}. Escolha o cliente, entregue a cesta e registre a venda e o pagamento. Nenhuma rota precisa ser criada.`
+                ? "Escolha o cliente, entregue a cesta e registre a venda e o pagamento. A origem física de cada volume fica registrada para rastreabilidade."
                 : modoVenda
                   ? "Venda para um cliente já cadastrado ou cadastre um novo sem depender de rota planejada."
                   : "Localize, cadastre, corrija dados e inicie uma venda diretamente da rua."}
@@ -500,7 +500,7 @@ export default async function ClientesMobilePage({
                               className="flex h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#176f3c] text-[10px] font-black text-white"
                             >
                               <ShoppingBag size={15} />
-                              Vender desta carga
+                              Vender com meu estoque
                             </Link>
                           ) : (
                             <form action={iniciarVendaCampo}>
