@@ -916,44 +916,44 @@ export default async function MinhaCargaPage() {
               </div>
             )}
 
+
           {recebimentoCompleto &&
             !temRotaAtiva &&
             !temRotaFinalizadaDaCarga && (
-              <div className="mt-5 rounded-[20px] border border-emerald-200 bg-emerald-50 p-4">
+              <section className="mt-5 rounded-[20px] border border-emerald-200 bg-white p-4">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2
-                    size={18}
-                    className="mt-0.5 shrink-0 text-emerald-700"
-                  />
-
+                  <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-700" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">
-                      Carga pronta para iniciar jornada
-                    </p>
-
-                    <p className="mt-1 text-[10px] leading-5 text-emerald-800">
-                      A carga está disponível no estoque móvel. Você pode trocar de carga e continuar a operação. Uma devolução ao CD depende de confirmação específica.
+                    <p className="text-[11px] font-black text-emerald-800">Carga recebida e disponível</p>
+                    <p className="mt-1 text-[10px] leading-5 text-slate-600">
+                      Você pode usar suas cestas no estoque móvel, com ou sem uma rota planejada.
+                      Receber uma carga não exige que ela seja devolvida.
                     </p>
                   </div>
                 </div>
-
                 <Link prefetch={false}
                   href="/mobile/rota"
-                  className="mt-4 flex h-[54px] w-full items-center justify-center gap-2 rounded-[17px] bg-[#176b3a] text-[11px] font-black text-white shadow-[0_14px_30px_rgba(23,107,58,0.18)]"
+                  className="mt-3 flex min-h-[42px] w-full items-center justify-center gap-2 rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-bold text-emerald-900"
                 >
-                  <Truck size={17} />
-                  Ir para Minha Rota
+                  <Truck size={15} />
+                  Consultar minha rota (opcional)
                 </Link>
-
-                {/* V62_DEVOLUCAO_SEM_JORNADA */}
                 {podeFecharCarga && (
-                  <DevolverCargaSemJornadaButton
-                    cargaId={Number(carga.id)}
-                    codigo={String(carga.codigo)}
-                    totalEmPosse={saldo}
-                  />
+                  <details className="mt-3 rounded-[16px] border border-slate-200 bg-slate-50 p-3">
+                    <summary className="cursor-pointer text-[10px] font-black text-slate-700">
+                      Precisa devolver esta carga sem iniciar uma rota?
+                    </summary>
+                    <p className="mt-2 text-[10px] leading-5 text-slate-600">
+                      Use somente para a devolução física ao CD, nunca para confirmar o recebimento.
+                    </p>
+                    <DevolverCargaSemJornadaButton
+                      cargaId={Number(carga.id)}
+                      codigo={String(carga.codigo)}
+                      totalEmPosse={saldo}
+                    />
+                  </details>
                 )}
-              </div>
+              </section>
             )}
 
           {podeFecharCarga &&
