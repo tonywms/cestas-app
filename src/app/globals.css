@@ -858,7 +858,6 @@ img {
   .admin-claude-theme [class*="shadow-"],
   .admin-claude-theme .card-premium,
   .admin-claude-theme article,
-  .admin-claude-theme section,
   .admin-claude-theme header {
     box-shadow: 0 1px 3px rgba(15, 60, 32, 0.08) !important;
   }
@@ -935,3 +934,32 @@ img {
   border-color: var(--cestas-outline-card);
 }
 /* CESTAS_V123_CONTRASTE_ESTRUTURAL_END */
+
+/* CESTAS_V124_HIERARQUIA_VISUAL_START
+   Estrutura (grid) nao e card. Contorno somente para superficies reais.
+   Mantem cores semanticas (erro, aviso, selecao) intactas. */
+:root {
+  --cestas-outline-card: #c9ddcf;
+  --cestas-outline-panel: #c9d9cc;
+  --cestas-outline-field: #bdcfbf;
+}
+.card-premium { border-color: var(--cestas-outline-card); }
+.glass { border-color: var(--cestas-outline-panel); }
+.nav-glass { border-top-color: var(--cestas-outline-panel); }
+.admin-claude-theme {
+  --admin-border: #bdcfbf;
+  --admin-border-soft: #dbe6dd;
+}
+.admin-claude-theme .card-premium { border-color: var(--cestas-outline-card); }
+.admin-claude-theme .glass { border-color: var(--cestas-outline-panel); }
+.admin-claude-theme :is(div, article, section, aside)[class*="rounded"][class*="bg-white"][class*="border-emerald-100"] {
+  border-color: var(--cestas-outline-card);
+}
+/* Prioriza cartoes isolados e remove sombras das grades estruturais
+   que nao possuem fundo nem borda propria. */
+@media (min-width: 768px) {
+  .admin-claude-theme section.grid:not([class*="bg-"]):not([class*="border"]):not(.card-premium) {
+    box-shadow: none !important;
+  }
+}
+/* CESTAS_V124_HIERARQUIA_VISUAL_END */
