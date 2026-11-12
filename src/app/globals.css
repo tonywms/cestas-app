@@ -963,3 +963,31 @@ img {
   }
 }
 /* CESTAS_V124_HIERARQUIA_VISUAL_END */
+
+/* CESTAS_V125_CONTORNO_VERDE_GESTAO_START
+   Apenas a faixa de indicadores recebe uma linha verde definida.
+   Grids comuns sao apenas estruturas de layout, sem sombra fantasma. */
+:root {
+  --cestas-kpi-outline: #94bd9f;
+  --cestas-kpi-card-outline: #c2dac9;
+}
+.admin-claude-theme section[aria-label="Indicadores executivos"] {
+  border: 1px solid var(--cestas-kpi-outline) !important;
+  border-radius: 23px;
+  background: rgba(255,255,255,.16);
+  padding: 15px;
+  box-shadow: none !important;
+}
+.admin-claude-theme section[aria-label="Indicadores executivos"] > div {
+  border-color: var(--cestas-kpi-card-outline) !important;
+}
+.admin-claude-theme section.grid:not([aria-label="Indicadores executivos"]):not([class*="bg-"]):not([class*="border"]):not(.card-premium) {
+  box-shadow: none !important;
+}
+@media (max-width: 640px) {
+  .admin-claude-theme section[aria-label="Indicadores executivos"] {
+    padding: 10px;
+    border-radius: 18px;
+  }
+}
+/* CESTAS_V125_CONTORNO_VERDE_GESTAO_END */
