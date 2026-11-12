@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   CreditCard,
   LayoutDashboard,
+  MapPinned,
   Route,
   ShieldCheck,
   Settings2,
@@ -241,6 +242,24 @@ export default async function AdminPage() {
       icone:
         <ShieldCheck size={22} />,
     });
+  }
+
+  // CESTAS_V121_DASHBOARDS_MENU: acesso visivel somente para perfis autorizados.
+  if (usuario.isPlatformAdmin || usuario.perfilCodigo === "ADMINISTRADOR" || usuario.perfilCodigo === "GESTOR") {
+    modulos.splice(1, 0,
+      {
+        titulo: "Gestão operacional",
+        descricao: "Indicadores de entregas, vendas, equipe e ocorrências.",
+        href: "/admin/gestao-operacional",
+        icone: <BarChart3 size={22} />,
+      },
+      {
+        titulo: "Território",
+        descricao: "Distribuição geográfica e acompanhamento de atendimentos.",
+        href: "/admin/territorio",
+        icone: <MapPinned size={22} />,
+      },
+    );
   }
 
   const podeVisualizarCargas =
