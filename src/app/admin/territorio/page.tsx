@@ -27,7 +27,7 @@ export default async function TerritorioV119({searchParams}: Props) {
         <label htmlFor="periodo-territorio" className="text-xs font-black">Período analisado</label>
         <div className="flex gap-2"><select id="periodo-territorio" name="dias" defaultValue={String(periodo(dias).dias)} className="h-11 rounded-xl border border-emerald-100 px-3 text-xs font-bold"><option value="7">7 dias</option><option value="30">30 dias</option><option value="90">90 dias</option></select><button className="rounded-xl bg-emerald-800 px-4 text-xs font-black text-white">Filtrar</button></div>
       </form>
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="cestas-panel-outline grid gap-4 rounded-[26px] p-4 lg:grid-cols-2">
         <div className="rounded-[24px] border border-emerald-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-black">Intensidade dos bairros</h2>
           <p className="mt-1 text-[11px] text-slate-500">Quanto maior a barra, maior o número de entregas registradas.</p>
