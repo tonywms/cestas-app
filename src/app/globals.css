@@ -904,3 +904,34 @@ img {
 }
 
 /* CESTAS_V53_4_GLOBAL_SCROLL_PERF_END */
+
+/* CESTAS_V123_CONTRASTE_ESTRUTURAL_START
+   V122 consolidada: delineamento de cards; V123: painéis de agrupamento.
+   Mantém o tema premium e não adiciona contornos a todas as sections. */
+:root {
+  --cestas-outline-card: #bfd6c6;
+  --cestas-outline-panel: #b4cfbd;
+  --cestas-outline-field: #b9d0c0;
+}
+.card-premium { border-color: var(--cestas-outline-card); }
+.glass { border-color: var(--cestas-outline-panel); }
+.nav-glass { border-top-color: var(--cestas-outline-panel); }
+.admin-claude-theme {
+  --admin-border: #b9d0c0;
+  --admin-border-soft: #d3e2d7;
+}
+.admin-claude-theme .card-premium {
+  border-color: var(--cestas-outline-card);
+  box-shadow: 0 0 0 1px rgba(17,63,33,.08), 0 18px 40px -26px rgba(12,77,39,.35);
+}
+.admin-claude-theme .glass { border-color: var(--cestas-outline-panel); }
+.admin-claude-theme .card-premium:hover { border-color: #83b99a; }
+.admin-claude-theme .cestas-panel-outline {
+  border: 1px solid var(--cestas-outline-panel) !important;
+  background-color: rgba(255,255,255,.22);
+  box-shadow: 0 1px 3px rgba(15,60,32,.09) !important;
+}
+.admin-claude-theme .cestas-panel-outline > [class*="border-emerald-100"] {
+  border-color: var(--cestas-outline-card);
+}
+/* CESTAS_V123_CONTRASTE_ESTRUTURAL_END */
