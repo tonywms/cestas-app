@@ -10,12 +10,13 @@ import {
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { temPerfilGestao } from "@/lib/gestao/indicadores-v119";
 import { createClient } from "@/lib/supabase/server";
+import ExportarAuditoriaCsv, { type AuditoriaCsvLinha } from "./ExportarAuditoriaCsv";
 
 type Carga = { id: number; codigo: string; status: string; created_at: string; finalizada_at: string | null };
 type Item = { carga_id: number; tipo_cesta_id: number; quantidade_carregada: number; quantidade_entregue: number; quantidade_retornada: number; quantidade_avariada: number };
 type Volume = { carga_id: number | null; tipo_cesta_id: number; codigo_volume: string; status: string };
 type Movimento = { id: number; carga_id: number | null; tipo_cesta_id: number; tipo_movimento: string; quantidade: number; created_at: string; observacao: string | null };
-type Props = { searchParams: Promise<{ carga?: string }> };
+type Props = { searchParams: Promise<{ carga?: string; situacao?: string }> };
 
 function numero(valor: unknown) {
   const n = Number(valor);
@@ -43,7 +44,10 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
   if (!usuario || !usuario.ativo) redirect("/");
   if (!temPerfilGestao(usuario)) redirect("/admin");
 
-  const { carga: cargaTexto } = await searchParams;
+  const { carga: cargaTexto, situacao: situacaoTexto } = await searchParams;
+  const situacao = ["todas", "divergentes", "conciliadas", "nao-finalizadas"].includes(situacaoTexto ?? "")
+    ? situacaoTexto!
+    : "todas";
   const filtroValido = typeof cargaTexto === "string" && /^[1-9]\d{0,8}$/.test(cargaTexto);
   const cargaFiltrada = filtroValido ? Number(cargaTexto) : null;
   const modoVolume = usuario.configuracao.modoControleCarga === "VOLUME";
@@ -178,10 +182,39 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
       porTipo, movimentosCarga, encerrada, confiavel, divergencia };
   }) : [];
 
-  const finalizadas = resumo.filter((r) => r.encerrada).length;
-  const divergentes = resumo.filter((r) => r.divergencia).length;
-  const retornos = resumo.reduce((s, r) => s + r.retornado, 0);
-  const avarias = resumo.reduce((s, r) => s + r.avariado, 0);
+  // V130: o filtro age somente sobre as ultimas 20 cargas carregadas,
+  // para nao prometer que este painel representa todo o historico.
+  const resumoFiltrado = resumo.filter((r) =>
+    situacao === "divergentes" ? r.divergencia
+    : situacao === "conciliadas" ? r.confiavel
+    : situacao === "nao-finalizadas" ? !r.encerrada
+    : true,
+  );
+  const finalizadas = resumoFiltrado.filter((r) => r.encerrada).length;
+  const divergentes = resumoFiltrado.filter((r) => r.divergencia).length;
+  const retornos = resumoFiltrado.reduce((s, r) => s + r.retornado, 0);
+  const avarias = resumoFiltrado.reduce((s, r) => s + r.avariado, 0);
+  const linhasCsv: AuditoriaCsvLinha[] = resumoFiltrado.flatMap((r) =>
+    r.porTipo.map((tipo) => ({
+      cargaId: r.carga.id,
+      cargaCodigo: r.carga.codigo,
+      statusCarga: r.carga.status,
+      dataFechamento: dataPt(r.carga.finalizada_at),
+      conciliacao: r.divergencia ? "Divergente" : r.confiavel ? "Conciliada" : "Nao finalizada",
+      tipoId: tipo.tipoId,
+      tipoNome: tipo.nome,
+      carregadas: tipo.carregadasTipo,
+      entregues: tipo.entreguesTipo,
+      retornadas: tipo.retornadasTipo,
+      entradaCd: tipo.retornoMovimento,
+      avariadas: tipo.avariadasTipo,
+      baixaAvaria: tipo.avariaMovimento,
+      saldoPosse: tipo.posseTipo,
+      volumesRetornados: modoVolume ? tipo.retornadosFisicos : null,
+      volumesAvariados: modoVolume ? tipo.avariadosFisicos : null,
+      alertas: tipo.alertas.join(" | "),
+    })),
+  );
 
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-8">
@@ -193,7 +226,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <ClipboardCheck size={28} />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V129</p>
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V130</p>
               <h1 className="mt-1 text-[26px] font-black tracking-tight">Conciliação de devoluções e avarias</h1>
             </div>
           </div>
@@ -212,7 +245,17 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
               defaultValue={cargaFiltrada ?? ""} placeholder="Ex.: 10"
               className="mt-2 block h-11 w-full rounded-xl border border-[#c9ddcf] bg-[#f8fbf9] px-4 text-sm outline-none focus:border-emerald-600" />
           </div>
-          <button type="submit" className="h-11 rounded-xl bg-[#0f6336] px-5 text-xs font-black text-white">Consultar</button>
+          <div className="min-w-[190px] flex-1">
+            <label htmlFor="filtro-situacao" className="text-xs font-black">Situação da conciliação</label>
+            <select id="filtro-situacao" name="situacao" defaultValue={situacao}
+              className="mt-2 block h-11 w-full rounded-xl border border-[#c9ddcf] bg-[#f8fbf9] px-3 text-xs font-bold text-emerald-950 focus:border-emerald-600">
+              <option value="todas">Todas as situações</option>
+              <option value="divergentes">Com divergência</option>
+              <option value="conciliadas">Conciliadas</option>
+              <option value="nao-finalizadas">Não finalizadas</option>
+            </select>
+          </div>
+          <button type="submit" className="h-11 rounded-xl bg-[#0f6336] px-5 text-xs font-black text-white">Filtrar</button>
           <Link href="/admin/auditoria-devolucoes" className="inline-flex h-11 items-center rounded-xl border border-[#c9ddcf] bg-white px-4 text-xs font-black text-emerald-800">Últimas 20</Link>
         </form>
 
@@ -226,11 +269,18 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
           </p>
         ) : (
           <>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[#d4e5d8] bg-white/75 px-4 py-3">
+              <p className="text-[11px] font-semibold text-[#516955]">
+                Exibindo <strong>{resumoFiltrado.length}</strong> de <strong>{resumo.length}</strong> carga(s) consultadas,
+                entre as últimas 20. Filtros e exportação se aplicam somente a este conjunto.
+              </p>
+              <ExportarAuditoriaCsv linhas={linhasCsv} />
+            </div>
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Resumo de conferência">
-              <Bloco titulo="Cargas finalizadas" valor={finalizadas} detalhe="Nas últimas cargas consultadas" />
+              <Bloco titulo="Cargas finalizadas" valor={finalizadas} detalhe="No conjunto filtrado" />
               <Bloco titulo="Retorno normal" valor={retornos} detalhe="Quantidade classificada para o CD" />
               <Bloco titulo="Volumes ou cestas avariadas" valor={avarias} detalhe="Não reintegradas ao estoque central" />
-              <Bloco titulo="Divergências" valor={divergentes} detalhe="Cargas finalizadas com diferenças de registro" />
+              <Bloco titulo="Divergências" valor={divergentes} detalhe="Diferenças no conjunto filtrado" />
             </section>
 
             <div className="rounded-[18px] border border-emerald-200 bg-[#f4faf6] p-4 text-xs leading-6 text-[#486150]">
@@ -243,11 +293,11 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
             </div>
 
             <section className="space-y-3" aria-label="Resultados por carga">
-              {resumo.length === 0 ? (
+              {resumoFiltrado.length === 0 ? (
                 <div className="rounded-[22px] border border-[#c9ddcf] bg-white p-6 text-sm text-slate-600">
-                  Nenhuma carga encontrada para o filtro informado.
+                  Nenhuma carga encontrada para os filtros informados nas últimas 20 cargas consultadas.
                 </div>
-              ) : resumo.map((r) => (
+              ) : resumoFiltrado.map((r) => (
                 <article key={r.carga.id} className="rounded-[24px] border border-[#c9ddcf] bg-white p-5 shadow-[0_8px_25px_rgba(17,63,33,.04)]">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
