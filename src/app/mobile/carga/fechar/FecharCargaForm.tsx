@@ -433,6 +433,9 @@ export default function FecharCargaForm({
           totalEmPosse: 0,
           totalRetornado: 0,
           totalAvariado: 0,
+          reason: "RESULTADO_INDEFINIDO",
+          nextHref: "/mobile/carga",
+          nextLabel: "Conferir Minha Carga",
         });
       } else {
         setState(resultado);
@@ -454,6 +457,7 @@ export default function FecharCargaForm({
         totalAvariado: 0,
         nextHref: "/mobile/carga",
         nextLabel: "Conferir situação da carga",
+        reason: "RESULTADO_INDEFINIDO",
       });
       setConfirmacaoAberta(false);
       setModal(true);
@@ -1068,9 +1072,10 @@ export default function FecharCargaForm({
 
               <button
                 type="button"
-                onClick={() =>
-                  setConfirmacaoAberta(false)
-                }
+                onClick={() => {
+                  setEncerramentoConfirmado(false);
+                  setConfirmacaoAberta(false);
+                }}
                 disabled={pending}
                 className="h-[48px] w-full rounded-[16px] border border-slate-200 bg-white text-[11px] font-black text-slate-600 disabled:opacity-50"
               >
@@ -1111,13 +1116,13 @@ export default function FecharCargaForm({
             <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
               {state.success
                 ? "Fechamento concluído"
-                : "Carga não finalizada"}
+                : state.reason === "RESULTADO_INDEFINIDO" ? "Resultado ainda não confirmado" : "Carga não finalizada"}
             </p>
 
             <h3 className="mt-2 text-[20px] font-black">
               {state.success
                 ? "Carga finalizada"
-                : "Resolva a pendência"}
+                : state.reason === "RESULTADO_INDEFINIDO" ? "Confira a situação da carga" : "Resolva a pendência"}
             </h3>
 
             <p className="mt-3 text-[11px] leading-5 text-slate-500">
@@ -1149,11 +1154,11 @@ export default function FecharCargaForm({
 
             {state.success ? (
               <Link
-                href="/mobile"
+                href="/mobile/carga"
                 replace
                 className="mt-6 flex h-[52px] w-full items-center justify-center rounded-[16px] bg-[#176f3c] text-xs font-black text-white"
               >
-                Concluir jornada
+                Voltar para Minha Carga
               </Link>
             ) : state.nextHref ? (
               <div className="mt-6 space-y-3">
@@ -1168,15 +1173,15 @@ export default function FecharCargaForm({
                     "Resolver pendência"}
                 </Link>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setModal(false)
-                  }
-                  className="h-[48px] w-full rounded-[16px] border border-emerald-100 bg-white text-[11px] font-black text-[#176f3c]"
-                >
-                  Voltar ao fechamento
-                </button>
+                {state.reason !== "RESULTADO_INDEFINIDO" && (
+                  <button
+                    type="button"
+                    onClick={() => setModal(false)}
+                    className="h-[48px] w-full rounded-[16px] border border-emerald-100 bg-white text-[11px] font-black text-[#176f3c]"
+                  >
+                    Voltar ao fechamento
+                  </button>
+                )}
               </div>
             ) : (
               <button
