@@ -40,6 +40,7 @@ export type FecharCargaState = {
     | "VENDA_PENDENTE"
     | "DIVERGENCIA_VOLUME"
     | "DADOS_INVALIDOS"
+    | "RESULTADO_INDEFINIDO"
     | null;
 };
 
@@ -982,7 +983,7 @@ export async function fecharCarga(
         totalEmPosse,
         nextHref: "/mobile/carga",
         nextLabel: "Conferir situação da carga",
-        reason: "DADOS_INVALIDOS",
+        reason: "RESULTADO_INDEFINIDO",
       },
     );
   }
