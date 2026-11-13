@@ -205,8 +205,8 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
                   <div className="mt-4 grid gap-2 grid-cols-2 md:grid-cols-4">
                     <Bloco titulo="Carregadas" valor={r.carregado} detalhe="Quantidade de origem" />
                     <Bloco titulo="Entregues" valor={r.entregue} detalhe="Saída por entrega" />
-                    <Bloco titulo="Retornadas" valor={r.retornado} detalhe="CD: " + r.retornoEstoque + " movimentadas" />
-                    <Bloco titulo="Avarias" valor={r.avariado} detalhe="Baixa: " + r.baixaAvaria + " movimentadas" />
+                    <Bloco titulo="Retornadas" valor={r.retornado} detalhe={"CD: " + r.retornoEstoque + " movimentadas"} />
+                    <Bloco titulo="Avarias" valor={r.avariado} detalhe={"Baixa: " + r.baixaAvaria + " movimentadas"} />
                   </div>
                   {r.divergencia && (
                     <p role="alert" className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-900">
