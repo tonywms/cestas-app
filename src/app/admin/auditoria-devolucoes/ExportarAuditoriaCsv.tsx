@@ -88,7 +88,7 @@ export default function ExportarAuditoriaCsv({ linhas }: Props) {
       className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#b8d1c0] bg-white px-4 text-xs font-black text-[#176f3c] transition hover:bg-[#f0f8f2] disabled:cursor-not-allowed disabled:opacity-40"
     >
       <Download size={16} />
-      Exportar CSV ({linhas.length})
+      Resumo CSV ({linhas.length})
     </button>
   );
 }
