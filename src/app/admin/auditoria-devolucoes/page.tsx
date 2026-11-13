@@ -12,9 +12,9 @@ import { temPerfilGestao } from "@/lib/gestao/indicadores-v119";
 import { createClient } from "@/lib/supabase/server";
 
 type Carga = { id: number; codigo: string; status: string; created_at: string; finalizada_at: string | null };
-type Item = { carga_id: number; quantidade_carregada: number; quantidade_entregue: number; quantidade_retornada: number; quantidade_avariada: number };
-type Volume = { carga_id: number | null; codigo_volume: string; status: string };
-type Movimento = { carga_id: number | null; tipo_movimento: string; quantidade: number };
+type Item = { carga_id: number; tipo_cesta_id: number; quantidade_carregada: number; quantidade_entregue: number; quantidade_retornada: number; quantidade_avariada: number };
+type Volume = { carga_id: number | null; tipo_cesta_id: number; codigo_volume: string; status: string };
+type Movimento = { carga_id: number | null; tipo_cesta_id: number; tipo_movimento: string; quantidade: number };
 type Props = { searchParams: Promise<{ carga?: string }> };
 
 function numero(valor: unknown) {
@@ -66,15 +66,15 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
     ? [null, null, null]
     : await Promise.all([
       db.from("carga_itens")
-        .select("carga_id,quantidade_carregada,quantidade_entregue,quantidade_retornada,quantidade_avariada", { count: "exact" })
+        .select("carga_id,tipo_cesta_id,quantidade_carregada,quantidade_entregue,quantidade_retornada,quantidade_avariada", { count: "exact" })
         .eq("empresa_id", empresaId).in("carga_id", ids).limit(3000),
       db.from("movimentacoes_estoque")
-        .select("carga_id,tipo_movimento,quantidade", { count: "exact" })
+        .select("carga_id,tipo_cesta_id,tipo_movimento,quantidade", { count: "exact" })
         .eq("empresa_id", empresaId).in("carga_id", ids)
         .in("tipo_movimento", ["RETORNO_CARGA_CENTRAL", "AVARIA_CARGA"]).limit(3000),
       modoVolume
         ? db.from("cesta_volumes")
-          .select("carga_id,codigo_volume,status", { count: "exact" })
+          .select("carga_id,tipo_cesta_id,codigo_volume,status", { count: "exact" })
           .eq("empresa_id", empresaId).in("carga_id", ids).limit(3000)
         : Promise.resolve({ data: [], error: null, count: 0 }),
     ]);
@@ -84,6 +84,24 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
   const itens = (itensResult?.data ?? []) as Item[];
   const movimentos = (movimentosResult?.data ?? []) as Movimento[];
   const volumes = (volumesResult?.data ?? []) as Volume[];
+
+  // V128: identifica os tipos reais de cesta sem consultar outras empresas.
+  // Erro ao ler o cadastro nao mascara divergencias: exibe o ID do tipo.
+  const tipoIds = Array.from(new Set([
+    ...itens.map((i) => numero(i.tipo_cesta_id)),
+    ...movimentos.map((m) => numero(m.tipo_cesta_id)),
+    ...volumes.map((v) => numero(v.tipo_cesta_id)),
+  ])).filter((id) => Number.isInteger(id) && id > 0);
+  const tiposResult = !erroConsulta && !incompleto && tipoIds.length
+    ? await db.from("tipos_cesta").select("id,nome,codigo")
+      .eq("empresa_id", empresaId).in("id", tipoIds).limit(3000)
+    : null;
+  const nomePorTipo = new Map(
+    (tiposResult?.data ?? []).map((tipo) => [
+      numero(tipo.id),
+      String(tipo.nome || tipo.codigo || ("Tipo nº " + tipo.id)),
+    ]),
+  );
 
   const resumo = !erroConsulta && !incompleto ? cargas.map((carga) => {
     const relacionados = itens.filter((i) => i.carga_id === carga.id);
@@ -104,13 +122,59 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
     const volumesNormais = volumesCarga.filter((v) => v.status === "RETORNADO").length;
     const volumesAvariados = volumesCarga.filter((v) => v.status === "AVARIADO").length;
     const encerrada = carga.status === "FINALIZADA";
+    // V128: totais iguais podem ocultar erros que se compensam entre SKUs.
+    // Compara cada tipo de cesta com suas movimentacoes e volumes fisicos.
+    const idsTipoCarga = Array.from(new Set([
+      ...relacionados.map((i) => numero(i.tipo_cesta_id)),
+      ...movimentosCarga.map((m) => numero(m.tipo_cesta_id)),
+      ...volumesCarga.map((v) => numero(v.tipo_cesta_id)),
+    ])).sort((a, b) => a - b);
+    const porTipo = idsTipoCarga.map((tipoId) => {
+      const itensTipo = relacionados.filter((i) => numero(i.tipo_cesta_id) === tipoId);
+      const movimentosTipo = movimentosCarga.filter((m) => numero(m.tipo_cesta_id) === tipoId);
+      const volumesTipo = volumesCarga.filter((v) => numero(v.tipo_cesta_id) === tipoId);
+      const somaItem = (chave: keyof Omit<Item, "carga_id" | "tipo_cesta_id">) =>
+        itensTipo.reduce((soma, i) => soma + numero(i[chave]), 0);
+      const somaMovimento = (tipo: string) => movimentosTipo
+        .filter((m) => m.tipo_movimento === tipo)
+        .reduce((soma, m) => soma + numero(m.quantidade), 0);
+      const carregadasTipo = somaItem("quantidade_carregada");
+      const entreguesTipo = somaItem("quantidade_entregue");
+      const retornadasTipo = somaItem("quantidade_retornada");
+      const avariadasTipo = somaItem("quantidade_avariada");
+      const posseTipo = carregadasTipo - entreguesTipo - retornadasTipo - avariadasTipo;
+      const retornoMovimento = somaMovimento("RETORNO_CARGA_CENTRAL");
+      const avariaMovimento = somaMovimento("AVARIA_CARGA");
+      const retornadosFisicos = volumesTipo.filter((v) => v.status === "RETORNADO").length;
+      const avariadosFisicos = volumesTipo.filter((v) => v.status === "AVARIADO").length;
+      const alertas: string[] = [];
+      if (encerrada) {
+        if (!itensTipo.length) alertas.push("Movimentação/volume sem item correspondente na carga.");
+        if (posseTipo !== 0) alertas.push(`Saldo não conciliado neste tipo: ${posseTipo}.`);
+        if (retornadasTipo !== retornoMovimento)
+          alertas.push(`Retorno: carga informa ${retornadasTipo}, estoque registra ${retornoMovimento}.`);
+        if (avariadasTipo !== avariaMovimento)
+          alertas.push(`Avaria: carga informa ${avariadasTipo}, movimentações registram ${avariaMovimento}.`);
+        if (modoVolume && retornadosFisicos !== retornadasTipo)
+          alertas.push(`Volumes RETORNADO: ${retornadosFisicos}; quantidade retornada: ${retornadasTipo}.`);
+        if (modoVolume && avariadosFisicos !== avariadasTipo)
+          alertas.push(`Volumes AVARIADO: ${avariadosFisicos}; quantidade avariada: ${avariadasTipo}.`);
+      }
+      return {
+        tipoId, nome: nomePorTipo.get(tipoId) ?? `Tipo de cesta nº ${tipoId}`,
+        carregadasTipo, entreguesTipo, retornadasTipo, avariadasTipo, posseTipo,
+        retornoMovimento, avariaMovimento, retornadosFisicos, avariadosFisicos, alertas,
+      };
+    });
+    const divergenciaTipo = porTipo.some((tipo) => tipo.alertas.length > 0);
     const confiavel = encerrada && relacionados.length > 0 &&
       emPosse === 0 && retornado === retornoEstoque && avariado === baixaAvaria &&
-      (!modoVolume || (volumesNormais === retornado && volumesAvariados === avariado));
+      (!modoVolume || (volumesNormais === retornado && volumesAvariados === avariado)) &&
+      !divergenciaTipo;
     const divergencia = encerrada && !confiavel;
     return { carga, carregado, entregue, retornado, avariado, emPosse,
       retornoEstoque, baixaAvaria, volumesNormais, volumesAvariados, volumesCarga,
-      encerrada, confiavel, divergencia };
+      porTipo, encerrada, confiavel, divergencia };
   }) : [];
 
   const finalizadas = resumo.filter((r) => r.encerrada).length;
@@ -128,7 +192,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <ClipboardCheck size={28} />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V126</p>
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V128</p>
               <h1 className="mt-1 text-[26px] font-black tracking-tight">Conciliação de devoluções e avarias</h1>
             </div>
           </div>
@@ -172,7 +236,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
               <p className="font-black text-emerald-950">Como interpretar os números</p>
               Fechar uma carga devolve todo o saldo não entregue: parte pode retornar normalmente, parte pode ser avaria.
               Somente o retorno normal gera entrada no estoque central. Esta auditoria compara registros de carga,
-              movimentos de estoque e, quando obrigatório, a classificação dos volumes.
+              movimentos de estoque por tipo de cesta e, quando obrigatório, a classificação física dos volumes.
               Ela não substitui uma contagem física do estoque.
             </div>
 
@@ -219,6 +283,67 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
                     <span className="inline-flex items-center gap-1"><PackageCheck size={15}/> Retorno ao CD: {r.retornoEstoque}</span>
                     <span className="inline-flex items-center gap-1"><CheckCircle2 size={15}/> Baixa por avaria: {r.baixaAvaria}</span>
                   </div>
+                  <details className="mt-4 rounded-[18px] border border-[#bfd8c7] bg-[#f6faf7]">
+                    <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-4 text-xs font-black text-emerald-950">
+                      <span className="flex items-center gap-2">
+                        <ClipboardCheck size={17} /> Conferência por tipo de cesta ({r.porTipo.length})
+                      </span>
+                      <span className={r.porTipo.some((tipo) => tipo.alertas.length > 0) ? "text-amber-800" : "text-emerald-700"}>
+                        {r.porTipo.some((tipo) => tipo.alertas.length > 0) ? "Diferenças encontradas" : "Detalhar movimentos"}
+                      </span>
+                    </summary>
+                    <div className="space-y-3 border-t border-[#d7e6da] p-3">
+                      {!r.porTipo.length ? (
+                        <p className="rounded-xl bg-white p-3 text-xs text-slate-600">
+                          Nenhum item, volume ou movimento associado a esta carga.
+                        </p>
+                      ) : r.porTipo.map((tipo) => (
+                        <div key={tipo.tipoId} className="rounded-[16px] border border-[#d5e4d9] bg-white p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Tipo nº {tipo.tipoId}</p>
+                              <h3 className="mt-1 text-sm font-black text-emerald-950">{tipo.nome}</h3>
+                            </div>
+                            <span className={tipo.alertas.length
+                              ? "rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-black text-amber-900"
+                              : "rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black text-emerald-900"}>
+                              {tipo.alertas.length ? "Revisar tipo" : r.encerrada ? "Sem diferença neste tipo" : "Carga em andamento"}
+                            </span>
+                          </div>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            <div className="rounded-xl bg-[#f5faf6] p-3">
+                              <p className="text-[10px] font-bold text-slate-600">Cestas carregadas / entregues</p>
+                              <p className="mt-1 text-lg font-black text-[#16452a]">{tipo.carregadasTipo} / {tipo.entreguesTipo}</p>
+                            </div>
+                            <div className="rounded-xl bg-[#f1f8f3] p-3">
+                              <p className="text-[10px] font-bold text-slate-600">Retorno / entrada no CD</p>
+                              <p className="mt-1 text-lg font-black text-emerald-800">{tipo.retornadasTipo} / {tipo.retornoMovimento}</p>
+                              {modoVolume && <p className="mt-1 text-[10px] text-slate-500">Volumes retornados: {tipo.retornadosFisicos}</p>}
+                            </div>
+                            <div className="rounded-xl bg-amber-50 p-3">
+                              <p className="text-[10px] font-bold text-amber-900">Avaria / baixa registrada</p>
+                              <p className="mt-1 text-lg font-black text-amber-900">{tipo.avariadasTipo} / {tipo.avariaMovimento}</p>
+                              {modoVolume && <p className="mt-1 text-[10px] text-amber-800">Volumes avariados: {tipo.avariadosFisicos}</p>}
+                            </div>
+                            <div className="rounded-xl bg-slate-50 p-3">
+                              <p className="text-[10px] font-bold text-slate-600">Saldo restante em posse</p>
+                              <p className="mt-1 text-lg font-black text-slate-800">{tipo.posseTipo}</p>
+                            </div>
+                          </div>
+                          {tipo.alertas.length > 0 && (
+                            <div role="alert" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                              <p className="flex items-center gap-2 text-xs font-black text-amber-900">
+                                <AlertTriangle size={15} /> Divergências deste tipo
+                              </p>
+                              <ul className="mt-2 list-disc space-y-1 pl-4 text-[11px] font-semibold text-amber-900">
+                                {tipo.alertas.map((alerta) => <li key={alerta}>{alerta}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
                   {modoVolume && (
                     <details className="mt-4 rounded-[16px] border border-[#d8e7dc] bg-[#f7faf8]">
                       <summary className="cursor-pointer px-4 py-3 text-xs font-black text-emerald-900">
