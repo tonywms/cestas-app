@@ -386,6 +386,26 @@ export async function fecharCarga(
     );
   }
 
+  // V127: confirmar ENCERRAMENTO INTEGRAL, nao baixa avulsa.
+  // O saldo e a classificacao sao recalculados no servidor antes do RPC.
+  const confirmacaoExplicita = String(formData.get("confirmacao_finalizar_carga") ?? "") === "SIM";
+  const cargaConfirmada = Number(formData.get("confirmacao_carga_id"));
+  const posseConfirmada = Number(formData.get("total_em_posse_confirmado"));
+  const retornoConfirmado = Number(formData.get("total_retorno_confirmado"));
+  const avariaConfirmada = Number(formData.get("total_avaria_confirmada"));
+  if (
+    !confirmacaoExplicita ||
+    !Number.isSafeInteger(cargaConfirmada) || cargaConfirmada !== carga.id ||
+    !Number.isSafeInteger(posseConfirmada) || posseConfirmada !== totalEmPosse ||
+    !Number.isSafeInteger(retornoConfirmado) || retornoConfirmado !== totalRetornado ||
+    !Number.isSafeInteger(avariaConfirmada) || avariaConfirmada !== totalAvariado
+  ) {
+    return estadoErro(
+      "O resumo confirmado não corresponde ao saldo atual da carga ou não houve confirmação explícita. Atualize Minha Carga e revise antes de encerrar.",
+      { totalEmPosse, reason: "DADOS_INVALIDOS", nextHref: "/mobile/carga", nextLabel: "Revisar Minha Carga" },
+    );
+  }
+
   const supabase =
     await createClient();
 
