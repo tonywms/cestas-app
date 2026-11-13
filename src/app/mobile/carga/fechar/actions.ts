@@ -961,12 +961,39 @@ export async function fecharCarga(
       ? data[0]
       : data;
 
+  // V134: somente sinalizar sucesso quando o proprio banco confirma
+  // carga FINALIZADA, retorno, avaria e saldo zero. Nao inventar
+  // resultado positivo quando o RPC retornar vazio ou inesperado.
+  if (
+    !resultado ||
+    Number(resultado.carga_id) !== carga.id ||
+    resultado.status !== "FINALIZADA" ||
+    Number(resultado.total_retornado) !== totalRetornado ||
+    Number(resultado.total_avariado) !== totalAvariado ||
+    Number(resultado.saldo_restante) !== 0
+  ) {
+    console.error("Resposta inesperada da finalizacao da carga:", {
+      cargaId: carga.id,
+      resultado,
+    });
+    return estadoErro(
+      "O servidor não confirmou os totais do fechamento. Consulte Minha Carga e a auditoria antes de tentar novamente.",
+      {
+        totalEmPosse,
+        nextHref: "/mobile/carga",
+        nextLabel: "Conferir situação da carga",
+        reason: "DADOS_INVALIDOS",
+      },
+    );
+  }
+
   [
     "/mobile",
     "/mobile/carga",
     "/mobile/rota",
     "/admin/estoque",
     "/admin/cargas",
+    "/admin/auditoria-devolucoes",
   ].forEach(
     (path) =>
       revalidatePath(
@@ -978,7 +1005,7 @@ export async function fecharCarga(
     success: true,
     cargaId: carga.id,
     message:
-      "Carga finalizada. O retorno voltou ao estoque central e as avarias ficaram registradas no histórico.",
+      "Carga finalizada e confirmada pelo banco. O retorno normal foi lançado no estoque central; os volumes avariados foram baixados separadamente.",
     totalEmPosse,
     totalRetornado:
       Number(
