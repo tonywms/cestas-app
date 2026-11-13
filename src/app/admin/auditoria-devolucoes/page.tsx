@@ -12,6 +12,7 @@ import { temPerfilGestao } from "@/lib/gestao/indicadores-v119";
 import { createClient } from "@/lib/supabase/server";
 import ExportarAuditoriaCsv, { type AuditoriaCsvLinha } from "./ExportarAuditoriaCsv";
 import ExportarMovimentacoesCsv, { type MovimentoExportacao } from "./ExportarMovimentacoesCsv";
+import ExportarVolumesCsv, { type VolumeExportacao } from "./ExportarVolumesCsv";
 
 type Carga = { id: number; codigo: string; status: string; created_at: string; finalizada_at: string | null };
 type Item = { carga_id: number; tipo_cesta_id: number; quantidade_carregada: number; quantidade_entregue: number; quantidade_retornada: number; quantidade_avariada: number };
@@ -237,6 +238,35 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
     })),
   );
 
+  // V132: prepara os volumes fisicos vinculados exatamente as cargas
+  // carregadas e filtradas, ja restritas a empresa do usuario.
+  const linhasVolumesCsv: VolumeExportacao[] = modoVolume
+    ? resumoFiltrado.flatMap((r) =>
+      r.volumesCarga.map((volume) => {
+        const status = String(volume.status ?? "");
+        const destinoOperacional =
+          status === "EM_CARGA" ? "Em posse do entregador"
+          : status === "RETORNADO" ? "Retorno normal ao CD"
+          : status === "AVARIADO" ? "Baixa por avaria"
+          : status === "ENTREGUE" ? "Entregue"
+          : status === "DISPONIVEL" ? "Disponivel no estoque"
+          : "Verificar status";
+        return {
+          cargaNumero: r.carga.id,
+          codigoCarga: r.carga.codigo,
+          situacaoCarga: r.carga.status,
+          dataFechamento: dataPt(r.carga.finalizada_at),
+          tipoNumero: numero(volume.tipo_cesta_id),
+          tipoCesta: nomePorTipo.get(numero(volume.tipo_cesta_id))
+            ?? ("Tipo de cesta nº " + volume.tipo_cesta_id),
+          codigoVolume: String(volume.codigo_volume),
+          statusVolume: status,
+          destinoOperacional,
+        };
+      }),
+    )
+    : [];
+
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-8">
       <div className="mx-auto max-w-[1320px] space-y-5">
@@ -247,7 +277,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <ClipboardCheck size={28} />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V131</p>
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V132</p>
               <h1 className="mt-1 text-[26px] font-black tracking-tight">Conciliação de devoluções e avarias</h1>
             </div>
           </div>
@@ -293,11 +323,12 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[#d4e5d8] bg-white/75 px-4 py-3">
               <p className="text-[11px] font-semibold text-[#516955]">
                 Exibindo <strong>{resumoFiltrado.length}</strong> de <strong>{resumo.length}</strong> carga(s) consultadas,
-                entre as últimas 20. Ambas as exportações respeitam este filtro e não incluem outras cargas.
+                entre as últimas 20. Todas as exportações respeitam este filtro e não incluem outras cargas.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <ExportarAuditoriaCsv linhas={linhasCsv} />
                 <ExportarMovimentacoesCsv registros={linhasMovimentosCsv} />
+                {modoVolume && <ExportarVolumesCsv registros={linhasVolumesCsv} />}
               </div>
             </div>
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Resumo de conferência">
@@ -306,6 +337,18 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
               <Bloco titulo="Volumes ou cestas avariadas" valor={avarias} detalhe="Não reintegradas ao estoque central" />
               <Bloco titulo="Divergências" valor={divergentes} detalhe="Diferenças no conjunto filtrado" />
             </section>
+
+            {resumoFiltrado.length > 0 && finalizadas === 0 && (
+              <div role="status" className="flex items-start gap-3 rounded-[18px] border border-[#d3dfcb] bg-[#f7faf2] px-4 py-3 text-[11px] leading-5 text-[#486048]">
+                <PackageCheck size={18} className="mt-0.5 shrink-0 text-emerald-700" />
+                <div>
+                  <p className="font-black text-emerald-950">Não há cargas finalizadas neste conjunto.</p>
+                  Os volumes em posse não são devoluções. Por isso os totais de retorno e avaria estão zerados.
+                  Você já pode conferir os códigos e status no relatório de volumes, quando a empresa utiliza controle por volume.
+                  As movimentações de encerramento aparecerão apenas quando forem efetivamente registradas.
+                </div>
+              </div>
+            )}
 
             <div className="rounded-[18px] border border-emerald-200 bg-[#f4faf6] p-4 text-xs leading-6 text-[#486150]">
               <p className="font-black text-emerald-950">Como interpretar os números</p>
@@ -348,6 +391,13 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
                     <Bloco titulo="Retornadas" valor={r.retornado} detalhe={"CD: " + r.retornoEstoque + " movimentadas"} />
                     <Bloco titulo="Avarias" valor={r.avariado} detalhe={"Baixa: " + r.baixaAvaria + " movimentadas"} />
                   </div>
+                  {!r.encerrada && (
+                    <div className="mt-3 rounded-[14px] border border-[#d5e5d8] bg-[#f5faf6] px-4 py-3 text-[11px] leading-5 text-[#4b6954]">
+                      <strong className="text-emerald-950">Carga em andamento.</strong>
+                      Saldo em posse: <strong>{r.emPosse}</strong>.
+                      Não há conciliação definitiva até o fechamento; volumes em carga não representam retorno ao CD.
+                    </div>
+                  )}
                   {r.divergencia && (
                     <p role="alert" className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-900">
                       <AlertTriangle size={16} className="shrink-0"/>
