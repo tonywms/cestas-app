@@ -259,6 +259,12 @@ export default async function AdminPage() {
         href: "/admin/territorio",
         icone: <MapPinned size={22} />,
       },
+      {
+        titulo: "Auditoria de devoluções",
+        descricao: "Conciliar retornos, avarias e movimentações de estoque.",
+        href: "/admin/auditoria-devolucoes",
+        icone: <ClipboardCheck size={22} />,
+      },
     );
   }
 
