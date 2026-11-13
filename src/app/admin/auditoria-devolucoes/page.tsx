@@ -292,7 +292,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <ClipboardCheck size={28} />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V132</p>
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V133</p>
               <h1 className="mt-1 text-[26px] font-black tracking-tight">Conciliação de devoluções e avarias</h1>
             </div>
           </div>
@@ -319,6 +319,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
               <option value="divergentes">Com divergência</option>
               <option value="conciliadas">Conciliadas</option>
               <option value="nao-finalizadas">Não finalizadas</option>
+              {modoVolume && <option value="atencao-fisica">Conferência física pendente</option>}
             </select>
           </div>
           <button type="submit" className="h-11 rounded-xl bg-[#0f6336] px-5 text-xs font-black text-white">Filtrar</button>
@@ -346,11 +347,12 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
                 {modoVolume && <ExportarVolumesCsv registros={linhasVolumesCsv} />}
               </div>
             </div>
-            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Resumo de conferência">
+            <section className={"grid gap-3 sm:grid-cols-2 " + (modoVolume ? "lg:grid-cols-5" : "lg:grid-cols-4")} aria-label="Resumo de conferência">
               <Bloco titulo="Cargas finalizadas" valor={finalizadas} detalhe="No conjunto filtrado" />
               <Bloco titulo="Retorno normal" valor={retornos} detalhe="Quantidade classificada para o CD" />
               <Bloco titulo="Volumes ou cestas avariadas" valor={avarias} detalhe="Não reintegradas ao estoque central" />
-              <Bloco titulo="Divergências" valor={divergentes} detalhe="Diferenças no conjunto filtrado" />
+              <Bloco titulo="Divergências" valor={divergentes} detalhe="Após encerramento das cargas" />
+              {modoVolume && <Bloco titulo="Conferências físicas" valor={atencoesFisicas} detalhe="Cargas abertas com diferença em posse" />}
             </section>
 
             {resumoFiltrado.length > 0 && finalizadas === 0 && (
@@ -388,12 +390,12 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
                       <p className="mt-1 text-xs text-slate-500">{dataPt(r.carga.finalizada_at)}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={r.divergencia
+                      <span className={r.divergencia || r.atencaoFisica
                         ? "rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-black text-amber-900"
                         : r.confiavel
                           ? "rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black text-emerald-800"
                           : "rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-black text-slate-700"}>
-                        {r.divergencia ? "Revisar divergência" : r.confiavel ? "Registros conciliados" : "Carga " + r.carga.status.toLowerCase()}
+                        {r.divergencia ? "Revisar divergência" : r.atencaoFisica ? "Revisar volumes em posse" : r.confiavel ? "Registros conciliados" : "Carga " + r.carga.status.toLowerCase()}
                       </span>
                       <Link href={"/admin/cargas/" + r.carga.id} className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 px-3 py-2 text-[10px] font-black text-emerald-800">
                         Ver carga <ArrowUpRight size={14}/>
@@ -469,6 +471,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
                             <div className="rounded-xl bg-slate-50 p-3">
                               <p className="text-[10px] font-bold text-slate-600">Saldo restante em posse</p>
                               <p className="mt-1 text-lg font-black text-slate-800">{tipo.posseTipo}</p>
+                              {modoVolume && <p className="mt-1 text-[10px] font-semibold text-[#4f745b]">Volumes EM_CARGA: {tipo.ativosFisicos}</p>}
                             </div>
                           </div>
                           {tipo.alertas.length > 0 && (
