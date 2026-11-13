@@ -11,6 +11,7 @@ import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { temPerfilGestao } from "@/lib/gestao/indicadores-v119";
 import { createClient } from "@/lib/supabase/server";
 import ExportarAuditoriaCsv, { type AuditoriaCsvLinha } from "./ExportarAuditoriaCsv";
+import ExportarMovimentacoesCsv, { type MovimentoExportacao } from "./ExportarMovimentacoesCsv";
 
 type Carga = { id: number; codigo: string; status: string; created_at: string; finalizada_at: string | null };
 type Item = { carga_id: number; tipo_cesta_id: number; quantidade_carregada: number; quantidade_entregue: number; quantidade_retornada: number; quantidade_avariada: number };
@@ -216,6 +217,26 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
     })),
   );
 
+  // V131: exportacao detalhada usa exatamente os registros carregados e
+  // filtrados acima. Nunca consulta cargas adicionais ou outras empresas.
+  const linhasMovimentosCsv: MovimentoExportacao[] = resumoFiltrado.flatMap((r) =>
+    r.movimentosCarga.map((mov) => ({
+      cargaNumero: r.carga.id,
+      codigoCarga: r.carga.codigo,
+      statusCarga: r.carga.status,
+      movimentoNumero: mov.id,
+      dataMovimento: dataPt(mov.created_at),
+      tipoCestaNumero: mov.tipo_cesta_id,
+      tipoCesta: nomePorTipo.get(numero(mov.tipo_cesta_id))
+        ?? ("Tipo de cesta nº " + mov.tipo_cesta_id),
+      natureza: mov.tipo_movimento === "AVARIA_CARGA"
+        ? "Baixa por avaria"
+        : "Retorno ao estoque central",
+      quantidade: numero(mov.quantidade),
+      observacao: mov.observacao ?? "",
+    })),
+  );
+
   return (
     <main className="app-premium min-h-screen px-4 py-6 text-[#142018] md:px-8">
       <div className="mx-auto max-w-[1320px] space-y-5">
@@ -226,7 +247,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <ClipboardCheck size={28} />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V130</p>
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V131</p>
               <h1 className="mt-1 text-[26px] font-black tracking-tight">Conciliação de devoluções e avarias</h1>
             </div>
           </div>
@@ -272,9 +293,12 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[#d4e5d8] bg-white/75 px-4 py-3">
               <p className="text-[11px] font-semibold text-[#516955]">
                 Exibindo <strong>{resumoFiltrado.length}</strong> de <strong>{resumo.length}</strong> carga(s) consultadas,
-                entre as últimas 20. Filtros e exportação se aplicam somente a este conjunto.
+                entre as últimas 20. Ambas as exportações respeitam este filtro e não incluem outras cargas.
               </p>
-              <ExportarAuditoriaCsv linhas={linhasCsv} />
+              <div className="flex flex-wrap items-center gap-2">
+                <ExportarAuditoriaCsv linhas={linhasCsv} />
+                <ExportarMovimentacoesCsv registros={linhasMovimentosCsv} />
+              </div>
             </div>
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Resumo de conferência">
               <Bloco titulo="Cargas finalizadas" valor={finalizadas} detalhe="No conjunto filtrado" />
