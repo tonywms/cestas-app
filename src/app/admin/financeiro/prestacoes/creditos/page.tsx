@@ -8,6 +8,7 @@ import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { confirmarCreditoCorporativoV110 } from "./actions";
+import ConfirmacaoFinanceiraModal from "@/components/admin/ConfirmacaoFinanceiraModal";
 
 type Movimento={
   origem:"VENDA"|"COBRANCA"|"PARCELA"; origem_id:number; cliente_nome:string;
@@ -19,9 +20,13 @@ type Resumo={
   valor_pendente:number;conciliados:number;valor_conciliado:number;
   movimentos:Movimento[];detalhe_limitado:boolean;
 };
+type Confirmacao = {
+  origem:string;origem_id:number;protocolo:string;confirmado_por_nome:string;
+  confirmado_at:string;tipo_confirmacao:string;referencia:string|null;
+};
 type Props={searchParams:Promise<{
   inicio?:string;fim?:string;erro?:string;conciliado?:string;
-  situacao?:string;forma?:string;busca?:string;
+  situacao?:string;forma?:string;busca?:string;origemConfirmada?:string;idConfirmado?:string;
 }>};
 const real=(v:unknown)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v??0));
 function hojeFortaleza(){
@@ -40,9 +45,18 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
   const inicio=/^\d{4}-\d{2}-\d{2}$/.test(params.inicio??"")?String(params.inicio):hoje;
   const fim=/^\d{4}-\d{2}-\d{2}$/.test(params.fim??"")?String(params.fim):hoje;
   const supabase=await createClient();
-  const {data,error}=await supabase.rpc("listar_creditos_corporativos_v110",{
-    p_empresa_id:usuario.empresa.id,p_inicio:inicio,p_fim:fim,
-  });
+  const [creditosResp,historicoResp]=await Promise.all([
+    supabase.rpc("listar_creditos_corporativos_v110",{
+      p_empresa_id:usuario.empresa.id,p_inicio:inicio,p_fim:fim,
+    }),
+    supabase.rpc("historico_confirmacoes_cd_v113",{
+      p_empresa_id:usuario.empresa.id,p_inicio:inicio,p_fim:fim,
+    }),
+  ]);
+  const {data,error}=creditosResp;
+  const historicoError=historicoResp.error;
+  const confirmacoes=(Array.isArray(historicoResp.data)?historicoResp.data:[]) as Confirmacao[];
+  const porOrigem=new Map(confirmacoes.map(c=>[`${c.origem}-${c.origem_id}`,c]));
   const resumo=(data??{}) as Partial<Resumo>;
   const movimentos=Array.isArray(resumo.movimentos)?resumo.movimentos:[];
   const situacao=["TODOS","PENDENTE","CONCILIADO"].includes(params.situacao??"")?String(params.situacao):"TODOS";
@@ -57,6 +71,12 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
   const valorFiltrado=filtrados.reduce((acc,m)=>acc+Number(m.valor),0);
   const query=new URLSearchParams({inicio,fim,situacao,forma,busca});
   const exportHref=`/admin/financeiro/prestacoes/creditos/exportar?${query.toString()}`;
+  const idConfirmado=Number(params.idConfirmado??0);
+  const registroConcluido=(params.conciliado==="1" && !error && Number.isSafeInteger(idConfirmado)&&idConfirmado>0)
+    ?movimentos.find(m=>m.origem===params.origemConfirmada&&m.origem_id===idConfirmado&&m.conciliado)
+    :undefined;
+  const auditoriaConfirmada=registroConcluido?porOrigem.get(`${registroConcluido.origem}-${registroConcluido.origem_id}`):undefined;
+  const fecharModal=`/admin/financeiro/prestacoes/creditos?${query.toString()}`;
   return <main className="min-h-dvh bg-[#eef4ef] text-[#142018]">
     <div className="mx-auto max-w-[1060px] space-y-5 p-4 md:p-8">
       <header className="rounded-[27px] bg-[linear-gradient(140deg,#0c5732,#138448)] p-6 text-white">
@@ -64,16 +84,21 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
           <ArrowLeft size={18}/> Voltar às prestações
         </Link>
         <div className="mt-5 flex items-center gap-3"><Landmark size={30}/><div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Conciliação e fechamento · V111</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Conciliação e fechamento · V113</p>
           <h1 className="text-2xl font-black">PIX e cartão da empresa</h1>
         </div></div>
         <p className="mt-3 text-[12px] leading-6 text-emerald-50">
           Confira os créditos que entram diretamente na conta ou maquineta da empresa. Não é necessário o entregador enviar um acerto de R$ 0.
         </p>
       </header>
-      {params.conciliado&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold text-emerald-950">
-        Crédito registrado na conciliação. Nenhum repasse adicional foi cobrado do entregador.
-      </p>}
+      {registroConcluido&&<ConfirmacaoFinanceiraModal
+        titulo="Recebimento confirmado pelo CD"
+        descricao="A conferência manual foi concluída e o crédito aparece como confirmado no extrato financeiro."
+        destinoAposFechar={fecharModal}
+        valor={real(registroConcluido.valor)}
+        identificacao={registroConcluido.cliente_nome}
+        detalhe={`${registroConcluido.forma} · ${auditoriaConfirmada?.protocolo??"Conferência registrada"} · Nenhum repasse adicional do entregador.`}
+      />}
       {params.erro&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-900">{params.erro.slice(0,260)}</p>}
       <form method="get" className="grid items-end gap-3 rounded-[22px] bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-6">
         <label className="text-[11px] font-bold text-slate-700">Data inicial
@@ -106,6 +131,9 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
           </a>}
         </div>
       </form>
+      {historicoError && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-[11px] font-semibold text-amber-900">
+        Histórico de conferência indisponível. Não será emitido comprovante sem rastreabilidade confirmada.
+      </p>}
       {error ? <div role="alert" className="rounded-2xl border border-red-100 bg-white p-5 text-xs text-red-900">
         Não foi possível consultar o extrato corporativo: {error.message}
       </div>:<>
@@ -144,13 +172,31 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
               <div className="text-right">
                 <p className="text-xl font-black text-emerald-950">{real(m.valor)}</p>
                 <p className={`mt-2 text-[10px] font-black ${m.conciliado?"text-emerald-800":"text-amber-800"}`}>
-                  {m.conciliado?"CONCILIADO":"AGUARDANDO CONFERÊNCIA"}
+                  {m.conciliado?"CONFIRMADO PELO CD":"AGUARDANDO CONFERÊNCIA"}
                 </p>
               </div>
             </div>
             {m.conciliado
-              ? <div className="mt-4 flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-[11px] text-emerald-950">
-                  <ShieldCheck size={17} className="shrink-0"/> Conferido no CD. Referência: {m.referencia??"registrada no fechamento"}
+              ? <div className="mt-4 space-y-3 rounded-xl bg-emerald-50 p-4 text-[11px] text-emerald-950">
+                  {porOrigem.has(`${m.origem}-${m.origem_id}`) ? (()=>{
+                    const c=porOrigem.get(`${m.origem}-${m.origem_id}`)!;
+                    return <>
+                      <div className="flex items-start gap-2">
+                        <ShieldCheck size={18} className="shrink-0 text-emerald-800"/>
+                        <div className="space-y-1">
+                          <p className="font-black">Conferência registrada no CD · {c.protocolo}</p>
+                          <p>Responsável: <strong>{c.confirmado_por_nome}</strong></p>
+                          <p>Conferido em: <strong>{new Date(c.confirmado_at).toLocaleString("pt-BR",{timeZone:"America/Fortaleza",dateStyle:"short",timeStyle:"short"})}</strong></p>
+                          <p className="text-[10px] text-emerald-800">{c.tipo_confirmacao==="MANUAL_CD"?"Confirmação manual · sem integração com o banco":"Confirmado pelo CD com registro de auditoria"}</p>
+                        </div>
+                      </div>
+                      <Link
+                        href={`/admin/financeiro/prestacoes/creditos/comprovante?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}&origem=${encodeURIComponent(m.origem)}&id=${m.origem_id}`}
+                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-emerald-300 bg-white px-4 text-[11px] font-black text-emerald-900">
+                        Ver comprovante interno
+                      </Link>
+                    </>;
+                  })():<p className="font-semibold">Recebimento confirmado. Histórico de conferência indisponível no momento.</p>}
                 </div>
               : <form action={confirmarCreditoCorporativoV110} className="mt-4 space-y-3 rounded-[17px] border border-emerald-100 bg-[#f8fcf9] p-4">
                   <input type="hidden" name="origem" value={m.origem}/>
@@ -160,21 +206,11 @@ export default async function CreditosEmpresaV110({searchParams}:Props){
                   <input type="hidden" name="situacao" value={situacao}/>
                   <input type="hidden" name="forma" value={forma}/>
                   <input type="hidden" name="busca" value={busca}/>
-                  <label className="block text-[10px] font-black text-slate-700">ID PIX, NSU ou referência do crédito conferido
-                    <input name="referencia" minLength={4} maxLength={250} required
-                      placeholder={m.forma==="PIX"?"Ex.: identificador E2E no extrato":"Ex.: NSU da transação aprovada"}
-                      className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs"/>
-                  </label>
-                  <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-5 font-semibold text-amber-950">
-                    <input type="checkbox" name="confirmado_no_extrato" value="SIM" required
-                      className="mt-1 h-4 w-4 shrink-0 accent-emerald-700"/>
-                    Verifiquei o crédito de {real(m.valor)} no extrato/maquineta da empresa e confirmei que corresponde a este cliente e pagamento.
-                  </label>
                   <button type="submit" className="min-h-12 w-full rounded-xl bg-emerald-800 px-4 text-xs font-black text-white">
-                    Confirmar crédito conferido no banco
+                    Confirmar recebimento
                   </button>
                   <p className="text-[10px] leading-5 text-slate-600">
-                    Confirme somente após verificar o banco ou a maquineta. Isso não cria outro pagamento nem cobra o entregador.
+                    Confirmação manual feita por funcionário autorizado do CD. O sistema registra responsável, horário e protocolo, sem exigir código PIX ou NSU. Não há consulta automática ao banco.
                   </p>
                 </form>}
           </article>)}

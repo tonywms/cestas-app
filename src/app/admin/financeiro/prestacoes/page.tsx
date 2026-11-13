@@ -12,6 +12,7 @@ import {
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { PERMISSOES, temPermissao } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
+import ConfirmacaoFinanceiraModal from "@/components/admin/ConfirmacaoFinanceiraModal";
 import {
   configurarPrestacao, classificarRecebimentoAnterior,
   registrarRepasseV109, conciliarCreditoEmpresaV109
@@ -45,7 +46,7 @@ type Antigo = { id:number; valor:number; forma_pagamento:string; created_at:stri
   recebido_por:string; origem:"VENDA"|"COBRANCA"|"PARCELA" };
 type Props={searchParams:Promise<{
   erro?:string;configurado?:string;classificado?:string;repasse?:string;
-  conciliado?:string;inicio?:string;fim?:string;
+  conciliado?:string;conferido?:string;repasseId?:string;prestacao?:string;inicio?:string;fim?:string;
 }>};
 const n=(v:unknown)=>Number.isFinite(Number(v))?Number(v):0;
 const moeda=(v:unknown)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(n(v));
@@ -135,6 +136,40 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
   const fim=/^\d{4}-\d{2}-\d{2}$/.test(params.fim??"")?params.fim:null;
   const visiveis=prestacoes.filter(p=>(!inicio||p.fim>=inicio)&&(!fim||p.inicio<=fim));
   const saldos=visiveis.reduce((a,p)=>a+n(p.pendente_dinheiro)+n(p.pendente_pix)+n(p.pendente_cartao),0);
+  const idPrestacao=Number(params.prestacao??0),idRepasse=Number(params.repasseId??0);
+  const repasseConfirmado=(Number.isSafeInteger(idPrestacao)&&Number.isSafeInteger(idRepasse)
+    ?prestacoes.find(p=>p.id===idPrestacao)?.repasses.find(r=>r.id===idRepasse)
+    :undefined);
+  const evento=params.erro?null:params.repasse==="1"?"REPASSE":
+    params.conciliado==="1"?"CREDITO":
+    params.classificado==="1"?"CLASSIFICADO":
+    params.configurado==="1"?"CONFIGURADO":
+    params.conferido==="1"?"CONFERIDO":null;
+  const destinoLimpo=new URLSearchParams();
+  if(inicio)destinoLimpo.set("inicio",inicio);
+  if(fim)destinoLimpo.set("fim",fim);
+  const fecharModal=`/admin/financeiro/prestacoes${destinoLimpo.size?"?"+destinoLimpo.toString():""}`;
+  const modal=evento==="REPASSE"?(repasseConfirmado?{
+      titulo:"Repasse confirmado com sucesso",
+      descricao:"O CD registrou o valor recebido. O saldo da prestação foi atualizado.",
+      valor:moeda(repasseConfirmado.valor),
+      identificacao:`Prestação nº ${idPrestacao} · ${repasseConfirmado.forma}`,
+      detalhe:"O valor consta nos repasses confirmados e não pode ser recebido novamente como saldo pendente.",
+      comprovanteUrl:`/admin/financeiro/prestacoes/repasses/comprovante?prestacao=${idPrestacao}&repasse=${idRepasse}`,
+    }:null):
+    evento==="CREDITO"?{
+      titulo:"Crédito conciliado pelo CD",
+      descricao:"O recebimento foi conferido e registrado no histórico financeiro.",
+    }:evento==="CLASSIFICADO"?{
+      titulo:"Recebimento classificado",
+      descricao:"O destinatário foi registrado e os saldos foram atualizados.",
+    }:evento==="CONFIGURADO"?{
+      titulo:"Configuração salva",
+      descricao:"Os novos destinatários de PIX e cartão foram atualizados para os próximos recebimentos.",
+    }:evento==="CONFERIDO"?{
+      titulo:"Conferência registrada",
+      descricao:"Os valores da prestação foram registrados pelo CD.",
+    }:null;
   return <main className="min-h-screen bg-[#eef4ef] text-[#142018]">
     <div className="mx-auto max-w-[1160px] space-y-5 p-4 md:p-8">
       <header className="rounded-[28px] bg-[linear-gradient(135deg,#0d5730,#187c43)] p-6 text-white">
@@ -151,9 +186,42 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
         </p>
       </header>
 
-      {(params.configurado||params.classificado||params.repasse||params.conciliado)&&
-        <p role="status" className="rounded-xl bg-emerald-50 p-4 text-xs font-bold text-emerald-900">Operação registrada. O histórico e os saldos foram atualizados.</p>}
+      {/* V118 | Acesso à consulta de repasses já confirmados */}
+      <Link href="/admin/financeiro/prestacoes/repasses" className="flex flex-wrap items-center justify-between gap-4 rounded-[23px] border border-emerald-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800"><ReceiptText size={22}/></div>
+          <div><p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Auditoria de caixa · V118</p>
+            <h2 className="mt-1 text-[15px] font-black text-emerald-950">Histórico e comprovantes de repasses</h2>
+            <p className="mt-1 text-[11px] text-slate-600">Filtre por data, entregador e forma. Reimprima RP e exporte lançamentos confirmados.</p></div>
+        </div>
+        <span className="rounded-xl bg-emerald-800 px-5 py-3 text-[11px] font-black text-white">Consultar repasses</span>
+      </Link>
+
+      {modal&&<ConfirmacaoFinanceiraModal
+        titulo={modal.titulo}
+        descricao={modal.descricao}
+        destinoAposFechar={fecharModal}
+        valor={"valor" in modal ? modal.valor : undefined}
+        identificacao={"identificacao" in modal ? modal.identificacao : undefined}
+        detalhe={"detalhe" in modal ? modal.detalhe : undefined}
+        comprovanteUrl={"comprovanteUrl" in modal ? modal.comprovanteUrl : undefined}
+      />}
       {params.erro&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-900">{params.erro.slice(0,320)}</p>}
+
+      <Link href="/admin/financeiro/prestacoes/fechamento"
+        className="flex flex-wrap items-center justify-between gap-4 rounded-[23px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-emerald-800">
+            <FileCheck2 size={22}/>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Visão gerencial do CD · V114</p>
+            <h2 className="mt-1 text-[15px] font-black text-emerald-950">Fechamento financeiro geral</h2>
+            <p className="mt-1 text-[11px] text-slate-600">Créditos da empresa, repasses dos entregadores, pendências e Excel por período.</p>
+          </div>
+        </div>
+        <span className="rounded-xl bg-emerald-800 px-5 py-3 text-[11px] font-black text-white">Abrir fechamento</span>
+      </Link>
 
       <Link href="/admin/financeiro/prestacoes/creditos"
         className="flex flex-wrap items-center justify-between gap-4 rounded-[23px] border border-emerald-200 bg-white p-5 shadow-sm">
@@ -328,11 +396,19 @@ export default async function PrestacoesCdPage({searchParams}:Props) {
             </details>
             {(p.repasses??[]).length>0&&<details className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
               <summary className="cursor-pointer text-[12px] font-black text-emerald-900">Repasses já confirmados pelo CD ({p.repasses.length})</summary>
-              <div className="mt-3 space-y-2">{p.repasses.map(r=><p key={r.id} className="text-[10px] text-emerald-900">
-                {dataHora(r.confirmado_at)} · {r.forma} · {moeda(r.valor)}
-                {n(r.taxa_cartao_autorizada)>0?` · taxa autorizada ${moeda(r.taxa_cartao_autorizada)}`:""}
-                {r.referencia?` · ${r.referencia}`:""}
-              </p>)}</div>
+              <div className="mt-3 space-y-2">{p.repasses.map(r=>
+                <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-white p-3">
+                  <div className="text-[11px] text-emerald-950">
+                    <p className="font-black">{r.forma} · {moeda(r.valor)}</p>
+                    <p className="mt-1 text-[10px] text-slate-600">Confirmado em {dataHora(r.confirmado_at)} · Protocolo RP-{String(r.id).padStart(6,"0")}</p>
+                    {n(r.taxa_cartao_autorizada)>0&&<p className="mt-1 text-[10px]">Taxa autorizada: {moeda(r.taxa_cartao_autorizada)}</p>}
+                  </div>
+                  <Link href={`/admin/financeiro/prestacoes/repasses/comprovante?prestacao=${p.id}&repasse=${r.id}`}
+                    className="inline-flex min-h-10 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-[11px] font-black text-emerald-900">
+                    Ver comprovante
+                  </Link>
+                </div>
+              )}</div>
             </details>}
             {encerrada&&<p className="flex items-center gap-2 text-[11px] font-black text-emerald-800">
               <ShieldCheck size={18}/> Saldo do entregador quitado e créditos corporativos conciliados

@@ -1,10 +1,7 @@
 "use client";
 
-import Link from "next/link";
-
 import {
   Banknote,
-  CheckCircle2,
   CreditCard,
   Landmark,
   Save,
@@ -22,6 +19,7 @@ import {
 import {
   registrarRecebimentoAdmin,
 } from "./actions";
+import ConfirmacaoFinanceiraModal from "@/components/admin/ConfirmacaoFinanceiraModal";
 
 const initialState = {
   success:
@@ -33,6 +31,10 @@ const initialState = {
   saldoDepois:
     null as number | null,
   status:
+    null as string | null,
+  valorRecebido:
+    null as number | null,
+  formaPagamento:
     null as string | null,
 };
 
@@ -310,97 +312,34 @@ export default function RecebimentoAdminForm({
         </button>
       </form>
 
-      {modal &&
-        state.message && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[#07150d]/55 p-4 backdrop-blur-[6px]">
-            <div className="w-full max-w-[430px] rounded-[30px] bg-white p-7 text-center shadow-[0_30px_100px_rgba(15,50,30,0.28)]">
-              <div
-                className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${
-                  state.success
-                    ? "bg-emerald-50 text-emerald-600"
-                    : "bg-red-50 text-red-600"
-                }`}
-              >
-                {state.success ? (
-                  <CheckCircle2
-                    size={31}
-                  />
-                ) : (
-                  <XCircle
-                    size={31}
-                  />
-                )}
-              </div>
-
-              <h3 className="mt-5 text-[22px] font-black">
-                {state.success
-                  ? "Recebimento confirmado"
-                  : "Recebimento não registrado"}
-              </h3>
-
-              <p className="mt-3 text-[13px] leading-6 text-slate-500">
-                {
-                  state.message
-                }
-              </p>
-
-              {state.success ? (
-                <div className="mt-5 grid grid-cols-2 gap-2">
-                  <div className="rounded-[16px] bg-slate-50 p-3">
-                    <p className="text-[10px] font-extrabold uppercase text-slate-400">
-                      Saldo antes
-                    </p>
-
-                    <p className="mt-1 text-[15px] font-black">
-                      {moeda(
-                        state.saldoAntes ??
-                          0,
-                      )}
-                    </p>
-                  </div>
-
-                  <div className="rounded-[16px] bg-emerald-50 p-3">
-                    <p className="text-[10px] font-extrabold uppercase text-emerald-600">
-                      Saldo depois
-                    </p>
-
-                    <p className="mt-1 text-[15px] font-black text-emerald-800">
-                      {moeda(
-                        state.saldoDepois ??
-                          0,
-                      )}
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="mt-6 space-y-2">
-                {state.success ? (
-                  <Link
-                    href="/admin/financeiro"
-                    className="flex h-[50px] items-center justify-center rounded-[16px] bg-[#176f3c] text-[13px] font-black text-white"
-                  >
-                    Voltar ao Financeiro
-                  </Link>
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setModal(
-                      false,
-                    )
-                  }
-                  className="h-[48px] w-full rounded-[15px] border border-slate-200 text-[12px] font-extrabold text-slate-600"
-                >
-                  {state.success
-                    ? "Continuar nesta parcela"
-                    : "Corrigir"}
-                </button>
-              </div>
+      {modal && state.success && state.message && (
+        <ConfirmacaoFinanceiraModal
+          titulo="Recebimento confirmado"
+          descricao={state.message}
+          destinoAposFechar={`/admin/financeiro/receber/${parcelaId}`}
+          valor={moeda(state.valorRecebido??0)}
+          identificacao={`Parcela nº ${parcelaId} · ${state.formaPagamento??"Pagamento"}`}
+          detalhe={`Saldo anterior: ${moeda(state.saldoAntes??0)} · Saldo atual: ${moeda(state.saldoDepois??0)}`}
+        />
+      )}
+      {modal && !state.success && state.message && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-[3px]">
+          <div role="alertdialog" aria-modal="true" aria-labelledby="financeiro-recebimento-erro"
+            className="w-full max-w-[420px] rounded-[28px] bg-white p-7 text-center shadow-[0_25px_100px_rgba(0,0,0,0.28)]">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <XCircle size={34}/>
             </div>
+            <h3 id="financeiro-recebimento-erro" className="mt-5 text-xl font-black text-slate-950">
+              Recebimento não registrado
+            </h3>
+            <p className="mt-3 text-[12px] leading-6 text-slate-600">{state.message}</p>
+            <button type="button" onClick={()=>setModal(false)}
+              className="mt-6 min-h-[50px] w-full rounded-xl bg-emerald-800 px-4 text-sm font-black text-white">
+              Entendi, corrigir
+            </button>
           </div>
-        )}
+        </div>
+      )}
     </>
   );
 }

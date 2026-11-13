@@ -23,6 +23,8 @@ export type RecebimentoAdminState = {
   saldoAntes: number | null;
   saldoDepois: number | null;
   status: string | null;
+  valorRecebido: number | null;
+  formaPagamento: string | null;
 };
 
 function parseValor(
@@ -77,6 +79,10 @@ export async function registrarRecebimentoAdmin(
     saldoDepois:
       null,
     status:
+      null,
+    valorRecebido:
+      null,
+    formaPagamento:
       null,
   });
 
@@ -363,5 +369,9 @@ export async function registrarRecebimentoAdmin(
     status:
       resultado.status ??
       null,
+    valorRecebido:
+      valor,
+    formaPagamento:
+      forma,
   };
 }
