@@ -93,6 +93,10 @@ export default function FecharCargaForm({
   const formRef =
     useRef<HTMLFormElement>(null);
 
+  // V127: aceite explícito para encerramento integral da carga.
+  const [encerramentoConfirmado, setEncerramentoConfirmado] = useState(false);
+  const envioEmAndamentoRef = useRef(false);
+
   const [
     avarias,
     setAvarias,
@@ -376,12 +380,15 @@ export default function FecharCargaForm({
     if (
       !formRef.current ||
       pending ||
+      envioEmAndamentoRef.current ||
+      !encerramentoConfirmado ||
       !motivoAvariaValido ||
       !identificacaoVolumeValida
     ) {
       return;
     }
 
+    envioEmAndamentoRef.current = true;
     setPending(true);
 
     try {
@@ -389,6 +396,13 @@ export default function FecharCargaForm({
         new FormData(
           formRef.current,
         );
+
+      // Valores são revalidados contra o saldo atual no servidor.
+      formData.set("confirmacao_finalizar_carga", "SIM");
+      formData.set("confirmacao_carga_id", String(cargaId));
+      formData.set("total_em_posse_confirmado", String(totalEmPosse));
+      formData.set("total_retorno_confirmado", String(totalRetorno));
+      formData.set("total_avaria_confirmada", String(totalAvaria));
 
       const response =
         await fetch(
@@ -434,14 +448,18 @@ export default function FecharCargaForm({
       setState({
         success: false,
         message:
-          "Não foi possível finalizar a carga agora. Nenhuma movimentação foi confirmada. Tente novamente.",
+          "Não foi possível confirmar o resultado da operação. Verifique a situação da carga antes de repetir, pois o servidor pode ter recebido a solicitação.",
         totalEmPosse,
         totalRetornado: 0,
         totalAvariado: 0,
+        nextHref: "/mobile/carga",
+        nextLabel: "Conferir situação da carga",
       });
       setConfirmacaoAberta(false);
       setModal(true);
     } finally {
+      envioEmAndamentoRef.current = false;
+      setEncerramentoConfirmado(false);
       setPending(false);
     }
   }
@@ -473,6 +491,7 @@ export default function FecharCargaForm({
             return;
           }
 
+          setEncerramentoConfirmado(false);
           setConfirmacaoAberta(true);
         }}
         className="space-y-4"
@@ -977,9 +996,12 @@ export default function FecharCargaForm({
               Finalizar esta carga?
             </h3>
             <p className="mt-3 text-center text-[11px] leading-5 text-slate-500">
-              Confira os números abaixo. Depois de confirmar, retornos e avarias serão gravados definitivamente.
+              Esta ação encerra a carga inteira, não apenas o volume com avaria. Depois de confirmar, todos os volumes em posse serão classificados e retirados do estoque móvel.
             </p>
 
+            <div className="mt-4 rounded-[16px] border border-amber-300 bg-amber-50 px-4 py-3 text-[11px] font-bold leading-5 text-amber-950">
+              Encerramento integral: {totalRetorno} cesta(s) retornam ao estoque central e {totalAvaria} cesta(s) ficam registradas como avaria. Não haverá saldo restante desta carga em posse do entregador.
+            </div>
             <div className="mt-5 grid grid-cols-3 gap-2">
               <ModalResumo label="Em posse" valor={totalEmPosse} />
               <ModalResumo label="Retorno" valor={totalRetorno} />
@@ -1021,17 +1043,27 @@ export default function FecharCargaForm({
               </div>
             )}
 
+            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-[16px] border border-emerald-200 bg-[#f4faf6] p-4 text-[11px] font-semibold leading-5 text-emerald-950">
+              <input
+                type="checkbox"
+                className="mt-1 h-5 w-5 shrink-0 accent-emerald-700"
+                checked={encerramentoConfirmado}
+                onChange={(event) => setEncerramentoConfirmado(event.target.checked)}
+                disabled={pending}
+              />
+              <span>Conferi a carga nº {cargaId} e entendo que vou <strong>encerrar toda a carga</strong>, devolvendo {totalRetorno} cesta(s) ao CD e registrando {totalAvaria} avaria(s).</span>
+            </label>
             <div className="mt-6 space-y-3">
               <button
                 type="button"
                 onClick={executarFechamento}
-                disabled={pending}
+                disabled={pending || !encerramentoConfirmado}
                 className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-[#176f3c] text-xs font-black text-white disabled:opacity-50"
               >
                 <Save size={16} />
                 {pending
                   ? "Finalizando carga..."
-                  : "Confirmar e finalizar carga"}
+                  : "Confirmar encerramento integral"}
               </button>
 
               <button
