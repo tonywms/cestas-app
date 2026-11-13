@@ -19,6 +19,7 @@ export type AuditoriaCsvLinha = {
   avariadas: number;
   baixaAvaria: number;
   saldoPosse: number;
+  volumesAtivos: number | null;
   volumesRetornados: number | null;
   volumesAvariados: number | null;
   alertas: string;
@@ -54,6 +55,7 @@ const colunas: Array<[string, keyof AuditoriaCsvLinha]> = [
   ["Avariadas", "avariadas"],
   ["Baixa por avaria", "baixaAvaria"],
   ["Saldo em posse", "saldoPosse"],
+  ["Volumes EM_CARGA", "volumesAtivos"],
   ["Volumes retornados", "volumesRetornados"],
   ["Volumes avariados", "volumesAvariados"],
   ["Alertas", "alertas"],
