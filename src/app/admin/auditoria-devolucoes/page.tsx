@@ -5,7 +5,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   AlertTriangle, ArrowLeft, ArrowUpRight, CheckCircle2,
-  ClipboardCheck, PackageCheck, ScanBarcode, ShieldCheck, Truck,
+  ClipboardCheck, History, PackageCheck, ScanBarcode, ShieldCheck, Truck,
 } from "lucide-react";
 import { getCurrentUserProfile } from "@/lib/auth/get-current-user";
 import { temPerfilGestao } from "@/lib/gestao/indicadores-v119";
@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 type Carga = { id: number; codigo: string; status: string; created_at: string; finalizada_at: string | null };
 type Item = { carga_id: number; tipo_cesta_id: number; quantidade_carregada: number; quantidade_entregue: number; quantidade_retornada: number; quantidade_avariada: number };
 type Volume = { carga_id: number | null; tipo_cesta_id: number; codigo_volume: string; status: string };
-type Movimento = { carga_id: number | null; tipo_cesta_id: number; tipo_movimento: string; quantidade: number };
+type Movimento = { id: number; carga_id: number | null; tipo_cesta_id: number; tipo_movimento: string; quantidade: number; created_at: string; observacao: string | null };
 type Props = { searchParams: Promise<{ carga?: string }> };
 
 function numero(valor: unknown) {
@@ -69,9 +69,10 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
         .select("carga_id,tipo_cesta_id,quantidade_carregada,quantidade_entregue,quantidade_retornada,quantidade_avariada", { count: "exact" })
         .eq("empresa_id", empresaId).in("carga_id", ids).limit(3000),
       db.from("movimentacoes_estoque")
-        .select("carga_id,tipo_cesta_id,tipo_movimento,quantidade", { count: "exact" })
+        .select("id,carga_id,tipo_cesta_id,tipo_movimento,quantidade,created_at,observacao", { count: "exact" })
         .eq("empresa_id", empresaId).in("carga_id", ids)
-        .in("tipo_movimento", ["RETORNO_CARGA_CENTRAL", "AVARIA_CARGA"]).limit(3000),
+        .in("tipo_movimento", ["RETORNO_CARGA_CENTRAL", "AVARIA_CARGA"])
+        .order("created_at", { ascending: false }).limit(3000),
       modoVolume
         ? db.from("cesta_volumes")
           .select("carga_id,tipo_cesta_id,codigo_volume,status", { count: "exact" })
@@ -174,7 +175,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
     const divergencia = encerrada && !confiavel;
     return { carga, carregado, entregue, retornado, avariado, emPosse,
       retornoEstoque, baixaAvaria, volumesNormais, volumesAvariados, volumesCarga,
-      porTipo, encerrada, confiavel, divergencia };
+      porTipo, movimentosCarga, encerrada, confiavel, divergencia };
   }) : [];
 
   const finalizadas = resumo.filter((r) => r.encerrada).length;
@@ -192,7 +193,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <ClipboardCheck size={28} />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V128</p>
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Auditoria operacional · V129</p>
               <h1 className="mt-1 text-[26px] font-black tracking-tight">Conciliação de devoluções e avarias</h1>
             </div>
           </div>
@@ -237,6 +238,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
               Fechar uma carga devolve todo o saldo não entregue: parte pode retornar normalmente, parte pode ser avaria.
               Somente o retorno normal gera entrada no estoque central. Esta auditoria compara registros de carga,
               movimentos de estoque por tipo de cesta e, quando obrigatório, a classificação física dos volumes.
+              Abra o histórico de movimentações para conferir data, quantidade e justificativa de avaria.
               Ela não substitui uma contagem física do estoque.
             </div>
 
@@ -342,6 +344,66 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
                           )}
                         </div>
                       ))}
+                    </div>
+                  </details>
+                  <details className="mt-3 overflow-hidden rounded-[18px] border border-[#c5ddcc] bg-[#f6faf7]">
+                    <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-4 text-xs font-black text-emerald-950">
+                      <span className="inline-flex items-center gap-2">
+                        <History size={17} /> Histórico de movimentações ({r.movimentosCarga.length})
+                      </span>
+                      <span className="text-[10px] font-bold text-[#5f7c67]">Comprovantes e justificativas</span>
+                    </summary>
+                    <div className="space-y-3 border-t border-[#d7e7dc] p-3">
+                      {r.movimentosCarga.length === 0 ? (
+                        <div className="rounded-[14px] bg-white p-4 text-xs leading-5 text-slate-600">
+                          Não existem lançamentos de retorno ou avaria para esta carga.
+                          Isso é esperado enquanto a carga estiver aberta e não houver fechamento.
+                        </div>
+                      ) : r.movimentosCarga.map((mov) => {
+                        const avaria = mov.tipo_movimento === "AVARIA_CARGA";
+                        return (
+                          <div key={mov.id} className="rounded-[16px] border border-[#d4e4d9] bg-white p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-[.12em] text-slate-500">
+                                  Movimento nº {mov.id} · {dataPt(mov.created_at)}
+                                </p>
+                                <h3 className="mt-2 text-[13px] font-black text-emerald-950">
+                                  {avaria ? "Baixa por avaria" : "Retorno ao estoque central"}
+                                </h3>
+                                <p className="mt-1 text-[11px] font-semibold text-slate-600">
+                                  {nomePorTipo.get(numero(mov.tipo_cesta_id)) ?? ("Tipo de cesta nº " + mov.tipo_cesta_id)}
+                                </p>
+                              </div>
+                              <div className={avaria
+                                ? "rounded-[13px] border border-amber-200 bg-amber-50 px-4 py-3 text-right text-amber-900"
+                                : "rounded-[13px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-right text-emerald-900"}>
+                                <p className="text-[9px] font-black uppercase tracking-wider">Quantidade</p>
+                                <p className="mt-1 text-[23px] font-black tabular-nums leading-none">{numero(mov.quantidade)}</p>
+                              </div>
+                            </div>
+                            {mov.observacao?.trim() ? (
+                              <div className={avaria
+                                ? "mt-3 rounded-xl bg-amber-50 px-3 py-3"
+                                : "mt-3 rounded-xl bg-[#f4faf6] px-3 py-3"}>
+                                <p className="text-[10px] font-black text-slate-700">
+                                  {avaria ? "Justificativa registrada" : "Observação do lançamento"}
+                                </p>
+                                <p className="mt-1 whitespace-pre-wrap break-words text-[11px] leading-5 text-slate-700">
+                                  {mov.observacao}
+                                </p>
+                              </div>
+                            ) : avaria ? (
+                              <p className="mt-3 text-[11px] font-bold text-amber-800">
+                                A movimentação de avaria não possui justificativa textual neste registro.
+                              </p>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                      <p className="px-1 text-[10px] leading-5 text-[#5f7c67]">
+                        Lançamentos extraídos das movimentações de estoque desta empresa. A visualização não edita nem confirma movimentações.
+                      </p>
                     </div>
                   </details>
                   {modoVolume && (
