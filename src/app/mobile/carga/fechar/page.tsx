@@ -475,6 +475,30 @@ export default async function FecharCargaPage({
     });
   }
 
+  // Fechamento completo: confere saldo e volumes ativos por TIPO,
+  // evitando compensacao entre dois modelos de cesta.
+  if (modoVolume && !erroConferenciaVolume) {
+    const tipos = new Set([
+      ...itens.map((item) => item.tipoCestaId),
+      ...volumesEmPosseDetalhes.map((volume) => volume.tipoCestaId),
+    ]);
+    for (const tipoId of tipos) {
+      const tipoItens = itens.filter((item) => item.tipoCestaId === tipoId);
+      const saldoTipo = tipoItens.reduce((total, item) => total + item.saldo, 0);
+      const ativosTipo = volumesEmPosseDetalhes.filter((volume) => volume.tipoCestaId === tipoId).length;
+      if (saldoTipo !== ativosTipo) {
+        const descricao = tipoItens[0]?.nome ?? ("Tipo nº " + tipoId);
+        bloqueios.push({
+          id: "divergencia-tipo-" + tipoId,
+          titulo: "Volume físico divergente: " + descricao,
+          detalhe: "Saldo esperado " + saldoTipo + "; volumes em posse " + ativosTipo + ". Revise as etiquetas antes de encerrar.",
+          href: "/mobile/carga",
+          acao: "Ver Minha Carga",
+        });
+      }
+    }
+  }
+
   if (
     modoVolume &&
     !erroConferenciaVolume &&
