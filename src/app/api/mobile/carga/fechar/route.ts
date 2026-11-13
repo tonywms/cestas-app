@@ -47,7 +47,7 @@ export async function POST(
       {
         ...initialState,
         message:
-          "Não foi possível finalizar a carga agora. Nenhuma movimentação foi confirmada.",
+          "Não foi possível confirmar o resultado. Verifique Minha Carga antes de repetir a operação.",
       },
       {
         status: 500,
