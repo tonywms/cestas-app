@@ -47,7 +47,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
   if (!temPerfilGestao(usuario)) redirect("/admin");
 
   const { carga: cargaTexto, situacao: situacaoTexto } = await searchParams;
-  const situacao = ["todas", "divergentes", "conciliadas", "nao-finalizadas"].includes(situacaoTexto ?? "")
+  const situacao = ["todas", "divergentes", "conciliadas", "nao-finalizadas", "atencao-fisica"].includes(situacaoTexto ?? "")
     ? situacaoTexto!
     : "todas";
   const filtroValido = typeof cargaTexto === "string" && /^[1-9]\d{0,8}$/.test(cargaTexto);
@@ -154,8 +154,18 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
       const avariaMovimento = somaMovimento("AVARIA_CARGA");
       const retornadosFisicos = volumesTipo.filter((v) => v.status === "RETORNADO").length;
       const avariadosFisicos = volumesTipo.filter((v) => v.status === "AVARIADO").length;
+      // V133: confere os volumes EM_CARGA antes do encerramento por tipo de cesta.
+      const ativosFisicos = volumesTipo.filter((v) => v.status === "EM_CARGA").length;
       const alertas: string[] = [];
+      if (modoVolume && !encerrada) {
+        if (!itensTipo.length && volumesTipo.length > 0)
+          alertas.push("Volume vinculado sem item correspondente a este tipo de cesta.");
+        if (posseTipo !== ativosFisicos)
+          alertas.push("Conferência preventiva: saldo em posse " + posseTipo + "; volumes EM_CARGA " + ativosFisicos + ".");
+      }
       if (encerrada) {
+        if (modoVolume && ativosFisicos > 0)
+          alertas.push("Carga finalizada com " + ativosFisicos + " volume(s) ainda EM_CARGA.");
         if (!itensTipo.length) alertas.push("Movimentação/volume sem item correspondente na carga.");
         if (posseTipo !== 0) alertas.push(`Saldo não conciliado neste tipo: ${posseTipo}.`);
         if (retornadasTipo !== retornoMovimento)
@@ -170,10 +180,12 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
       return {
         tipoId, nome: nomePorTipo.get(tipoId) ?? `Tipo de cesta nº ${tipoId}`,
         carregadasTipo, entreguesTipo, retornadasTipo, avariadasTipo, posseTipo,
-        retornoMovimento, avariaMovimento, retornadosFisicos, avariadosFisicos, alertas,
+        retornoMovimento, avariaMovimento, retornadosFisicos, avariadosFisicos, ativosFisicos, alertas,
       };
     });
     const divergenciaTipo = porTipo.some((tipo) => tipo.alertas.length > 0);
+    const atencaoFisica = modoVolume && !encerrada && divergenciaTipo;
+    const ativosFisicosCarga = volumesCarga.filter((v) => v.status === "EM_CARGA").length;
     const confiavel = encerrada && relacionados.length > 0 &&
       emPosse === 0 && retornado === retornoEstoque && avariado === baixaAvaria &&
       (!modoVolume || (volumesNormais === retornado && volumesAvariados === avariado)) &&
@@ -181,7 +193,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
     const divergencia = encerrada && !confiavel;
     return { carga, carregado, entregue, retornado, avariado, emPosse,
       retornoEstoque, baixaAvaria, volumesNormais, volumesAvariados, volumesCarga,
-      porTipo, movimentosCarga, encerrada, confiavel, divergencia };
+      porTipo, movimentosCarga, ativosFisicosCarga, atencaoFisica, encerrada, confiavel, divergencia };
   }) : [];
 
   // V130: o filtro age somente sobre as ultimas 20 cargas carregadas,
@@ -190,10 +202,12 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
     situacao === "divergentes" ? r.divergencia
     : situacao === "conciliadas" ? r.confiavel
     : situacao === "nao-finalizadas" ? !r.encerrada
+    : situacao === "atencao-fisica" ? r.atencaoFisica
     : true,
   );
   const finalizadas = resumoFiltrado.filter((r) => r.encerrada).length;
   const divergentes = resumoFiltrado.filter((r) => r.divergencia).length;
+  const atencoesFisicas = resumoFiltrado.filter((r) => r.atencaoFisica).length;
   const retornos = resumoFiltrado.reduce((s, r) => s + r.retornado, 0);
   const avarias = resumoFiltrado.reduce((s, r) => s + r.avariado, 0);
   const linhasCsv: AuditoriaCsvLinha[] = resumoFiltrado.flatMap((r) =>
@@ -202,7 +216,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
       cargaCodigo: r.carga.codigo,
       statusCarga: r.carga.status,
       dataFechamento: dataPt(r.carga.finalizada_at),
-      conciliacao: r.divergencia ? "Divergente" : r.confiavel ? "Conciliada" : "Nao finalizada",
+      conciliacao: r.divergencia ? "Divergente" : r.confiavel ? "Conciliada" : r.atencaoFisica ? "Revisar volumes em posse" : "Nao finalizada",
       tipoId: tipo.tipoId,
       tipoNome: tipo.nome,
       carregadas: tipo.carregadasTipo,
@@ -212,6 +226,7 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
       avariadas: tipo.avariadasTipo,
       baixaAvaria: tipo.avariaMovimento,
       saldoPosse: tipo.posseTipo,
+      volumesAtivos: modoVolume ? tipo.ativosFisicos : null,
       volumesRetornados: modoVolume ? tipo.retornadosFisicos : null,
       volumesAvariados: modoVolume ? tipo.avariadosFisicos : null,
       alertas: tipo.alertas.join(" | "),
