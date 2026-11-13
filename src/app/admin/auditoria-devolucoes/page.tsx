@@ -409,10 +409,16 @@ export default async function AuditoriaDevolucoesV126({ searchParams }: Props) {
                     <Bloco titulo="Avarias" valor={r.avariado} detalhe={"Baixa: " + r.baixaAvaria + " movimentadas"} />
                   </div>
                   {!r.encerrada && (
-                    <div className="mt-3 rounded-[14px] border border-[#d5e5d8] bg-[#f5faf6] px-4 py-3 text-[11px] leading-5 text-[#4b6954]">
-                      <strong className="text-emerald-950">Carga em andamento.</strong>
-                      Saldo em posse: <strong>{r.emPosse}</strong>.
-                      Não há conciliação definitiva até o fechamento; volumes em carga não representam retorno ao CD.
+                    <div role={r.atencaoFisica ? "alert" : "status"}
+                      className={r.atencaoFisica
+                        ? "mt-3 rounded-[14px] border border-amber-300 bg-amber-50 px-4 py-3 text-[11px] leading-5 text-amber-950"
+                        : "mt-3 rounded-[14px] border border-[#d5e5d8] bg-[#f5faf6] px-4 py-3 text-[11px] leading-5 text-[#4b6954]"}>
+                      <strong>{r.atencaoFisica ? "Atenção: conferência física divergente." : "Carga em andamento."}</strong>
+                      {" "}Saldo registrado em posse: <strong>{r.emPosse}</strong>.
+                      {modoVolume && <> Volumes físicos EM_CARGA: <strong>{r.ativosFisicosCarga}</strong>.</>}
+                      {" "}{r.atencaoFisica
+                        ? "Abra a conferência por tipo de cesta, identifique os volumes divergentes e confira Minha Carga antes do encerramento."
+                        : "Ainda não há conciliação definitiva; esta verificação física não substitui as demais regras de fechamento."}
                     </div>
                   )}
                   {r.divergencia && (
