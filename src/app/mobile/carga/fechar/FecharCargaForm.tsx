@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
+import LeitorQrCamera from "@/components/mobile/LeitorQrCamera";
 import { createPortal } from "react-dom";
 
 import {
@@ -303,9 +304,9 @@ export default function FecharCargaForm({
     setErroVolumeAvaria("");
   }
 
-  function biparVolumeAvariado() {
+  function biparVolumeAvariado(codigoCamera?: string) {
     const codigo =
-      codigoVolumeAvaria
+      (codigoCamera ?? codigoVolumeAvaria)
         .trim()
         .toLocaleUpperCase(
           "pt-BR",
@@ -648,14 +649,18 @@ export default function FecharCargaForm({
                 />
                 <button
                   type="button"
-                  onClick={
-                    biparVolumeAvariado
-                  }
+                  onClick={() => biparVolumeAvariado()}
                   className="h-11 shrink-0 rounded-[14px] bg-amber-600 px-4 text-[9px] font-black text-white"
                 >
                   Marcar
                 </button>
               </div>
+
+              <LeitorQrCamera
+                disabled={pending}
+                onCodigo={(texto) => biparVolumeAvariado(texto)}
+                textoBotao="Ler QR da avaria com a câmera"
+              />
 
               {erroVolumeAvaria && (
                 <p className="mt-2 text-[8px] font-bold text-red-600">

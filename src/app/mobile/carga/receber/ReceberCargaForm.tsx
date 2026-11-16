@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
-
+import LeitorQrCamera from "@/components/mobile/LeitorQrCamera";
 import {
   useActionState,
   useEffect,
@@ -70,6 +70,8 @@ export default function ReceberCargaForm({
       null,
     );
 
+  const formRef = useRef<HTMLFormElement>(null);
+
   const [
     modalConcluido,
     setModalConcluido,
@@ -99,6 +101,15 @@ export default function ReceberCargaForm({
   const completoReal =
     esperados > 0 &&
     confirmados >= esperados;
+
+  function registrarCodigoCamera(texto: string) {
+    if (pending || recebida || completoReal) return;
+    const input = inputRef.current;
+    const form = formRef.current;
+    if (!input || !form) return;
+    input.value = texto.trim().toUpperCase();
+    form.requestSubmit();
+  }
 
   const percentual =
     esperados > 0
@@ -273,6 +284,7 @@ export default function ReceberCargaForm({
         </div>
 
         <form
+          ref={formRef}
           action={formAction}
           className="p-5"
         >
@@ -316,6 +328,12 @@ export default function ReceberCargaForm({
           <p className="mt-2 text-[9px] leading-4 text-slate-400">
             Em coletores configurados como teclado, basta bipar: o código será preenchido automaticamente.
           </p>
+
+          <LeitorQrCamera
+            disabled={pending || completoReal}
+            onCodigo={registrarCodigoCamera}
+            textoBotao="Ler QR com a câmera do celular"
+          />
 
           <button
             type="submit"

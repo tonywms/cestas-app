@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import LeitorQrCamera from "@/components/mobile/LeitorQrCamera";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { registrarEntregaVolume, type EntregaVolumeState } from "./actions";
@@ -86,8 +87,8 @@ export default function EntregaVolumeForm({
     [tipos, tipoId],
   );
 
-  function adicionarCodigo() {
-    const normalizado = codigo.trim().toUpperCase();
+  function adicionarCodigo(codigoCamera?: string) {
+    const normalizado = (codigoCamera ?? codigo).trim().toUpperCase();
     if (!normalizado) return inputRef.current?.focus();
     if (codigos.includes(normalizado)) {
       setCodigo("");
@@ -212,7 +213,13 @@ export default function EntregaVolumeForm({
               />
             </div>
 
-            <button type="button" onClick={adicionarCodigo} className="mt-3 flex h-[48px] w-full items-center justify-center gap-2 rounded-[15px] border border-emerald-100 bg-emerald-50 text-[9px] font-black text-emerald-800">
+            <LeitorQrCamera
+              disabled={pending || salvandoOffline || jaSalvouOffline || !tipoSelecionado || codigos.length >= tipoSelecionado.volumesDisponiveis}
+              onCodigo={(texto) => adicionarCodigo(texto)}
+              textoBotao="Ler QR da entrega com a câmera"
+            />
+
+            <button type="button" onClick={() => adicionarCodigo()} className="mt-3 flex h-[48px] w-full items-center justify-center gap-2 rounded-[15px] border border-emerald-100 bg-emerald-50 text-[9px] font-black text-emerald-800">
               <Barcode size={15} /> Adicionar volume
             </button>
 
