@@ -326,7 +326,7 @@ const estiloNatureza = {
   SAIDA: {
     tone: "amber" as const,
     cor: "text-[#a15f00]",
-    sinal: "âˆ’",
+    sinal: "−",
     faixa: "bg-[#d99a2b]",
   },
   TRANSFERENCIA: {

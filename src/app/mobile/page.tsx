@@ -354,7 +354,7 @@ return (
                   href="/mobile/gestor"
                   icon={<MapPinned size={22} />}
                   titulo="Painel gestor"
-                  descricao="Indicadores, equipe e territÃ³rio"
+                  descricao="Indicadores, equipe e território"
                   delay={80}
                 />
               )}
@@ -363,7 +363,7 @@ return (
                   href="/mobile/produtividade"
                   icon={<PackageCheck size={22} />}
                   titulo="Meu desempenho"
-                  descricao="Entregas, metas e evoluÃ§Ã£o"
+                  descricao="Entregas, metas e evolução"
                   delay={90}
                 />
               )}
